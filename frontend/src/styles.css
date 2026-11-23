@@ -16,10 +16,20 @@ table { width: 100%; }
 textarea { font: inherit; background: transparent; color: inherit; border: 1px solid var(--g-color-line-generic); border-radius: 6px; padding: 8px; }
 select { font: inherit; }
 a[download] { text-decoration: none; }
+.menu-toggle { display: none; font: inherit; background: none; color: inherit; border: 1px solid var(--g-color-line-generic); border-radius: 6px; padding: 6px 10px; }
+.topbar-panel { display: flex; align-items: center; gap: 16px; flex: 1; }
+.topbar-user { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.user-cards { display: flex; flex-direction: column; gap: 10px; }
+.user-card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid var(--g-color-line-generic); border-radius: 8px; }
+
 @media (max-width: 760px) {
   .page { padding: 12px; }
-  .topbar { flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
-  .topbar nav { order: 3; width: 100%; flex-wrap: wrap; }
-  table { display: block; overflow-x: auto; white-space: nowrap; }
+  .topbar { gap: 8px; padding: 8px 12px; flex-wrap: wrap; }
+  .menu-toggle { display: inline-block; margin-left: auto; }
+  .topbar-panel { display: none; order: 3; flex: 1 0 100%; flex-direction: column; align-items: flex-start; gap: 8px; width: 100%; }
+  .topbar-panel.open { display: flex; padding-top: 8px; border-top: 1px solid var(--g-color-line-generic); }
+  .topbar nav { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .topbar-user { flex-wrap: wrap; margin-left: 0; }
+  table { display: none; }
   .qr { width: 200px; }
 }

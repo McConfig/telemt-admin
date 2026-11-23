@@ -5,6 +5,7 @@ import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { api, ApiError, type Me, type ProxyUser } from '../api';
 import { formatBytes } from '../format';
+import { useMedia } from '../useMedia';
 
 export default function UsersPage({ me }: { me: Me }) {
   const [users, setUsers] = useState<ProxyUser[]>([]);
@@ -14,6 +15,7 @@ export default function UsersPage({ me }: { me: Me }) {
   const [onlyRisk, setOnlyRisk] = useState(false);
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
+  const isMobile = useMedia('(max-width: 760px)');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,9 +46,12 @@ export default function UsersPage({ me }: { me: Me }) {
   }, [query, onlyRisk]);
   const pageSize = 20;
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const shown = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const shown = useMemo(
+    () => filtered.slice((page - 1) * pageSize, page * pageSize),
+    [filtered, page],
+  );
 
-  const columns: ColumnDef<ProxyUser>[] = [
+  const columns = useMemo<ColumnDef<ProxyUser>[]>(() => [
     {
       id: 'username',
       header: 'Имя',
@@ -93,7 +98,7 @@ export default function UsersPage({ me }: { me: Me }) {
         <Link to={`/users/${encodeURIComponent(row.original.username)}`}>Открыть</Link>
       ),
     },
-  ];
+  ], []);
 
   const table = useTable({ columns, data: shown });
 
@@ -122,6 +127,34 @@ export default function UsersPage({ me }: { me: Me }) {
       <Card view="filled" style={{ padding: 8 }}>
         {loading ? (
           <Loader size="m" />
+        ) : isMobile ? (
+          <div className="user-cards">
+            {shown.length === 0 && <Text className="muted">Пользователей нет</Text>}
+            {shown.map((u) => (
+              <div className="user-card" key={u.username}>
+                <div className="row">
+                  <Link to={`/users/${encodeURIComponent(u.username)}`}>{u.username}</Link>
+                  <Label theme={u.enabled ? 'success' : 'danger'} size="s">
+                    {u.enabled ? 'включён' : 'заблокирован'}
+                  </Label>
+                  {u.risk > 0 && (
+                    <Label theme={u.risk === 2 ? 'danger' : 'warning'} size="s">
+                      {u.risk === 2 ? 'высокий риск' : 'внимание'}
+                    </Label>
+                  )}
+                </div>
+                <div className="muted">
+                  IP: {u.activeUniqueIps} · за 24ч: {u.ips24h} · соединений: {u.currentConnections}
+                </div>
+                <div className="muted">Трафик: {formatBytes(u.totalOctets)}</div>
+                <div className="muted">
+                  Последняя активность:{' '}
+                  {u.lastSeen ? new Date(u.lastSeen).toLocaleString('ru-RU') : '—'}
+                </div>
+                <Link to={`/users/${encodeURIComponent(u.username)}`}>Открыть</Link>
+              </div>
+            ))}
+          </div>
         ) : (
           <Table table={table} emptyContent="Пользователей нет" />
         )}
