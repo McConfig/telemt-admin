@@ -23,7 +23,8 @@ export default function LoginPage({ onLogin }: { onLogin: (me: Me) => void }) {
   };
 
   return (
-    <div className="page" style={{ maxWidth: 420, paddingTop: 80 }}>
+    <div className="app-shell">
+      <main className="page" style={{ maxWidth: 420, paddingTop: 80, width: '100%' }}>
       <Card view="filled" style={{ padding: 24 }}>
         <form className="stack" onSubmit={submit}>
           <Text variant="header-2">Вход в TeleMT Admin</Text>
@@ -46,6 +47,7 @@ export default function LoginPage({ onLogin }: { onLogin: (me: Me) => void }) {
           </Button>
         </form>
       </Card>
+      </main>
       <Footer />
     </div>
   );

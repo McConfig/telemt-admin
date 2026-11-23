@@ -23,7 +23,7 @@ export default function Layout({
   const ThemeIcon = theme === 'dark' ? Sun : Moon;
 
   return (
-    <>
+    <div className="app-shell">
       <header className="topbar">
         <span className="brand">TeleMT Admin</span>
         <button
@@ -59,6 +59,6 @@ export default function Layout({
       </header>
       <main className="page">{children}</main>
       <Footer />
-    </>
+    </div>
   );
 }

@@ -95,7 +95,9 @@ export default function UsersPage({ me }: { me: Me }) {
       id: 'actions',
       header: '',
       cell: ({ row }) => (
-        <Link to={`/users/${encodeURIComponent(row.original.username)}`}>Открыть</Link>
+        <Link className="action-link" to={`/users/${encodeURIComponent(row.original.username)}`}>
+          Открыть
+        </Link>
       ),
     },
   ], []);
@@ -151,7 +153,9 @@ export default function UsersPage({ me }: { me: Me }) {
                   Последняя активность:{' '}
                   {u.lastSeen ? new Date(u.lastSeen).toLocaleString('ru-RU') : '—'}
                 </div>
-                <Link to={`/users/${encodeURIComponent(u.username)}`}>Открыть</Link>
+                <Link className="action-link" to={`/users/${encodeURIComponent(u.username)}`}>
+                  Открыть
+                </Link>
               </div>
             ))}
           </div>
