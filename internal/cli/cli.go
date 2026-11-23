@@ -23,7 +23,7 @@ func Run(ctx context.Context, args []string, cfg *config.Config, stdin io.Reader
 	if err != nil {
 		return err
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 
 	switch args[1] {
 	case "add":
@@ -44,7 +44,7 @@ func Run(ctx context.Context, args []string, cfg *config.Config, stdin io.Reader
 		}); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "пользователь %s создан\n", name)
+		_, _ = fmt.Fprintf(stdout, "пользователь %s создан\n", name)
 		return nil
 	case "passwd":
 		if len(args) != 3 {
@@ -62,7 +62,7 @@ func Run(ctx context.Context, args []string, cfg *config.Config, stdin io.Reader
 			return err
 		}
 		_ = st.DeleteUserSessions(ctx, args[2], "")
-		fmt.Fprintf(stdout, "пароль %s изменён\n", args[2])
+		_, _ = fmt.Fprintf(stdout, "пароль %s изменён\n", args[2])
 		return nil
 	case "list":
 		users, err := st.ListUsers(ctx)
@@ -74,7 +74,7 @@ func Run(ctx context.Context, args []string, cfg *config.Config, stdin io.Reader
 			if u.Disabled {
 				state = "отключён"
 			}
-			fmt.Fprintf(stdout, "%s\t%s\t%s\n", u.Name, u.Role, state)
+			_, _ = fmt.Fprintf(stdout, "%s\t%s\t%s\n", u.Name, u.Role, state)
 		}
 		return nil
 	case "disable", "enable":
@@ -137,10 +137,10 @@ func readPasswordTwice(in io.Reader, out io.Writer) (string, error) {
 }
 
 func readSecret(in io.Reader, out io.Writer, prompt string) (string, error) {
-	fmt.Fprint(out, prompt)
+	_, _ = fmt.Fprint(out, prompt)
 	if f, ok := in.(*os.File); ok && term.IsTerminal(int(f.Fd())) {
 		raw, err := term.ReadPassword(int(f.Fd()))
-		fmt.Fprintln(out)
+		_, _ = fmt.Fprintln(out)
 		if err != nil {
 			return "", err
 		}

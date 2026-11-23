@@ -20,7 +20,7 @@ func TestUserAddAndList(t *testing.T) {
 		t.Fatalf("Run: %v", err)
 	}
 	st, _ := store.Open(context.Background(), cfg.ValkeyURL, "")
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 	u, err := st.GetUser(context.Background(), "admin")
 	if err != nil || u.Role != store.RoleAdmin {
 		t.Fatalf("пользователь: %+v, %v", u, err)

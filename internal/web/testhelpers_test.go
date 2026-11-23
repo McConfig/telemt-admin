@@ -22,12 +22,6 @@ func newTestStoreMR(t *testing.T) (*store.Store, *miniredis.Miniredis) {
 	return st, mr
 }
 
-func newTestStore(t *testing.T) *store.Store {
-	t.Helper()
-	st, _ := newTestStoreMR(t)
-	return st
-}
-
 func testServerWithMR(t *testing.T) (*Server, *miniredis.Miniredis) {
 	t.Helper()
 	st, mr := newTestStoreMR(t)

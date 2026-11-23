@@ -24,7 +24,7 @@ func TestNewHandlerServesLogin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newHandler: %v", err)
 	}
-	defer closeFn()
+	defer func() { _ = closeFn() }()
 
 	req := httptest.NewRequest("GET", "/login", nil)
 	req.RemoteAddr = "127.0.0.1:5555"
@@ -51,7 +51,7 @@ func TestHandlerHealthz(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer closeFn()
+	defer func() { _ = closeFn() }()
 	req := httptest.NewRequest("GET", "/healthz", nil)
 	req.RemoteAddr = "127.0.0.1:5555"
 	rr := httptest.NewRecorder()

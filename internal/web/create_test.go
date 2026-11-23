@@ -46,15 +46,6 @@ func adminToken(t *testing.T, s *Server) string {
 	return tok
 }
 
-func csrfFor(t *testing.T, s *Server) string {
-	t.Helper()
-	sess, err := s.store.GetSession(context.Background(), adminToken(t, s))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return sess.CSRF
-}
-
 func adminAuth(t *testing.T, s *Server) (token, csrf string) {
 	t.Helper()
 	tok := adminToken(t, s)
