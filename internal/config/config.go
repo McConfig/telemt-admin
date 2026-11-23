@@ -26,6 +26,7 @@ type Config struct {
 	RiskIPsWarn     int
 	RiskIPsHigh     int
 	RiskDistinct7d  int
+	Retention       time.Duration
 }
 
 // Load читает конфигурацию. getenv передаётся для тестируемости.
@@ -53,6 +54,11 @@ func Load(getenv func(string) string) (*Config, error) {
 		return nil, fmt.Errorf("TGADMIN_COLLECT_INTERVAL: %w", err)
 	}
 	cfg.CollectInterval = collect
+	retention, err := time.ParseDuration(get("TGADMIN_RETENTION", "720h"))
+	if err != nil {
+		return nil, fmt.Errorf("TGADMIN_RETENTION: %w", err)
+	}
+	cfg.Retention = retention
 
 	d, err := time.ParseDuration(get("TGADMIN_SESSION_TTL", "720h"))
 	if err != nil {

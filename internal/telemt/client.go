@@ -109,3 +109,9 @@ func (c *Client) do(ctx context.Context, method, path string, in, out any) error
 	}
 	return nil
 }
+
+// Ready проверяет доступность Control API.
+func (c *Client) Ready(ctx context.Context) error {
+	var out map[string]any
+	return c.do(ctx, "GET", "/v1/capabilities", nil, &out)
+}

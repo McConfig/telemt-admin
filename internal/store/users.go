@@ -140,3 +140,15 @@ func (s *Store) SetDisabled(ctx context.Context, name string, disabled bool) err
 func (s *Store) CountUsers(ctx context.Context) (int64, error) {
 	return s.rdb.SCard(ctx, usersIndex()).Result()
 }
+
+// SetRole меняет роль пользователя UI.
+func (s *Store) SetRole(ctx context.Context, name string, role Role) error {
+	exists, err := s.rdb.Exists(ctx, userKey(name)).Result()
+	if err != nil {
+		return err
+	}
+	if exists == 0 {
+		return ErrNotFound
+	}
+	return s.rdb.HSet(ctx, userKey(name), "role", string(role)).Err()
+}

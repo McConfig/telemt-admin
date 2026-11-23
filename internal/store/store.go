@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -15,7 +16,8 @@ var (
 
 // Store — обёртка над Valkey.
 type Store struct {
-	rdb *redis.Client
+	rdb       *redis.Client
+	retention time.Duration
 }
 
 // Open подключается к Valkey по URL.
@@ -32,7 +34,14 @@ func Open(ctx context.Context, rawURL, password string) (*Store, error) {
 		_ = rdb.Close()
 		return nil, fmt.Errorf("подключение к Valkey: %w", err)
 	}
-	return &Store{rdb: rdb}, nil
+	return &Store{rdb: rdb, retention: 30 * 24 * time.Hour}, nil
+}
+
+// SetRetention задаёт срок хранения истории IP.
+func (s *Store) SetRetention(d time.Duration) {
+	if d > 0 {
+		s.retention = d
+	}
 }
 
 func (s *Store) Close() error { return s.rdb.Close() }

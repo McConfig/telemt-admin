@@ -31,7 +31,13 @@ export default function AuditPage() {
 
   return (
     <div className="stack">
-      <Text variant="header-2">Аудит</Text>
+      <div className="row">
+        <Text variant="header-2">Аудит</Text>
+        <div style={{ flex: 1 }} />
+        <a href={api.auditCSVUrl()} download="audit.csv">
+          Экспорт CSV
+        </a>
+      </div>
       {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
       <Card view="filled" style={{ padding: 8 }}>
         {loading ? <Loader size="m" /> : <Table table={table} emptyContent="Событий нет" />}

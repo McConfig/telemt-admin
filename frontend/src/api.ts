@@ -5,6 +5,15 @@ export interface Me {
   csrf: string;
 }
 
+export interface AdminUser {
+  name: string;
+  role: Role;
+  disabled: boolean;
+  createdAt: string;
+  passwordChangedAt: string;
+  sessions: number;
+}
+
 export interface IPHistoryItem {
   ip: string;
   firstSeen: string;
@@ -28,6 +37,14 @@ export interface ProxyUser {
   maxToday: number;
   trafficToday: number;
   risk: number;
+  lastSeen?: string;
+  dataQuotaBytes: number | null;
+  quotaPeriod: string | null;
+  rateLimitUpBps: number | null;
+  rateLimitDownBps: number | null;
+  expiration: string | null;
+  sourceDeny: string[];
+  note?: string;
   ipHistory?: IPHistoryItem[];
   link?: string;
 }
@@ -131,4 +148,20 @@ export const api = {
     request<void>('POST', '/api/account/password', { current, new: next }),
   revoke: (id: string) => request<void>('POST', `/api/account/sessions/${id}/revoke`),
   qrUrl: (name: string) => `/api/users/${encodeURIComponent(name)}/qr.png`,
+  resetQuota: (name: string) => request<ProxyUser>('POST', `/api/users/${encodeURIComponent(name)}/reset-quota`),
+  setNote: (name: string, note: string) =>
+    request<{ note: string }>('PUT', `/api/users/${encodeURIComponent(name)}/note`, { note }),
+  deleteHistory: (name: string) => request<void>('DELETE', `/api/users/${encodeURIComponent(name)}/history`),
+  historyCSVUrl: (name: string) => `/api/users/${encodeURIComponent(name)}/history.csv`,
+  auditCSVUrl: () => '/api/audit.csv',
+  admins: () => request<AdminUser[]>('GET', '/api/admins'),
+  createAdmin: (body: { name: string; role: Role; password?: string }) =>
+    request<{ user: AdminUser; password?: string }>('POST', '/api/admins', body),
+  patchAdmin: (name: string, body: { role?: Role; disabled?: boolean }) =>
+    request<AdminUser>('PATCH', `/api/admins/${encodeURIComponent(name)}`, body),
+  resetAdminPassword: (name: string, password?: string) =>
+    request<{ password?: string }>('POST', `/api/admins/${encodeURIComponent(name)}/password`, { password }),
+  deleteAdmin: (name: string) => request<void>('DELETE', `/api/admins/${encodeURIComponent(name)}`),
+  revokeAdminSessions: (name: string) =>
+    request<void>('POST', `/api/admins/${encodeURIComponent(name)}/sessions/revoke`),
 };

@@ -1,12 +1,13 @@
 package web
 
 import (
+	"encoding/csv"
 	"errors"
 	"net/http"
-	"time"
-
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/McConfig/telemt-admin/internal/store"
 	"github.com/McConfig/telemt-admin/internal/telemt"
@@ -36,12 +37,20 @@ type apiUser struct {
 	TotalOctets        uint64   `json:"totalOctets"`
 	MaxUniqueIPs       *uint64  `json:"maxUniqueIps"`
 	MaxTCPConns        *uint64  `json:"maxTcpConns"`
+	DataQuotaBytes     *uint64  `json:"dataQuotaBytes"`
+	QuotaPeriod        *string  `json:"quotaPeriod"`
+	RateLimitUpBps     *uint64  `json:"rateLimitUpBps"`
+	RateLimitDownBps   *uint64  `json:"rateLimitDownBps"`
+	ExpirationRFC3339  *string  `json:"expiration"`
+	SourceDeny         []string `json:"sourceDeny"`
+	Note               string   `json:"note,omitempty"`
 	Ips24h             int64    `json:"ips24h"`
 	Ips7d              int64    `json:"ips7d"`
 	New24h             int64    `json:"new24h"`
 	MaxToday           int64    `json:"maxToday"`
 	TrafficToday       uint64   `json:"trafficToday"`
 	Risk               int      `json:"risk"`
+	LastSeen           string   `json:"lastSeen,omitempty"`
 	IPHistory          []apiIP  `json:"ipHistory,omitempty"`
 	Link               string   `json:"link,omitempty"`
 }
@@ -52,6 +61,18 @@ func (s *Server) apiUserView(r *http.Request, u telemt.User) apiUser {
 		CurrentConnections: u.CurrentConnections, ActiveUniqueIPs: u.ActiveUniqueIPs,
 		ActiveIPs: u.ActiveUniqueIPList, TotalOctets: u.TotalOctets,
 		MaxUniqueIPs: u.MaxUniqueIPs, MaxTCPConns: u.MaxTCPConns,
+		DataQuotaBytes: u.DataQuotaBytes, QuotaPeriod: u.QuotaPeriod,
+		RateLimitUpBps: u.RateLimitUpBps, RateLimitDownBps: u.RateLimitDownBps,
+		ExpirationRFC3339: u.ExpirationRFC3339,
+	}
+	if last, ok := s.store.LastSeen(r.Context(), u.Username); ok {
+		out.LastSeen = last.Format(time.RFC3339)
+	}
+	if note, err := s.store.Note(r.Context(), u.Username); err == nil {
+		out.Note = note
+	}
+	if out.SourceDeny == nil {
+		out.SourceDeny = []string{}
 	}
 	if s.isAdmin(r) {
 		out.Link = u.Link(s.cfg.LinkMode)
@@ -118,10 +139,16 @@ func (s *Server) apiUser(w http.ResponseWriter, r *http.Request) {
 }
 
 type createUserRequest struct {
-	Name         string  `json:"name"`
-	Secret       string  `json:"secret"`
-	MaxUniqueIPs *uint64 `json:"maxUniqueIps"`
-	MaxTCPConns  *uint64 `json:"maxTcpConns"`
+	Name              string   `json:"name"`
+	Secret            string   `json:"secret"`
+	MaxUniqueIPs      *uint64  `json:"maxUniqueIps"`
+	MaxTCPConns       *uint64  `json:"maxTcpConns"`
+	DataQuotaBytes    *uint64  `json:"dataQuotaBytes"`
+	QuotaPeriod       *string  `json:"quotaPeriod"`
+	RateLimitUpBps    *uint64  `json:"rateLimitUpBps"`
+	RateLimitDownBps  *uint64  `json:"rateLimitDownBps"`
+	ExpirationRFC3339 *string  `json:"expiration"`
+	SourceDeny        []string `json:"sourceDeny"`
 }
 
 func (s *Server) apiCreateUser(w http.ResponseWriter, r *http.Request) {
@@ -145,6 +172,9 @@ func (s *Server) apiCreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	created, err := s.telemt.CreateUser(r.Context(), telemt.CreateInput{
 		Username: name, Secret: secret, MaxUniqueIPs: in.MaxUniqueIPs, MaxTCPConns: in.MaxTCPConns,
+		DataQuotaBytes: in.DataQuotaBytes, QuotaPeriod: in.QuotaPeriod,
+		RateLimitUpBps: in.RateLimitUpBps, RateLimitDownBps: in.RateLimitDownBps,
+		ExpirationRFC3339: in.ExpirationRFC3339,
 	})
 	if err != nil {
 		s.telemtAPIError(w, r, err)
@@ -155,10 +185,20 @@ func (s *Server) apiCreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 type limitsRequest struct {
-	MaxUniqueIPs      *uint64 `json:"maxUniqueIps"`
-	MaxTCPConns       *uint64 `json:"maxTcpConns"`
-	ClearMaxUniqueIPs bool    `json:"clearMaxUniqueIps"`
-	ClearMaxTCPConns  bool    `json:"clearMaxTcpConns"`
+	MaxUniqueIPs      *uint64  `json:"maxUniqueIps"`
+	MaxTCPConns       *uint64  `json:"maxTcpConns"`
+	ClearMaxUniqueIPs bool     `json:"clearMaxUniqueIps"`
+	ClearMaxTCPConns  bool     `json:"clearMaxTcpConns"`
+	DataQuotaBytes    *uint64  `json:"dataQuotaBytes"`
+	ClearQuota        bool     `json:"clearQuota"`
+	QuotaPeriod       *string  `json:"quotaPeriod"`
+	RateLimitUpBps    *uint64  `json:"rateLimitUpBps"`
+	RateLimitDownBps  *uint64  `json:"rateLimitDownBps"`
+	ClearRates        bool     `json:"clearRates"`
+	ExpirationRFC3339 *string  `json:"expiration"`
+	ClearExpiration   bool     `json:"clearExpiration"`
+	SourceDeny        []string `json:"sourceDeny"`
+	ClearSourceDeny   bool     `json:"clearSourceDeny"`
 }
 
 func (s *Server) apiUpdateLimits(w http.ResponseWriter, r *http.Request) {
@@ -185,6 +225,38 @@ func (s *Server) apiUpdateLimits(w http.ResponseWriter, r *http.Request) {
 		patch["max_tcp_conns"] = nil
 	} else if in.MaxTCPConns != nil {
 		patch["max_tcp_conns"] = *in.MaxTCPConns
+	}
+	if in.ClearQuota {
+		patch["data_quota_bytes"] = nil
+		patch["quota_period"] = nil
+	} else {
+		if in.DataQuotaBytes != nil {
+			patch["data_quota_bytes"] = *in.DataQuotaBytes
+		}
+		if in.QuotaPeriod != nil {
+			patch["quota_period"] = *in.QuotaPeriod
+		}
+	}
+	if in.ClearRates {
+		patch["rate_limit_up_bps"] = nil
+		patch["rate_limit_down_bps"] = nil
+	} else {
+		if in.RateLimitUpBps != nil {
+			patch["rate_limit_up_bps"] = *in.RateLimitUpBps
+		}
+		if in.RateLimitDownBps != nil {
+			patch["rate_limit_down_bps"] = *in.RateLimitDownBps
+		}
+	}
+	if in.ClearExpiration {
+		patch["expiration_rfc3339"] = nil
+	} else if in.ExpirationRFC3339 != nil {
+		patch["expiration_rfc3339"] = *in.ExpirationRFC3339
+	}
+	if in.ClearSourceDeny {
+		patch["source_deny"] = nil
+	} else if len(in.SourceDeny) > 0 {
+		patch["source_deny"] = in.SourceDeny
 	}
 	if len(patch) == 0 {
 		writeError(w, http.StatusBadRequest, "bad_request", "нет изменений")
@@ -376,4 +448,89 @@ func (s *Server) apiQR(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	// #nosec G705 -- PNG сгенерирован внутри приложения, данные не пользовательские.
 	_, _ = w.Write(img)
+}
+
+func (s *Server) apiResetQuota(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdminAPI(w, r) {
+		return
+	}
+	name := chi.URLParam(r, "name")
+	if err := s.telemt.ResetQuota(r.Context(), name); err != nil {
+		s.telemtAPIError(w, r, err)
+		return
+	}
+	s.audit(r, "user.reset_quota", name, "ok")
+	u, err := s.telemt.GetUser(r.Context(), name)
+	if err != nil {
+		s.telemtAPIError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, s.apiUserView(r, *u))
+}
+
+func (s *Server) apiGetNote(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+	note, err := s.store.Note(r.Context(), name)
+	if err != nil {
+		s.serverErrorJSON(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"note": note})
+}
+
+func (s *Server) apiSetNote(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdminAPI(w, r) {
+		return
+	}
+	name := chi.URLParam(r, "name")
+	var in struct {
+		Note string `json:"note"`
+	}
+	if err := decodeJSON(r, &in); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "неверный JSON")
+		return
+	}
+	if len(in.Note) > 200 {
+		writeError(w, http.StatusBadRequest, "bad_request", "заметка не длиннее 200 символов")
+		return
+	}
+	if err := s.store.SetNote(r.Context(), name, in.Note); err != nil {
+		s.serverErrorJSON(w, r, err)
+		return
+	}
+	s.audit(r, "user.note", name, "ok")
+	writeJSON(w, http.StatusOK, map[string]string{"note": in.Note})
+}
+
+func (s *Server) apiDeleteHistory(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdminAPI(w, r) {
+		return
+	}
+	name := chi.URLParam(r, "name")
+	if err := s.store.DeleteIPHistory(r.Context(), name); err != nil {
+		s.serverErrorJSON(w, r, err)
+		return
+	}
+	s.audit(r, "user.history_delete", name, "ok")
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) apiHistoryCSV(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdminAPI(w, r) {
+		return
+	}
+	name := chi.URLParam(r, "name")
+	history, err := s.store.IPHistory(r.Context(), name)
+	if err != nil {
+		s.serverErrorJSON(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", "attachment; filename=\"ips-"+name+".csv\"")
+	cw := csv.NewWriter(w)
+	_ = cw.Write([]string{"ip", "first_seen", "last_seen", "observations"})
+	for _, h := range history {
+		_ = cw.Write([]string{h.IP, h.FirstSeen.Format(time.RFC3339), h.LastSeen.Format(time.RFC3339), strconv.FormatInt(h.Count, 10)})
+	}
+	cw.Flush()
 }

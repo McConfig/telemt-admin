@@ -6,10 +6,14 @@ import type { Me } from './api';
 export default function Layout({
   me,
   onLogout,
+  theme,
+  onToggleTheme,
   children,
 }: {
   me: Me;
   onLogout: () => void;
+  theme: 'dark' | 'light';
+  onToggleTheme: () => void;
   children: ReactNode;
 }) {
   return (
@@ -22,11 +26,15 @@ export default function Layout({
           </NavLink>
           <NavLink to="/audit">Аудит</NavLink>
           <NavLink to="/account">Аккаунт</NavLink>
+          {me.user.role === 'admin' && <NavLink to="/admins">Пользователи UI</NavLink>}
         </nav>
         <span className="muted">{me.user.name}</span>
         <Label theme={me.user.role === 'admin' ? 'success' : 'info'} size="s">
           {me.user.role}
         </Label>
+        <Button view="flat" onClick={onToggleTheme}>
+          {theme === 'dark' ? 'Светлая' : 'Тёмная'}
+        </Button>
         <Button view="flat" onClick={onLogout}>
           Выйти
         </Button>

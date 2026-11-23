@@ -1,7 +1,9 @@
 package web
 
 import (
+	"encoding/csv"
 	"net/http"
+	"time"
 
 	"github.com/McConfig/telemt-admin/internal/auth"
 	"github.com/go-chi/chi/v5"
@@ -122,4 +124,20 @@ func cookieValue(r *http.Request) string {
 		return ""
 	}
 	return c.Value
+}
+
+func (s *Server) apiAuditCSV(w http.ResponseWriter, r *http.Request) {
+	events, err := s.store.RecentAudit(r.Context(), 10000)
+	if err != nil {
+		s.serverErrorJSON(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", "attachment; filename=\"audit.csv\"")
+	cw := csv.NewWriter(w)
+	_ = cw.Write([]string{"at", "actor", "action", "target", "result", "ip"})
+	for _, e := range events {
+		_ = cw.Write([]string{e.At.Format(time.RFC3339), e.Actor, e.Action, e.Target, e.Result, e.IP})
+	}
+	cw.Flush()
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -15,6 +16,13 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		if err := healthcheck(); err != nil {
+			slog.Error("healthcheck", "err", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] != "serve" {
 		cfg, err := config.Load(os.Getenv)
 		if err != nil {
@@ -31,6 +39,23 @@ func main() {
 		slog.Error("остановка", "err", err)
 		os.Exit(1)
 	}
+}
+
+func healthcheck() error {
+	url := os.Getenv("TGADMIN_HEALTH_URL")
+	if url == "" {
+		url = "http://127.0.0.1:8090/readyz"
+	}
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("readyz: %s", resp.Status)
+	}
+	return nil
 }
 
 func run() error {

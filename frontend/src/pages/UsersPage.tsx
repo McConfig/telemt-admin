@@ -11,6 +11,8 @@ export default function UsersPage({ me }: { me: Me }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
+  const [onlyRisk, setOnlyRisk] = useState(false);
+  const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -31,8 +33,18 @@ export default function UsersPage({ me }: { me: Me }) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q ? users.filter((u) => u.username.toLowerCase().includes(q)) : users;
-  }, [users, query]);
+    return users.filter((u) => {
+      if (q && !u.username.toLowerCase().includes(q)) return false;
+      if (onlyRisk && u.risk === 0) return false;
+      return true;
+    });
+  }, [users, query, onlyRisk]);
+  useEffect(() => {
+    setPage(1);
+  }, [query, onlyRisk]);
+  const pageSize = 20;
+  const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const shown = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const columns: ColumnDef<ProxyUser>[] = [
     {
@@ -69,6 +81,12 @@ export default function UsersPage({ me }: { me: Me }) {
     { id: 'conns', header: 'Соединения', cell: ({ row }) => row.original.currentConnections },
     { id: 'traffic', header: 'Трафик', cell: ({ row }) => formatBytes(row.original.totalOctets) },
     {
+      id: 'last',
+      header: 'Последняя активность',
+      cell: ({ row }) =>
+        row.original.lastSeen ? new Date(row.original.lastSeen).toLocaleString('ru-RU') : '—',
+    },
+    {
       id: 'actions',
       header: '',
       cell: ({ row }) => (
@@ -77,7 +95,7 @@ export default function UsersPage({ me }: { me: Me }) {
     },
   ];
 
-  const table = useTable({ columns, data: filtered });
+  const table = useTable({ columns, data: shown });
 
   return (
     <div className="stack">
@@ -93,7 +111,13 @@ export default function UsersPage({ me }: { me: Me }) {
           Обновить
         </Button>
       </div>
-      <TextInput placeholder="Поиск по имени" value={query} onUpdate={setQuery} />
+      <div className="row">
+        <TextInput placeholder="Поиск по имени" value={query} onUpdate={setQuery} />
+        <label>
+          <input type="checkbox" checked={onlyRisk} onChange={(e) => setOnlyRisk(e.target.checked)} /> только
+          подозрительные
+        </label>
+      </div>
       {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
       <Card view="filled" style={{ padding: 8 }}>
         {loading ? (
@@ -102,6 +126,19 @@ export default function UsersPage({ me }: { me: Me }) {
           <Table table={table} emptyContent="Пользователей нет" />
         )}
       </Card>
+      {pages > 1 && (
+        <div className="row">
+          <Button view="outlined" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+            Назад
+          </Button>
+          <Text>
+            {page} из {pages}
+          </Text>
+          <Button view="outlined" disabled={page >= pages} onClick={() => setPage(page + 1)}>
+            Вперёд
+          </Button>
+        </div>
+      )}
       <CreateUserDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}

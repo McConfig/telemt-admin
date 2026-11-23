@@ -17,5 +17,6 @@ FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/tgadmin /tgadmin
 USER nonroot:nonroot
 EXPOSE 8090
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD ["/tgadmin", "healthcheck"]
 ENTRYPOINT ["/tgadmin"]
 CMD ["serve"]

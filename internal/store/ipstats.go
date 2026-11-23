@@ -9,8 +9,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const ipHistoryTTL = 30 * 24 * time.Hour
-
 func seenKey(user string) string     { return "iphist:seen:" + user }
 func firstKey(user string) string    { return "iphist:first:" + user }
 func ipKey(user, ip string) string   { return "iphist:ip:" + user + ":" + ip }
@@ -49,14 +47,14 @@ func (s *Store) RecordIPObservation(ctx context.Context, user string, ips []stri
 		pipe.HSet(ctx, key, "last_seen", now.Format(time.RFC3339))
 		pipe.HSetNX(ctx, key, "first_seen", now.Format(time.RFC3339))
 		pipe.HIncrBy(ctx, key, "count", 1)
-		pipe.Expire(ctx, key, ipHistoryTTL)
+		pipe.Expire(ctx, key, s.retention)
 		pipe.SAdd(ctx, dayKey(user, day), ip)
 	}
-	pipe.Expire(ctx, dayKey(user, day), ipHistoryTTL)
-	pipe.Expire(ctx, seenKey(user), ipHistoryTTL)
-	pipe.Expire(ctx, firstKey(user), ipHistoryTTL)
-	pipe.ZRemRangeByScore(ctx, seenKey(user), "-inf", strconv.FormatInt(now.Add(-ipHistoryTTL).Unix(), 10))
-	pipe.ZRemRangeByScore(ctx, firstKey(user), "-inf", strconv.FormatInt(now.Add(-ipHistoryTTL).Unix(), 10))
+	pipe.Expire(ctx, dayKey(user, day), s.retention)
+	pipe.Expire(ctx, seenKey(user), s.retention)
+	pipe.Expire(ctx, firstKey(user), s.retention)
+	pipe.ZRemRangeByScore(ctx, seenKey(user), "-inf", strconv.FormatInt(now.Add(-s.retention).Unix(), 10))
+	pipe.ZRemRangeByScore(ctx, firstKey(user), "-inf", strconv.FormatInt(now.Add(-s.retention).Unix(), 10))
 	if _, err := pipe.Exec(ctx); err != nil {
 		return err
 	}
@@ -67,7 +65,7 @@ func (s *Store) RecordIPObservation(ctx context.Context, user string, ips []stri
 			return err
 		}
 		if int64(len(ips)) > max {
-			if err := s.rdb.Set(ctx, maxKey(user, day), len(ips), ipHistoryTTL).Err(); err != nil {
+			if err := s.rdb.Set(ctx, maxKey(user, day), len(ips), s.retention).Err(); err != nil {
 				return err
 			}
 		}
@@ -104,7 +102,7 @@ func (s *Store) recordTraffic(ctx context.Context, user string, total uint64, da
 	}).Err(); err != nil {
 		return err
 	}
-	_ = s.rdb.Expire(ctx, trafficKey(user), ipHistoryTTL).Err()
+	_ = s.rdb.Expire(ctx, trafficKey(user), s.retention).Err()
 	_ = now
 	return nil
 }
@@ -165,4 +163,35 @@ func (s *Store) IPHistory(ctx context.Context, user string) ([]IPStat, error) {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].LastSeen.After(out[j].LastSeen) })
 	return out, nil
+}
+
+// DeleteIPHistory удаляет историю адресов и трафика пользователя.
+func (s *Store) DeleteIPHistory(ctx context.Context, user string) error {
+	keys := []string{seenKey(user), firstKey(user), trafficKey(user)}
+	for _, pattern := range []string{
+		"iphist:ip:" + user + ":*",
+		"iphist:day:" + user + ":*",
+		"iphist:max:" + user + ":*",
+	} {
+		iter := s.rdb.Scan(ctx, 0, pattern, 200).Iterator()
+		for iter.Next(ctx) {
+			keys = append(keys, iter.Val())
+		}
+		if err := iter.Err(); err != nil {
+			return err
+		}
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+	return s.rdb.Del(ctx, keys...).Err()
+}
+
+// LastSeen возвращает время последнего наблюдения любого адреса.
+func (s *Store) LastSeen(ctx context.Context, user string) (time.Time, bool) {
+	res, err := s.rdb.ZRevRangeWithScores(ctx, seenKey(user), 0, 0).Result()
+	if err != nil || len(res) == 0 {
+		return time.Time{}, false
+	}
+	return time.Unix(int64(res[0].Score), 0).UTC(), true
 }

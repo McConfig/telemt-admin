@@ -29,6 +29,20 @@ export default function UserPage({ me }: { me: Me }) {
   const [maxConns, setMaxConns] = useState('');
   const [clearIps, setClearIps] = useState(false);
   const [clearConns, setClearConns] = useState(false);
+  const [quotaGB, setQuotaGB] = useState('');
+  const [period, setPeriod] = useState('');
+  const [rateUp, setRateUp] = useState('');
+  const [rateDown, setRateDown] = useState('');
+  const [expiration, setExpiration] = useState('');
+  const [sourceDeny, setSourceDeny] = useState('');
+  const [clearQuota, setClearQuota] = useState(false);
+  const [clearRates, setClearRates] = useState(false);
+  const [clearExpiration, setClearExpiration] = useState(false);
+  const [clearSource, setClearSource] = useState(false);
+  const [note, setNote] = useState('');
+  const [noteSaved, setNoteSaved] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -38,6 +52,13 @@ export default function UserPage({ me }: { me: Me }) {
       setUser(value);
       setMaxIps(value.maxUniqueIps?.toString() ?? '');
       setMaxConns(value.maxTcpConns?.toString() ?? '');
+      setQuotaGB(value.dataQuotaBytes ? (value.dataQuotaBytes / 1024 ** 3).toFixed(2) : '');
+      setPeriod(value.quotaPeriod ?? '');
+      setRateUp(value.rateLimitUpBps ? (value.rateLimitUpBps / 1000).toString() : '');
+      setRateDown(value.rateLimitDownBps ? (value.rateLimitDownBps / 1000).toString() : '');
+      setExpiration(value.expiration ? value.expiration.slice(0, 16) : '');
+      setSourceDeny((value.sourceDeny ?? []).join('\n'));
+      setNote(value.note ?? '');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'не удалось загрузить пользователя');
     } finally {
@@ -117,9 +138,46 @@ export default function UserPage({ me }: { me: Me }) {
           <Text>Новых за 24 часа: {user.new24h}</Text>
           <Text>Пик за сутки: {user.maxToday}</Text>
           <Text>Трафик за сутки: {formatBytes(user.trafficToday)}</Text>
+          {isAdmin && (
+            <div className="row">
+              <a href={api.historyCSVUrl(user.username)} download={`ips-${user.username}.csv`}>
+                Экспорт истории CSV
+              </a>
+              <Button view="outlined-danger" onClick={() => setHistoryOpen(true)}>
+                Удалить историю
+              </Button>
+            </div>
+          )}
           {isAdmin && user.ipHistory && user.ipHistory.length > 0 && <IPHistoryTable items={user.ipHistory} />}
         </div>
       </Card>
+
+      {isAdmin && (
+        <Card view="filled" style={{ padding: 16 }}>
+          <div className="stack">
+            <Text variant="header-1">Заметка</Text>
+            <TextInput
+              placeholder="например: телефон Юли"
+              value={note}
+              onUpdate={(value) => {
+                setNote(value);
+                setNoteSaved(false);
+              }}
+            />
+            <div className="row">
+              <Button
+                view="outlined"
+                onClick={() =>
+                  void api.setNote(user.username, note).then(() => setNoteSaved(true))
+                }
+              >
+                Сохранить заметку
+              </Button>
+              {noteSaved && <Text color="positive">сохранено</Text>}
+            </div>
+          </div>
+        </Card>
+      )}
 
       {isAdmin && user.link && (
         <Card view="filled" style={{ padding: 16 }}>
@@ -128,11 +186,19 @@ export default function UserPage({ me }: { me: Me }) {
             <div className="link">{user.link}</div>
             <Alert theme="warning" message="Ссылка равна паролю: не публикуйте её." />
             <div className="row">
-              <Button view="outlined" onClick={() => void navigator.clipboard.writeText(user.link!)}>
+              <Button
+                view="outlined"
+                onClick={() =>
+                  void navigator.clipboard.writeText(user.link!).then(() => setCopied(true))
+                }
+              >
                 Скопировать
               </Button>
+              {copied && <Text color="positive">скопировано</Text>}
             </div>
-            <img className="qr" src={api.qrUrl(user.username)} alt="QR" width={256} height={256} />
+            <a href={api.qrUrl(user.username)} download={`qr-${user.username}.png`}>
+              <img className="qr" src={api.qrUrl(user.username)} alt="QR" width={256} height={256} />
+            </a>
           </div>
         </Card>
       )}
@@ -176,6 +242,19 @@ export default function UserPage({ me }: { me: Me }) {
                     maxTcpConns: maxConns ? Number(maxConns) : undefined,
                     clearMaxUniqueIps: clearIps,
                     clearMaxTcpConns: clearConns,
+                    dataQuotaBytes: quotaGB ? Math.round(Number(quotaGB) * 1024 ** 3) : undefined,
+                    quotaPeriod: period || undefined,
+                    clearQuota,
+                    rateLimitUpBps: rateUp ? Math.round(Number(rateUp) * 1000) : undefined,
+                    rateLimitDownBps: rateDown ? Math.round(Number(rateDown) * 1000) : undefined,
+                    clearRates,
+                    expiration: expiration ? new Date(expiration).toISOString() : undefined,
+                    clearExpiration,
+                    sourceDeny: sourceDeny
+                      .split(/[\n,]+/)
+                      .map((v) => v.trim())
+                      .filter(Boolean),
+                    clearSourceDeny: clearSource,
                   }),
                 );
               }}
@@ -201,9 +280,80 @@ export default function UserPage({ me }: { me: Me }) {
                 <input type="checkbox" checked={clearConns} onChange={(e) => setClearConns(e.target.checked)} />{' '}
                 снять лимит соединений
               </label>
-              <div>
+              <Text variant="subheader-1">Квота трафика</Text>
+              <TextInput
+                placeholder="Квота, ГиБ (пусто — без квоты)"
+                value={quotaGB}
+                onUpdate={setQuotaGB}
+                disabled={clearQuota}
+              />
+              <label>
+                Период:{' '}
+                <select value={period} onChange={(e) => setPeriod(e.target.value)} disabled={clearQuota}>
+                  <option value="">без сброса</option>
+                  <option value="daily">сутки</option>
+                  <option value="weekly">неделя</option>
+                  <option value="monthly">месяц</option>
+                </select>
+              </label>
+              <label>
+                <input type="checkbox" checked={clearQuota} onChange={(e) => setClearQuota(e.target.checked)} /> снять
+                квоту
+              </label>
+
+              <Text variant="subheader-1">Скорость</Text>
+              <TextInput
+                placeholder="Вверх, Кбит/с"
+                value={rateUp}
+                onUpdate={setRateUp}
+                disabled={clearRates}
+              />
+              <TextInput
+                placeholder="Вниз, Кбит/с"
+                value={rateDown}
+                onUpdate={setRateDown}
+                disabled={clearRates}
+              />
+              <label>
+                <input type="checkbox" checked={clearRates} onChange={(e) => setClearRates(e.target.checked)} /> снять
+                лимиты скорости
+              </label>
+
+              <Text variant="subheader-1">Срок действия</Text>
+              <input
+                type="datetime-local"
+                value={expiration}
+                disabled={clearExpiration}
+                onChange={(e) => setExpiration(e.target.value)}
+              />
+              <label>
+                <input
+                  type="checkbox"
+                  checked={clearExpiration}
+                  onChange={(e) => setClearExpiration(e.target.checked)}
+                />{' '}
+                без срока
+              </label>
+
+              <Text variant="subheader-1">Запрещённые сети (source_deny)</Text>
+              <textarea
+                rows={3}
+                value={sourceDeny}
+                disabled={clearSource}
+                onChange={(e) => setSourceDeny(e.target.value)}
+                placeholder="по одному CIDR на строку"
+              />
+              <label>
+                <input type="checkbox" checked={clearSource} onChange={(e) => setClearSource(e.target.checked)} />{' '}
+                очистить список
+              </label>
+
+              <div className="row">
                 <Button view="action" type="submit" loading={busy}>
                   Сохранить
+                </Button>
+                <Button view="outlined" onClick={() => void run(() => api.resetQuota(user.username))}>
+                  Сбросить квоту
                 </Button>
               </div>
             </form>
@@ -236,6 +386,18 @@ export default function UserPage({ me }: { me: Me }) {
             await api.remove(user.username);
             navigate('/');
           });
+        }}
+      />
+      <ConfirmDialog
+        open={historyOpen}
+        title="Удалить историю IP"
+        description={`Введите имя ${user.username}. История адресов и трафика будет удалена, настройки пользователя останутся.`}
+        confirmWord={user.username}
+        applyText="Удалить историю"
+        onClose={() => setHistoryOpen(false)}
+        onApply={() => {
+          setHistoryOpen(false);
+          void run(() => api.deleteHistory(user.username));
         }}
       />
       <RenameDialog

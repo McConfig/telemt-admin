@@ -47,6 +47,11 @@ func (c *Client) DeleteUser(ctx context.Context, name string) error {
 	return c.do(ctx, "DELETE", "/v1/users/"+name, nil, nil)
 }
 
+// ResetQuota сбрасывает квоту пользователя.
+func (c *Client) ResetQuota(ctx context.Context, name string) error {
+	return c.do(ctx, "POST", "/v1/users/"+name+"/reset-quota", nil, nil)
+}
+
 // RotateSecret перевыпускает секрет.
 func (c *Client) RotateSecret(ctx context.Context, name string) error {
 	return c.do(ctx, "POST", "/v1/users/"+name+"/rotate-secret", nil, nil)

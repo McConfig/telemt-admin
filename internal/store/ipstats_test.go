@@ -53,3 +53,21 @@ func TestIPHistoryAndStats(t *testing.T) {
 		t.Fatalf("трафик новых суток: %d", stats.TrafficToday)
 	}
 }
+
+func TestRetentionExpiresHistory(t *testing.T) {
+	ctx := context.Background()
+	st, mr := newTestStore(t)
+	st.SetRetention(time.Hour)
+	now := time.Now().UTC()
+	if err := st.RecordIPObservation(ctx, "bob", []string{"192.0.2.5"}, 100, now); err != nil {
+		t.Fatal(err)
+	}
+	mr.FastForward(2 * time.Hour)
+	stats, err := st.UserIPStats(ctx, "bob", now.Add(2*time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Distinct24h != 0 {
+		t.Fatalf("история не истекла: %+v", stats)
+	}
+}
