@@ -13,3 +13,4 @@ internal/web/dist/*
 !internal/web/dist/.gitkeep
 
 .idea/
+frontend/tsconfig.tsbuildinfo

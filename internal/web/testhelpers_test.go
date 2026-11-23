@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"net/netip"
-	"strings"
 	"testing"
 	"time"
 
@@ -83,5 +82,3 @@ func apiRequest(t *testing.T, method, path, body, token, csrfHeader string) *htt
 	r.RemoteAddr = "192.0.2.10:5555"
 	return r
 }
-
-func contains(s, sub string) bool { return strings.Contains(s, sub) }
