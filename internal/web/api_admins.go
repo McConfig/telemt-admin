@@ -81,8 +81,6 @@ func (s *Server) apiCreateAdmin(w http.ResponseWriter, r *http.Request) {
 		s.serverErrorJSON(w, r, err)
 		return
 	}
-	created, err := s.store.GetUser(r.Context(), name)
-	_ = created
 	if err := s.store.CreateUser(r.Context(), store.User{Name: name, Hash: hash, Role: role}); err != nil {
 		if err == store.ErrExists {
 			writeError(w, http.StatusConflict, "user_exists", "пользователь уже существует")

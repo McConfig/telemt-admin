@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Card, Dialog, Label, Loader, Text, TextInput } from '@gravity-ui/uikit';
 import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
+import { ArrowRightFromSquare, Ban, Key, Play, TrashBin } from '@gravity-ui/icons';
 import { api, ApiError, type AdminUser, type Me } from '../api';
 import { formatTime } from '../format';
 import { useMedia } from '../useMedia';
@@ -63,34 +64,47 @@ export default function AdminsPage({ me }: { me: Me }) {
       header: '',
       cell: ({ row }) => (
         <div className="row">
-          <Button view="flat" onClick={() => setResetFor(row.original.name)}>
-            Пароль
-          </Button>
-          <Button
-            view="flat"
-            onClick={() =>
-              void run(() =>
-                api.patchAdmin(row.original.name, { disabled: !row.original.disabled }),
-              )
-            }
-            disabled={row.original.name === me.user.name}
-          >
-            {row.original.disabled ? 'Включить' : 'Отключить'}
-          </Button>
-          <Button
-            view="flat"
-            onClick={() => void run(() => api.revokeAdminSessions(row.original.name))}
-            disabled={row.original.name === me.user.name || row.original.sessions === 0}
-          >
-            Сессии
-          </Button>
-          <Button
-            view="flat-danger"
-            onClick={() => void run(() => api.deleteAdmin(row.original.name))}
-            disabled={row.original.name === me.user.name}
-          >
-            Удалить
-          </Button>
+          <div className="icon-actions">
+            <Button
+              view="flat"
+              aria-label="Сменить пароль"
+              title="Сменить пароль"
+              onClick={() => setResetFor(row.original.name)}
+            >
+              <Key width={18} height={18} />
+            </Button>
+            <Button
+              view="flat"
+              aria-label={row.original.disabled ? 'Включить' : 'Отключить'}
+              title={row.original.disabled ? 'Включить' : 'Отключить'}
+              onClick={() =>
+                void run(() =>
+                  api.patchAdmin(row.original.name, { disabled: !row.original.disabled }),
+                )
+              }
+              disabled={row.original.name === me.user.name}
+            >
+              {row.original.disabled ? <Play width={18} height={18} /> : <Ban width={18} height={18} />}
+            </Button>
+            <Button
+              view="flat"
+              aria-label="Завершить сессии"
+              title="Завершить сессии"
+              onClick={() => void run(() => api.revokeAdminSessions(row.original.name))}
+              disabled={row.original.name === me.user.name || row.original.sessions === 0}
+            >
+              <ArrowRightFromSquare width={18} height={18} />
+            </Button>
+            <Button
+              view="flat-danger"
+              aria-label="Удалить"
+              title="Удалить"
+              onClick={() => void run(() => api.deleteAdmin(row.original.name))}
+              disabled={row.original.name === me.user.name}
+            >
+              <TrashBin width={18} height={18} />
+            </Button>
+          </div>
         </div>
       ),
     },
@@ -138,30 +152,36 @@ export default function AdminsPage({ me }: { me: Me }) {
                 <div className="muted">
                   сессий: {u.sessions} · создан {formatTime(u.createdAt)}
                 </div>
-                <div className="row">
-                  <Button view="flat" onClick={() => setResetFor(u.name)}>
-                    Пароль
+                <div className="icon-actions">
+                  <Button view="flat" aria-label="Сменить пароль" title="Сменить пароль" onClick={() => setResetFor(u.name)}>
+                    <Key width={18} height={18} />
                   </Button>
                   <Button
                     view="flat"
+                    aria-label={u.disabled ? 'Включить' : 'Отключить'}
+                    title={u.disabled ? 'Включить' : 'Отключить'}
                     disabled={u.name === me.user.name}
                     onClick={() => void run(() => api.patchAdmin(u.name, { disabled: !u.disabled }))}
                   >
-                    {u.disabled ? 'Включить' : 'Отключить'}
+                    {u.disabled ? <Play width={18} height={18} /> : <Ban width={18} height={18} />}
                   </Button>
                   <Button
                     view="flat"
+                    aria-label="Завершить сессии"
+                    title="Завершить сессии"
                     disabled={u.name === me.user.name || u.sessions === 0}
                     onClick={() => void run(() => api.revokeAdminSessions(u.name))}
                   >
-                    Сессии
+                    <ArrowRightFromSquare width={18} height={18} />
                   </Button>
                   <Button
                     view="flat-danger"
+                    aria-label="Удалить"
+                    title="Удалить"
                     disabled={u.name === me.user.name}
                     onClick={() => void run(() => api.deleteAdmin(u.name))}
                   >
-                    Удалить
+                    <TrashBin width={18} height={18} />
                   </Button>
                 </div>
               </div>

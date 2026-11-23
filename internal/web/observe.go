@@ -42,18 +42,18 @@ func WriteHTTPMetrics(w http.ResponseWriter) {
 		}
 		return keys[i].method < keys[j].method
 	})
-	fmt.Fprintln(w, "# HELP tgadmin_http_requests_total Запросы к HTTP API")
-	fmt.Fprintln(w, "# TYPE tgadmin_http_requests_total counter")
+	_, _ = fmt.Fprintln(w, "# HELP tgadmin_http_requests_total Запросы к HTTP API")
+	_, _ = fmt.Fprintln(w, "# TYPE tgadmin_http_requests_total counter")
 	for _, k := range keys {
-		fmt.Fprintf(w, "tgadmin_http_requests_total{method=%q,status=%q} %d\n",
+		_, _ = fmt.Fprintf(w, "tgadmin_http_requests_total{method=%q,status=%q} %d\n",
 			k.method, fmt.Sprint(k.status), counts[k])
 	}
-	fmt.Fprintln(w, "# HELP tgadmin_http_request_duration_seconds_sum Суммарная длительность запросов")
-	fmt.Fprintln(w, "# TYPE tgadmin_http_request_duration_seconds_sum counter")
-	fmt.Fprintf(w, "tgadmin_http_request_duration_seconds_sum %f\n", sum)
-	fmt.Fprintln(w, "# HELP tgadmin_http_request_duration_seconds_count Количество запросов")
-	fmt.Fprintln(w, "# TYPE tgadmin_http_request_duration_seconds_count counter")
-	fmt.Fprintf(w, "tgadmin_http_request_duration_seconds_count %d\n", total)
+	_, _ = fmt.Fprintln(w, "# HELP tgadmin_http_request_duration_seconds_sum Суммарная длительность запросов")
+	_, _ = fmt.Fprintln(w, "# TYPE tgadmin_http_request_duration_seconds_sum counter")
+	_, _ = fmt.Fprintf(w, "tgadmin_http_request_duration_seconds_sum %f\n", sum)
+	_, _ = fmt.Fprintln(w, "# HELP tgadmin_http_request_duration_seconds_count Количество запросов")
+	_, _ = fmt.Fprintln(w, "# TYPE tgadmin_http_request_duration_seconds_count counter")
+	_, _ = fmt.Fprintf(w, "tgadmin_http_request_duration_seconds_count %d\n", total)
 }
 
 type statusWriter struct {

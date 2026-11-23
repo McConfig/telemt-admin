@@ -156,7 +156,7 @@ func (c *Collector) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	sort.Strings(names)
 
 	writeMetric := func(name, help, typ string) {
-		fmt.Fprintf(w, "# HELP %s %s\n# TYPE %s %s\n", name, help, name, typ)
+		_, _ = fmt.Fprintf(w, "# HELP %s %s\n# TYPE %s %s\n", name, help, name, typ)
 	}
 	writeMetric("tgadmin_user_ips_current", "Активные уникальные IP пользователя", "gauge")
 	writeMetric("tgadmin_user_ips_distinct_24h", "Уникальные IP за 24 часа", "gauge")
@@ -169,24 +169,24 @@ func (c *Collector) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	for _, name := range names {
 		s := snap[name]
 		label := escape(name)
-		fmt.Fprintf(w, "tgadmin_user_ips_current{user=%q} %d\n", label, s.Current)
-		fmt.Fprintf(w, "tgadmin_user_ips_distinct_24h{user=%q} %d\n", label, s.Distinct24h)
-		fmt.Fprintf(w, "tgadmin_user_ips_distinct_7d{user=%q} %d\n", label, s.Distinct7d)
-		fmt.Fprintf(w, "tgadmin_user_ips_new_24h{user=%q} %d\n", label, s.New24h)
-		fmt.Fprintf(w, "tgadmin_user_ips_max_today{user=%q} %d\n", label, s.MaxToday)
-		fmt.Fprintf(w, "tgadmin_user_traffic_bytes_total{user=%q} %d\n", label, s.TrafficTotal)
-		fmt.Fprintf(w, "tgadmin_user_traffic_today_bytes{user=%q} %d\n", label, s.TrafficToday)
-		fmt.Fprintf(w, "tgadmin_user_risk_level{user=%q} %d\n", label, s.Risk)
+		_, _ = fmt.Fprintf(w, "tgadmin_user_ips_current{user=%q} %d\n", label, s.Current)
+		_, _ = fmt.Fprintf(w, "tgadmin_user_ips_distinct_24h{user=%q} %d\n", label, s.Distinct24h)
+		_, _ = fmt.Fprintf(w, "tgadmin_user_ips_distinct_7d{user=%q} %d\n", label, s.Distinct7d)
+		_, _ = fmt.Fprintf(w, "tgadmin_user_ips_new_24h{user=%q} %d\n", label, s.New24h)
+		_, _ = fmt.Fprintf(w, "tgadmin_user_ips_max_today{user=%q} %d\n", label, s.MaxToday)
+		_, _ = fmt.Fprintf(w, "tgadmin_user_traffic_bytes_total{user=%q} %d\n", label, s.TrafficTotal)
+		_, _ = fmt.Fprintf(w, "tgadmin_user_traffic_today_bytes{user=%q} %d\n", label, s.TrafficToday)
+		_, _ = fmt.Fprintf(w, "tgadmin_user_risk_level{user=%q} %d\n", label, s.Risk)
 	}
 	writeMetric("tgadmin_collector_up", "Сборщик получает данные", "gauge")
 	up := 0
 	if lastErr == nil {
 		up = 1
 	}
-	fmt.Fprintf(w, "tgadmin_collector_up %d\n", up)
+	_, _ = fmt.Fprintf(w, "tgadmin_collector_up %d\n", up)
 	writeMetric("tgadmin_collector_last_success_timestamp_seconds", "Время последнего успешного сбора", "gauge")
 	if !lastOK.IsZero() {
-		fmt.Fprintf(w, "tgadmin_collector_last_success_timestamp_seconds %d\n", lastOK.Unix())
+		_, _ = fmt.Fprintf(w, "tgadmin_collector_last_success_timestamp_seconds %d\n", lastOK.Unix())
 	}
 }
 

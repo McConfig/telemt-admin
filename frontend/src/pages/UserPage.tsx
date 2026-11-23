@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   Button,
@@ -10,6 +10,16 @@ import {
   Text,
   TextInput,
 } from '@gravity-ui/uikit';
+import {
+  ArrowLeft,
+  ArrowRotateLeft,
+  Ban,
+  Copy,
+  FileArrowDown,
+  Pencil,
+  Play,
+  TrashBin,
+} from '@gravity-ui/icons';
 import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { api, ApiError, type IPHistoryItem, type Me, type ProxyUser } from '../api';
@@ -88,7 +98,11 @@ export default function UserPage({ me }: { me: Me }) {
     return (
       <div className="stack">
         {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
-        <Link to="/">← к списку</Link>
+        <div>
+          <Button view="flat" onClick={() => navigate('/')}>
+            <ArrowLeft width={16} height={16} /> К списку
+          </Button>
+        </div>
       </div>
     );
   }
@@ -96,34 +110,66 @@ export default function UserPage({ me }: { me: Me }) {
 
   return (
     <div className="stack">
-      <div className="row">
+      <div className="page-head">
+        <Button view="flat" aria-label="К списку" title="К списку" onClick={() => navigate('/')}>
+          <ArrowLeft width={18} height={18} />
+        </Button>
         <Text variant="header-2">{user.username}</Text>
         <Label theme={user.enabled ? 'success' : 'danger'} size="s">
           {user.enabled ? 'включён' : 'заблокирован'}
         </Label>
-        <div style={{ flex: 1 }} />
-        <Link to="/">← к списку</Link>
+        {user.risk > 0 && (
+          <Label theme={user.risk === 2 ? 'danger' : 'warning'} size="s">
+            {user.risk === 2 ? 'высокий риск' : 'внимание'}
+          </Label>
+        )}
       </div>
       {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
 
       <Card view="filled" style={{ padding: 16 }}>
         <div className="stack">
-          <Text>Соединения: {user.currentConnections}</Text>
-          <Text>Активные IP: {user.activeIps.join(', ') || '—'}</Text>
-          <Text>Трафик: {formatBytes(user.totalOctets)}</Text>
-          <Text>Лимит IP: {user.maxUniqueIps ?? 'нет'}</Text>
-          <Text>Лимит соединений: {user.maxTcpConns ?? 'нет'}</Text>
+          <div className="stat-grid">
+            <Stat label="Соединения" value={user.currentConnections} />
+            <Stat label="Активные IP" value={user.activeUniqueIps} />
+            <Stat label="IP за 24 часа" value={user.ips24h} />
+            <Stat label="IP за 7 дней" value={user.ips7d} />
+            <Stat label="Новых IP за сутки" value={user.new24h} />
+            <Stat label="Пик за сутки" value={user.maxToday} />
+            <Stat label="Трафик всего" value={formatBytes(user.totalOctets)} />
+            <Stat label="Трафик за сутки" value={formatBytes(user.trafficToday)} />
+          </div>
+          <Text className="muted">
+            IP сейчас: {user.activeIps.join(', ') || '—'} · лимит IP: {user.maxUniqueIps ?? 'нет'} ·
+            лимит соединений: {user.maxTcpConns ?? 'нет'}
+          </Text>
+          {user.note && <Text className="muted">Заметка: {user.note}</Text>}
         </div>
       </Card>
 
       <Card view="filled" style={{ padding: 16 }}>
         <div className="stack">
-          <div className="row">
+          <div className="card-head">
             <Text variant="header-1">Устройства</Text>
-            {user.risk > 0 && (
-              <Label theme={user.risk === 2 ? 'danger' : 'warning'} size="s">
-                {user.risk === 2 ? 'высокий риск' : 'внимание'}
-              </Label>
+            <div style={{ flex: 1 }} />
+            {isAdmin && (
+              <div className="icon-actions">
+                <Button
+                  view="flat"
+                  aria-label="Экспорт истории в CSV"
+                  title="Экспорт истории в CSV"
+                  onClick={() => window.location.assign(api.historyCSVUrl(user.username))}
+                >
+                  <FileArrowDown width={18} height={18} />
+                </Button>
+                <Button
+                  view="flat"
+                  aria-label="Удалить историю"
+                  title="Удалить историю"
+                  onClick={() => setHistoryOpen(true)}
+                >
+                  <TrashBin width={18} height={18} />
+                </Button>
+              </div>
             )}
           </div>
           {user.risk > 0 && (
@@ -132,22 +178,9 @@ export default function UserPage({ me }: { me: Me }) {
               message="Столько одновременных адресов не похоже на обычное число устройств. Проверьте, не передан ли ключ."
             />
           )}
-          <Text>Сейчас активно: {user.activeUniqueIps}</Text>
-          <Text>Уникальных за 24 часа: {user.ips24h}</Text>
-          <Text>Уникальных за 7 дней: {user.ips7d}</Text>
-          <Text>Новых за 24 часа: {user.new24h}</Text>
-          <Text>Пик за сутки: {user.maxToday}</Text>
-          <Text>Трафик за сутки: {formatBytes(user.trafficToday)}</Text>
-          {isAdmin && (
-            <div className="row">
-              <a href={api.historyCSVUrl(user.username)} download={`ips-${user.username}.csv`}>
-                Экспорт истории CSV
-              </a>
-              <Button view="outlined-danger" onClick={() => setHistoryOpen(true)}>
-                Удалить историю
-              </Button>
-            </div>
-          )}
+          <Text className="muted">
+            Адреса за 24 часа: {user.ips24h}, за 7 дней: {user.ips7d}, новых: {user.new24h}, пик: {user.maxToday}
+          </Text>
           {isAdmin && user.ipHistory && user.ipHistory.length > 0 && <IPHistoryTable items={user.ipHistory} />}
         </div>
       </Card>
@@ -171,7 +204,7 @@ export default function UserPage({ me }: { me: Me }) {
                   void api.setNote(user.username, note).then(() => setNoteSaved(true))
                 }
               >
-                Сохранить заметку
+                <Pencil width={16} height={16} /> Сохранить заметку
               </Button>
               {noteSaved && <Text color="positive">сохранено</Text>}
             </div>
@@ -183,22 +216,26 @@ export default function UserPage({ me }: { me: Me }) {
         <Card view="filled" style={{ padding: 16 }}>
           <div className="stack">
             <Text variant="header-1">Ссылка</Text>
-            <div className="link">{user.link}</div>
-            <Alert theme="warning" message="Ссылка равна паролю: не публикуйте её." />
-            <div className="row">
-              <Button
-                view="outlined"
-                onClick={() =>
-                  void navigator.clipboard.writeText(user.link!).then(() => setCopied(true))
-                }
-              >
-                Скопировать
-              </Button>
-              {copied && <Text color="positive">скопировано</Text>}
+            <div className="link-grid">
+              <div className="stack">
+                <div className="link-box">{user.link}</div>
+                <Alert theme="warning" message="Ссылка равна паролю: не публикуйте её." />
+                <div className="row">
+                  <Button
+                    view="outlined"
+                    onClick={() =>
+                      void navigator.clipboard.writeText(user.link!).then(() => setCopied(true))
+                    }
+                  >
+                    <Copy width={16} height={16} /> Скопировать
+                  </Button>
+                  {copied && <Text color="positive">скопировано</Text>}
+                </div>
+              </div>
+              <a href={api.qrUrl(user.username)} download={`qr-${user.username}.png`}>
+                <img className="qr" src={api.qrUrl(user.username)} alt="QR" width={256} height={256} />
+              </a>
             </div>
-            <a href={api.qrUrl(user.username)} download={`qr-${user.username}.png`}>
-              <img className="qr" src={api.qrUrl(user.username)} alt="QR" width={256} height={256} />
-            </a>
           </div>
         </Card>
       )}
@@ -210,7 +247,7 @@ export default function UserPage({ me }: { me: Me }) {
               <Text variant="header-1">Действия</Text>
               <div className="row">
                 <Button view="outlined" onClick={() => setRotateOpen(true)}>
-                  Перевыпустить секрет
+                  <ArrowRotateLeft width={16} height={16} /> Перевыпустить
                 </Button>
                 <Button
                   view={user.enabled ? 'outlined-danger' : 'outlined-success'}
@@ -219,13 +256,14 @@ export default function UserPage({ me }: { me: Me }) {
                   }
                   loading={busy}
                 >
+                  {user.enabled ? <Ban width={16} height={16} /> : <Play width={16} height={16} />}
                   {user.enabled ? 'Заблокировать' : 'Разблокировать'}
                 </Button>
                 <Button view="outlined" onClick={() => setRenameOpen(true)}>
-                  Переименовать
+                  <Pencil width={16} height={16} /> Переименовать
                 </Button>
                 <Button view="outlined-danger" onClick={() => setDeleteOpen(true)}>
-                  Удалить
+                  <TrashBin width={16} height={16} /> Удалить
                 </Button>
               </div>
             </div>
@@ -410,6 +448,15 @@ export default function UserPage({ me }: { me: Me }) {
           navigate(`/users/${encodeURIComponent(next)}`);
         }}
       />
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="stat-tile">
+      <span className="stat-label">{label}</span>
+      <span className="stat-value">{value}</span>
     </div>
   );
 }
