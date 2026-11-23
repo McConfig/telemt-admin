@@ -5,6 +5,13 @@ export interface Me {
   csrf: string;
 }
 
+export interface IPHistoryItem {
+  ip: string;
+  firstSeen: string;
+  lastSeen: string;
+  count: number;
+}
+
 export interface ProxyUser {
   username: string;
   enabled: boolean;
@@ -15,6 +22,13 @@ export interface ProxyUser {
   totalOctets: number;
   maxUniqueIps: number | null;
   maxTcpConns: number | null;
+  ips24h: number;
+  ips7d: number;
+  new24h: number;
+  maxToday: number;
+  trafficToday: number;
+  risk: number;
+  ipHistory?: IPHistoryItem[];
   link?: string;
 }
 

@@ -4,23 +4,28 @@ import (
 	"fmt"
 	"net/netip"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
 
 // Config — настройки сервиса из переменных окружения.
 type Config struct {
-	Listen         string
-	AllowedCIDRs   []netip.Prefix
-	TrustedProxies []netip.Prefix
-	BaseURL        *url.URL
-	SessionTTL     time.Duration
-	ValkeyURL      string
-	ValkeyPassword string
-	TelemtURL      string
-	TelemtToken    string
-	LinkMode       string
-	CookieSecure   bool
+	Listen          string
+	AllowedCIDRs    []netip.Prefix
+	TrustedProxies  []netip.Prefix
+	BaseURL         *url.URL
+	SessionTTL      time.Duration
+	ValkeyURL       string
+	ValkeyPassword  string
+	TelemtURL       string
+	TelemtToken     string
+	LinkMode        string
+	CookieSecure    bool
+	CollectInterval time.Duration
+	RiskIPsWarn     int
+	RiskIPsHigh     int
+	RiskDistinct7d  int
 }
 
 // Load читает конфигурацию. getenv передаётся для тестируемости.
@@ -39,7 +44,15 @@ func Load(getenv func(string) string) (*Config, error) {
 		TelemtToken:    getenv("TELEMT_API_TOKEN"),
 		LinkMode:       get("TELEMT_LINK_MODE", "tls"),
 		CookieSecure:   get("TGADMIN_COOKIE_SECURE", "true") != "false",
+		RiskIPsWarn:    getInt(get("TGADMIN_RISK_IPS_WARN", "3"), 3),
+		RiskIPsHigh:    getInt(get("TGADMIN_RISK_IPS_HIGH", "5"), 5),
+		RiskDistinct7d: getInt(get("TGADMIN_RISK_DISTINCT_7D", "15"), 15),
 	}
+	collect, err := time.ParseDuration(get("TGADMIN_COLLECT_INTERVAL", "60s"))
+	if err != nil {
+		return nil, fmt.Errorf("TGADMIN_COLLECT_INTERVAL: %w", err)
+	}
+	cfg.CollectInterval = collect
 
 	d, err := time.ParseDuration(get("TGADMIN_SESSION_TTL", "720h"))
 	if err != nil {
@@ -102,6 +115,14 @@ func (c *Config) TrustsProxy(addr netip.Addr) bool {
 }
 
 // Allows проверяет адрес по списку разрешённых сетей.
+func getInt(raw string, def int) int {
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 1 {
+		return def
+	}
+	return n
+}
+
 func (c *Config) Allows(addr netip.Addr) bool {
 	for _, p := range c.AllowedCIDRs {
 		if p.Contains(addr) {

@@ -28,7 +28,7 @@ type Server struct {
 }
 
 // New собирает сервер и маршруты.
-func New(cfg *config.Config, st *store.Store, tc *telemt.Client) *Server {
+func New(cfg *config.Config, st *store.Store, tc *telemt.Client, metrics http.Handler) *Server {
 	s := &Server{cfg: cfg, store: st, telemt: tc, now: time.Now}
 	sub, err := fs.Sub(distFS, "dist")
 	if err != nil {
@@ -43,6 +43,9 @@ func New(cfg *config.Config, st *store.Store, tc *telemt.Client) *Server {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte("ok\n"))
 	})
+	if metrics != nil {
+		r.Get("/metrics", metrics.ServeHTTP)
+	}
 	r.Route("/api", func(r chi.Router) {
 		r.Post("/login", s.apiLogin)
 		r.Group(func(r chi.Router) {

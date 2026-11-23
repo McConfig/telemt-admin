@@ -21,11 +21,11 @@ func testServerWithTelemt(t *testing.T) *Server {
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/v1/users":
 			_, _ = w.Write([]byte(`{"ok":true,"data":[
-			 {"username":"main","enabled":true,"in_runtime":true,"current_connections":2,"active_unique_ips":1,"total_octets":2048,"links":{"tls":["` + testLink + `"]}},
+			 {"username":"main","enabled":true,"in_runtime":true,"current_connections":2,"active_unique_ips":1,"active_unique_ips_list":["192.0.2.10"],"total_octets":2048,"links":{"tls":["` + testLink + `"]}},
 			 {"username":"other","enabled":false,"in_runtime":true,"links":{"tls":[]}}
 			]}`))
 		case r.Method == http.MethodGet && r.URL.Path == "/v1/users/main":
-			_, _ = w.Write([]byte(`{"ok":true,"data":{"username":"main","enabled":true,"in_runtime":true,"current_connections":2,"active_unique_ips":1,"total_octets":2048,"links":{"tls":["` + testLink + `"]}}}`))
+			_, _ = w.Write([]byte(`{"ok":true,"data":{"username":"main","enabled":true,"in_runtime":true,"current_connections":2,"active_unique_ips":1,"active_unique_ips_list":["192.0.2.10"],"total_octets":2048,"links":{"tls":["` + testLink + `"]}}}`))
 		case r.Method == http.MethodDelete && r.URL.Path == "/v1/users/main":
 			_, _ = w.Write([]byte(`{"ok":true,"data":{"deleted":true}}`))
 		case r.Method == http.MethodDelete && r.URL.Path == "/v1/users/other":
@@ -109,6 +109,27 @@ func TestAPIUsersRoleBasedLink(t *testing.T) {
 			t.Fatalf("%s: ссылка %q", tc.role, users[0].Link)
 		}
 		_ = csrf
+	}
+}
+
+func TestAPIUserStatsAndHistory(t *testing.T) {
+	s := testServerWithTelemt(t)
+	if err := s.store.RecordIPObservation(context.Background(), "main",
+		[]string{"192.0.2.10", "192.0.2.11"}, 3000, time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	tok, _ := seedSession(t, s, store.RoleAdmin)
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, apiRequest(t, "GET", "/api/users/main", "", tok, ""))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("код %d: %s", rr.Code, rr.Body.String())
+	}
+	var u apiUser
+	if err := json.Unmarshal(rr.Body.Bytes(), &u); err != nil {
+		t.Fatal(err)
+	}
+	if u.Ips24h != 2 || len(u.IPHistory) != 2 {
+		t.Fatalf("статистика: %+v", u)
 	}
 }
 

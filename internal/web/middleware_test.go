@@ -39,7 +39,7 @@ func TestForwardedForFromTrustedProxy(t *testing.T) {
 		AllowedCIDRs:   []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
 		TrustedProxies: []netip.Prefix{netip.MustParsePrefix("10.0.0.1/32")},
 	}
-	s := New(cfg, st, nil)
+	s := New(cfg, st, nil, nil)
 	h := s.allowlist(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}))

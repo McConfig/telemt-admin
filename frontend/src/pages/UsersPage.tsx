@@ -52,6 +52,20 @@ export default function UsersPage({ me }: { me: Me }) {
       ),
     },
     { id: 'ips', header: 'Активные IP', cell: ({ row }) => row.original.activeUniqueIps },
+    { id: 'ips24h', header: 'IP за 24ч', cell: ({ row }) => row.original.ips24h },
+    {
+      id: 'risk',
+      header: 'Риск',
+      cell: ({ row }) => {
+        const risk = row.original.risk;
+        if (risk === 0) return <Label theme="success" size="s">нет</Label>;
+        return (
+          <Label theme={risk === 2 ? 'danger' : 'warning'} size="s">
+            {risk === 2 ? 'высокий' : 'внимание'}
+          </Label>
+        );
+      },
+    },
     { id: 'conns', header: 'Соединения', cell: ({ row }) => row.original.currentConnections },
     { id: 'traffic', header: 'Трафик', cell: ({ row }) => formatBytes(row.original.totalOctets) },
     {

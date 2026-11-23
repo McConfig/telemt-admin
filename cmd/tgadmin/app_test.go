@@ -20,7 +20,7 @@ func TestNewHandlerServesAPI(t *testing.T) {
 		ValkeyURL:    "redis://" + mr.Addr() + "/0",
 		TelemtURL:    "http://127.0.0.1:1",
 	}
-	h, closeFn, err := newHandler(cfg)
+	h, closeFn, err := newHandler(context.Background(), cfg)
 	if err != nil {
 		t.Fatalf("newHandler: %v", err)
 	}
@@ -47,7 +47,7 @@ func TestHandlerHealthz(t *testing.T) {
 		ValkeyURL:    "redis://" + mr.Addr() + "/0",
 		TelemtURL:    "http://127.0.0.1:1",
 	}
-	h, closeFn, err := newHandler(cfg)
+	h, closeFn, err := newHandler(context.Background(), cfg)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,0 +1,195 @@
+package collector
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/McConfig/telemt-admin/internal/store"
+	"github.com/McConfig/telemt-admin/internal/telemt"
+)
+
+// Snapshot — последний срез по пользователю.
+type Snapshot struct {
+	User         string
+	Current      int64
+	Distinct24h  int64
+	Distinct7d   int64
+	New24h       int64
+	MaxToday     int64
+	TrafficTotal uint64
+	TrafficToday uint64
+	Risk         int
+}
+
+// Collector периодически снимает активные IP и трафик через API telemt.
+type Collector struct {
+	st         *store.Store
+	tc         *telemt.Client
+	interval   time.Duration
+	warn       int64
+	high       int64
+	distinct7d int64
+
+	mu     sync.RWMutex
+	snap   map[string]Snapshot
+	lastOK time.Time
+	last   error
+}
+
+// New создаёт сборщик.
+func New(st *store.Store, tc *telemt.Client, interval time.Duration, warn, high, distinct7d int64) *Collector {
+	if interval <= 0 {
+		interval = time.Minute
+	}
+	return &Collector{
+		st: st, tc: tc, interval: interval,
+		warn: warn, high: high, distinct7d: distinct7d,
+		snap: map[string]Snapshot{},
+	}
+}
+
+// Run собирает данные до отмены контекста.
+func (c *Collector) Run(ctx context.Context) {
+	c.collect(ctx)
+	ticker := time.NewTicker(c.interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			c.collect(ctx)
+		}
+	}
+}
+
+func (c *Collector) collect(ctx context.Context) {
+	users, err := c.tc.ListUsers(ctx)
+	if err != nil {
+		c.mu.Lock()
+		c.last = err
+		c.mu.Unlock()
+		slog.Warn("сбор статистики IP", "err", err)
+		return
+	}
+	now := time.Now().UTC()
+	next := make(map[string]Snapshot, len(users))
+	for _, u := range users {
+		ips := u.ActiveUniqueIPList
+		if err := c.st.RecordIPObservation(ctx, u.Username, ips, u.TotalOctets, now); err != nil {
+			slog.Warn("запись истории IP", "user", u.Username, "err", err)
+			continue
+		}
+		stats, err := c.st.UserIPStats(ctx, u.Username, now)
+		if err != nil {
+			slog.Warn("агрегаты IP", "user", u.Username, "err", err)
+			continue
+		}
+		snap := Snapshot{
+			User: u.Username, Current: int64(len(ips)),
+			Distinct24h: stats.Distinct24h, Distinct7d: stats.Distinct7d,
+			New24h: stats.New24h, MaxToday: stats.MaxToday,
+			TrafficTotal: u.TotalOctets, TrafficToday: stats.TrafficToday,
+		}
+		snap.Risk = c.risk(snap)
+		next[u.Username] = snap
+	}
+	c.mu.Lock()
+	c.snap = next
+	c.lastOK = time.Now().UTC()
+	c.last = nil
+	c.mu.Unlock()
+}
+
+func (c *Collector) risk(s Snapshot) int {
+	switch {
+	case s.Current > c.high:
+		return 2
+	case s.Current > c.warn || s.Distinct7d > c.distinct7d:
+		return 1
+	default:
+		return 0
+	}
+}
+
+// Snapshot возвращает копию последнего среза.
+func (c *Collector) Snapshot() map[string]Snapshot {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	out := make(map[string]Snapshot, len(c.snap))
+	for k, v := range c.snap {
+		out[k] = v
+	}
+	return out
+}
+
+// Stats возвращает срез по одному пользователю.
+func (c *Collector) Stats(user string) (Snapshot, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	s, ok := c.snap[user]
+	return s, ok
+}
+
+// ServeHTTP отдаёт метрики Prometheus.
+func (c *Collector) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+	c.mu.RLock()
+	snap := make(map[string]Snapshot, len(c.snap))
+	for k, v := range c.snap {
+		snap[k] = v
+	}
+	lastOK := c.lastOK
+	lastErr := c.last
+	c.mu.RUnlock()
+
+	names := make([]string, 0, len(snap))
+	for name := range snap {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	writeMetric := func(name, help, typ string) {
+		fmt.Fprintf(w, "# HELP %s %s\n# TYPE %s %s\n", name, help, name, typ)
+	}
+	writeMetric("tgadmin_user_ips_current", "Активные уникальные IP пользователя", "gauge")
+	writeMetric("tgadmin_user_ips_distinct_24h", "Уникальные IP за 24 часа", "gauge")
+	writeMetric("tgadmin_user_ips_distinct_7d", "Уникальные IP за 7 дней", "gauge")
+	writeMetric("tgadmin_user_ips_new_24h", "Новые IP за 24 часа", "gauge")
+	writeMetric("tgadmin_user_ips_max_today", "Пик одновременных IP за сутки", "gauge")
+	writeMetric("tgadmin_user_traffic_bytes_total", "Суммарный трафик пользователя", "counter")
+	writeMetric("tgadmin_user_traffic_today_bytes", "Трафик пользователя за сутки", "gauge")
+	writeMetric("tgadmin_user_risk_level", "0 норма, 1 предупреждение, 2 высокий риск", "gauge")
+	for _, name := range names {
+		s := snap[name]
+		label := escape(name)
+		fmt.Fprintf(w, "tgadmin_user_ips_current{user=%q} %d\n", label, s.Current)
+		fmt.Fprintf(w, "tgadmin_user_ips_distinct_24h{user=%q} %d\n", label, s.Distinct24h)
+		fmt.Fprintf(w, "tgadmin_user_ips_distinct_7d{user=%q} %d\n", label, s.Distinct7d)
+		fmt.Fprintf(w, "tgadmin_user_ips_new_24h{user=%q} %d\n", label, s.New24h)
+		fmt.Fprintf(w, "tgadmin_user_ips_max_today{user=%q} %d\n", label, s.MaxToday)
+		fmt.Fprintf(w, "tgadmin_user_traffic_bytes_total{user=%q} %d\n", label, s.TrafficTotal)
+		fmt.Fprintf(w, "tgadmin_user_traffic_today_bytes{user=%q} %d\n", label, s.TrafficToday)
+		fmt.Fprintf(w, "tgadmin_user_risk_level{user=%q} %d\n", label, s.Risk)
+	}
+	writeMetric("tgadmin_collector_up", "Сборщик получает данные", "gauge")
+	up := 0
+	if lastErr == nil {
+		up = 1
+	}
+	fmt.Fprintf(w, "tgadmin_collector_up %d\n", up)
+	writeMetric("tgadmin_collector_last_success_timestamp_seconds", "Время последнего успешного сбора", "gauge")
+	if !lastOK.IsZero() {
+		fmt.Fprintf(w, "tgadmin_collector_last_success_timestamp_seconds %d\n", lastOK.Unix())
+	}
+}
+
+func escape(s string) string {
+	return strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s)
+}

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/McConfig/telemt-admin/internal/collector"
 	"github.com/McConfig/telemt-admin/internal/config"
 	"github.com/McConfig/telemt-admin/internal/store"
 	"github.com/McConfig/telemt-admin/internal/telemt"
@@ -12,11 +13,14 @@ import (
 )
 
 // newHandler собирает рабочее приложение: Valkey, клиент telemt, HTTP-слой.
-func newHandler(cfg *config.Config) (http.Handler, func() error, error) {
-	st, err := store.Open(context.Background(), cfg.ValkeyURL, cfg.ValkeyPassword)
+func newHandler(ctx context.Context, cfg *config.Config) (http.Handler, func() error, error) {
+	st, err := store.Open(ctx, cfg.ValkeyURL, cfg.ValkeyPassword)
 	if err != nil {
 		return nil, nil, err
 	}
 	tc := telemt.New(cfg.TelemtURL, cfg.TelemtToken, 15*time.Second)
-	return web.New(cfg, st, tc).Handler(), st.Close, nil
+	col := collector.New(st, tc, cfg.CollectInterval,
+		int64(cfg.RiskIPsWarn), int64(cfg.RiskIPsHigh), int64(cfg.RiskDistinct7d))
+	go col.Run(ctx)
+	return web.New(cfg, st, tc, col).Handler(), st.Close, nil
 }

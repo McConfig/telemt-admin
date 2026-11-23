@@ -115,6 +115,10 @@ curl -fsS http://127.0.0.1:8090/healthz
 | `TGADMIN_LISTEN` | `:8090` | адрес HTTP-сервера |
 | `TGADMIN_ALLOWED_CIDRS` | `127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` | сети, которым разрешён доступ |
 | `TGADMIN_TRUSTED_PROXIES` | пусто | адреса reverse-proxy, от которых принимается `X-Forwarded-For` |
+| `TGADMIN_COLLECT_INTERVAL` | `60s` | как часто снимать активные IP и трафик через API |
+| `TGADMIN_RISK_IPS_WARN` | `3` | одновременных IP, после которых предупреждение |
+| `TGADMIN_RISK_IPS_HIGH` | `5` | одновременных IP, после которых высокий риск |
+| `TGADMIN_RISK_DISTINCT_7D` | `15` | уникальных IP за 7 дней для предупреждения |
 | `TGADMIN_BASE_URL` | `https://tgadmin.example.com` | внешний адрес; проверка Origin и ссылки |
 | `TGADMIN_SESSION_TTL` | `720h` | срок жизни сессии |
 | `TGADMIN_COOKIE_SECURE` | `true` | `Secure` у cookie; выключайте только для локальной проверки по HTTP |
@@ -218,6 +222,38 @@ docker compose up -d
 
 Перед обновлением сделайте бэкап Valkey (см. ниже). Схема данных
 совместима: ключи `auth:*` и `audit:events` не меняются между версиями 0.x.
+
+## История IP и трафик
+
+`tgadmin` раз в `TGADMIN_COLLECT_INTERVAL` опрашивает Control API telemt и
+складывает в Valkey:
+
+- активные адреса каждого клиента с временем первого и последнего появления;
+- уникальные адреса за 24 часа и 7 дней, новые за сутки, пик за день;
+- суммарный трафик клиента и трафик за текущие сутки.
+
+Адреса хранятся 30 дней. Полные адреса показывает только роль `admin`.
+
+Метрики для Prometheus отдаются на `GET /metrics`:
+
+```
+tgadmin_user_ips_current{user="alice"}
+tgadmin_user_ips_distinct_24h{user="alice"}
+tgadmin_user_ips_distinct_7d{user="alice"}
+tgadmin_user_ips_new_24h{user="alice"}
+tgadmin_user_ips_max_today{user="alice"}
+tgadmin_user_traffic_bytes_total{user="alice"}
+tgadmin_user_traffic_today_bytes{user="alice"}
+tgadmin_user_risk_level{user="alice"}
+tgadmin_collector_up
+```
+
+`tgadmin_user_risk_level`: 0 — норма, 1 — больше `TGADMIN_RISK_IPS_WARN`
+одновременных адресов или больше `TGADMIN_RISK_DISTINCT_7D` за неделю,
+2 — больше `TGADMIN_RISK_IPS_HIGH`.
+
+Если Prometheus ходит из docker-сети, добавьте её в `TGADMIN_ALLOWED_CIDRS`
+(например, `172.16.0.0/12`): проверка источника действует и на `/metrics`.
 
 ## Бэкап и восстановление Valkey
 

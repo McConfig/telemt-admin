@@ -10,7 +10,9 @@ import {
   Text,
   TextInput,
 } from '@gravity-ui/uikit';
-import { api, ApiError, type Me, type ProxyUser } from '../api';
+import { Table, useTable } from '@gravity-ui/table';
+import type { ColumnDef } from '@gravity-ui/table/tanstack';
+import { api, ApiError, type IPHistoryItem, type Me, type ProxyUser } from '../api';
 import { formatBytes } from '../format';
 
 export default function UserPage({ me }: { me: Me }) {
@@ -90,6 +92,32 @@ export default function UserPage({ me }: { me: Me }) {
           <Text>Трафик: {formatBytes(user.totalOctets)}</Text>
           <Text>Лимит IP: {user.maxUniqueIps ?? 'нет'}</Text>
           <Text>Лимит соединений: {user.maxTcpConns ?? 'нет'}</Text>
+        </div>
+      </Card>
+
+      <Card view="filled" style={{ padding: 16 }}>
+        <div className="stack">
+          <div className="row">
+            <Text variant="header-1">Устройства</Text>
+            {user.risk > 0 && (
+              <Label theme={user.risk === 2 ? 'danger' : 'warning'} size="s">
+                {user.risk === 2 ? 'высокий риск' : 'внимание'}
+              </Label>
+            )}
+          </div>
+          {user.risk > 0 && (
+            <Alert
+              theme={user.risk === 2 ? 'danger' : 'warning'}
+              message="Столько одновременных адресов не похоже на обычное число устройств. Проверьте, не передан ли ключ."
+            />
+          )}
+          <Text>Сейчас активно: {user.activeUniqueIps}</Text>
+          <Text>Уникальных за 24 часа: {user.ips24h}</Text>
+          <Text>Уникальных за 7 дней: {user.ips7d}</Text>
+          <Text>Новых за 24 часа: {user.new24h}</Text>
+          <Text>Пик за сутки: {user.maxToday}</Text>
+          <Text>Трафик за сутки: {formatBytes(user.trafficToday)}</Text>
+          {isAdmin && user.ipHistory && user.ipHistory.length > 0 && <IPHistoryTable items={user.ipHistory} />}
         </div>
       </Card>
 
@@ -222,6 +250,17 @@ export default function UserPage({ me }: { me: Me }) {
       />
     </div>
   );
+}
+
+function IPHistoryTable({ items }: { items: IPHistoryItem[] }) {
+  const columns: ColumnDef<IPHistoryItem>[] = [
+    { id: 'ip', header: 'IP', cell: ({ row }) => row.original.ip },
+    { id: 'first', header: 'Впервые', cell: ({ row }) => new Date(row.original.firstSeen).toLocaleString('ru-RU') },
+    { id: 'last', header: 'Последний раз', cell: ({ row }) => new Date(row.original.lastSeen).toLocaleString('ru-RU') },
+    { id: 'count', header: 'Наблюдений', cell: ({ row }) => row.original.count },
+  ];
+  const table = useTable({ columns, data: items });
+  return <Table table={table} />;
 }
 
 function ConfirmDialog({

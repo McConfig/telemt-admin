@@ -3,9 +3,12 @@ package web
 import (
 	"errors"
 	"net/http"
+	"time"
+
 	"regexp"
 	"strings"
 
+	"github.com/McConfig/telemt-admin/internal/store"
 	"github.com/McConfig/telemt-admin/internal/telemt"
 	"github.com/go-chi/chi/v5"
 	"github.com/skip2/go-qrcode"
@@ -15,6 +18,13 @@ var (
 	nameRe   = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,64}$`)
 	secretRe = regexp.MustCompile(`^[0-9a-f]{32}$`)
 )
+
+type apiIP struct {
+	IP        string `json:"ip"`
+	FirstSeen string `json:"firstSeen"`
+	LastSeen  string `json:"lastSeen"`
+	Count     int64  `json:"count"`
+}
 
 type apiUser struct {
 	Username           string   `json:"username"`
@@ -26,6 +36,13 @@ type apiUser struct {
 	TotalOctets        uint64   `json:"totalOctets"`
 	MaxUniqueIPs       *uint64  `json:"maxUniqueIps"`
 	MaxTCPConns        *uint64  `json:"maxTcpConns"`
+	Ips24h             int64    `json:"ips24h"`
+	Ips7d              int64    `json:"ips7d"`
+	New24h             int64    `json:"new24h"`
+	MaxToday           int64    `json:"maxToday"`
+	TrafficToday       uint64   `json:"trafficToday"`
+	Risk               int      `json:"risk"`
+	IPHistory          []apiIP  `json:"ipHistory,omitempty"`
 	Link               string   `json:"link,omitempty"`
 }
 
@@ -39,7 +56,27 @@ func (s *Server) apiUserView(r *http.Request, u telemt.User) apiUser {
 	if s.isAdmin(r) {
 		out.Link = u.Link(s.cfg.LinkMode)
 	}
+	stats, err := s.store.UserIPStats(r.Context(), u.Username, time.Now().UTC())
+	if err == nil {
+		out.Ips24h = stats.Distinct24h
+		out.Ips7d = stats.Distinct7d
+		out.New24h = stats.New24h
+		out.MaxToday = stats.MaxToday
+		out.TrafficToday = stats.TrafficToday
+		out.Risk = s.risk(int64(len(u.ActiveUniqueIPList)), stats)
+	}
 	return out
+}
+
+func (s *Server) risk(current int64, stats store.UserIPStats) int {
+	switch {
+	case current > int64(s.cfg.RiskIPsHigh):
+		return 2
+	case current > int64(s.cfg.RiskIPsWarn) || stats.Distinct7d > int64(s.cfg.RiskDistinct7d):
+		return 1
+	default:
+		return 0
+	}
 }
 
 func (s *Server) apiUsers(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +103,18 @@ func (s *Server) apiUser(w http.ResponseWriter, r *http.Request) {
 		s.telemtAPIError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, s.apiUserView(r, *u))
+	view := s.apiUserView(r, *u)
+	if s.isAdmin(r) {
+		if history, err := s.store.IPHistory(r.Context(), name); err == nil {
+			for _, item := range history {
+				view.IPHistory = append(view.IPHistory, apiIP{
+					IP: item.IP, FirstSeen: item.FirstSeen.Format(time.RFC3339),
+					LastSeen: item.LastSeen.Format(time.RFC3339), Count: item.Count,
+				})
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, view)
 }
 
 type createUserRequest struct {
@@ -152,7 +200,18 @@ func (s *Server) apiUpdateLimits(w http.ResponseWriter, r *http.Request) {
 		s.telemtAPIError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, s.apiUserView(r, *u))
+	view := s.apiUserView(r, *u)
+	if s.isAdmin(r) {
+		if history, err := s.store.IPHistory(r.Context(), name); err == nil {
+			for _, item := range history {
+				view.IPHistory = append(view.IPHistory, apiIP{
+					IP: item.IP, FirstSeen: item.FirstSeen.Format(time.RFC3339),
+					LastSeen: item.LastSeen.Format(time.RFC3339), Count: item.Count,
+				})
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, view)
 }
 
 type confirmRequest struct {
@@ -180,7 +239,18 @@ func (s *Server) apiRotate(w http.ResponseWriter, r *http.Request) {
 		s.telemtAPIError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, s.apiUserView(r, *u))
+	view := s.apiUserView(r, *u)
+	if s.isAdmin(r) {
+		if history, err := s.store.IPHistory(r.Context(), name); err == nil {
+			for _, item := range history {
+				view.IPHistory = append(view.IPHistory, apiIP{
+					IP: item.IP, FirstSeen: item.FirstSeen.Format(time.RFC3339),
+					LastSeen: item.LastSeen.Format(time.RFC3339), Count: item.Count,
+				})
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, view)
 }
 
 func (s *Server) apiEnable(w http.ResponseWriter, r *http.Request)  { s.setEnabled(w, r, true) }
@@ -211,7 +281,18 @@ func (s *Server) setEnabled(w http.ResponseWriter, r *http.Request, enabled bool
 		s.telemtAPIError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, s.apiUserView(r, *u))
+	view := s.apiUserView(r, *u)
+	if s.isAdmin(r) {
+		if history, err := s.store.IPHistory(r.Context(), name); err == nil {
+			for _, item := range history {
+				view.IPHistory = append(view.IPHistory, apiIP{
+					IP: item.IP, FirstSeen: item.FirstSeen.Format(time.RFC3339),
+					LastSeen: item.LastSeen.Format(time.RFC3339), Count: item.Count,
+				})
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, view)
 }
 
 func (s *Server) apiRename(w http.ResponseWriter, r *http.Request) {

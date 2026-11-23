@@ -33,7 +33,7 @@ func testServerWithMR(t *testing.T) (*Server, *miniredis.Miniredis) {
 		BaseURL:      mustURL("https://tgadmin.example.com"),
 		AllowedCIDRs: []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")},
 	}
-	return New(cfg, st, nil), mr
+	return New(cfg, st, nil, nil), mr
 }
 
 func testServer(t *testing.T) *Server {
