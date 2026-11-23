@@ -1,0 +1,8 @@
+:root { color-scheme: dark; font-family: system-ui, sans-serif; }
+body { margin: 0; background: #111; color: #e6e6e6; }
+main { max-width: 1080px; margin: 0 auto; padding: 24px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid #333; }
+a { color: #7ab7ff; }
+.error { color: #ff8a8a; }
+button, input, select { font: inherit; }
