@@ -33,6 +33,15 @@ func TestUserPageViewerHidesLink(t *testing.T) {
 	}
 }
 
+func TestUserPageNotFoundMaps404(t *testing.T) {
+	s := testServerWithMissingUser(t)
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, authRequest(t, s, "GET", "/users/ghost", nil))
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("код %d", rr.Code)
+	}
+}
+
 func TestQRCodePNG(t *testing.T) {
 	s := testServerWithTelemtDetail(t)
 	rr := httptest.NewRecorder()

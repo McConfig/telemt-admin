@@ -33,8 +33,10 @@ func (c *Client) Rename(ctx context.Context, oldName, newName string) error {
 	if err != nil {
 		return err
 	}
+	enabled := src.Enabled
 	in := CreateInput{
 		Username:          newName,
+		Enabled:           &enabled,
 		Secret:            key,
 		MaxTCPConns:       src.MaxTCPConns,
 		MaxUniqueIPs:      src.MaxUniqueIPs,

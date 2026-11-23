@@ -81,7 +81,14 @@ func Run(ctx context.Context, args []string, cfg *config.Config, stdin io.Reader
 		if len(args) != 3 {
 			return fmt.Errorf("использование: tgadmin user %s <name>", args[1])
 		}
-		return st.SetDisabled(ctx, args[2], args[1] == "disable")
+		disabled := args[1] == "disable"
+		if err := st.SetDisabled(ctx, args[2], disabled); err != nil {
+			return err
+		}
+		if disabled {
+			return st.DeleteUserSessions(ctx, args[2], "")
+		}
+		return nil
 	default:
 		return fmt.Errorf("неизвестная команда %q", args[1])
 	}

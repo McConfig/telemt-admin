@@ -98,6 +98,22 @@ func TestCreateUserRejectsBadName(t *testing.T) {
 	}
 }
 
+func TestNewUserPageRendersCSRF(t *testing.T) {
+	s := testServerWithMutableTelemt(t)
+	tok, _ := adminAuth(t, s)
+	req := httptest.NewRequest("GET", "/users/new", nil)
+	req.RemoteAddr = "192.0.2.10:5555"
+	req.AddCookie(&http.Cookie{Name: cookieName, Value: tok})
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("код %d: %s", rr.Code, rr.Body.String())
+	}
+	if !contains(rr.Body.String(), `name="csrf"`) {
+		t.Fatalf("нет CSRF: %s", rr.Body.String())
+	}
+}
+
 func TestCreateUserRejectsBadSecret(t *testing.T) {
 	s := testServerWithMutableTelemt(t)
 	tok, csrf := adminAuth(t, s)

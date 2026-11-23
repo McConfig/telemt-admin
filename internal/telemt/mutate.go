@@ -20,6 +20,7 @@ type CreateInput struct {
 	QuotaPeriod       *string `json:"quota_period,omitempty"`
 	RateLimitUpBps    *uint64 `json:"rate_limit_up_bps,omitempty"`
 	RateLimitDownBps  *uint64 `json:"rate_limit_down_bps,omitempty"`
+	Enabled           *bool   `json:"enabled,omitempty"`
 }
 
 // CreateUser создаёт пользователя.

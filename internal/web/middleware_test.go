@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -30,6 +31,23 @@ func TestAllowlist(t *testing.T) {
 	h.ServeHTTP(rr, outside)
 	if rr.Code != http.StatusForbidden {
 		t.Fatalf("снаружи код %d", rr.Code)
+	}
+}
+
+func TestDisabledSessionRejected(t *testing.T) {
+	s := testServer(t)
+	seedAdmin(t, s)
+	tok, _ := adminAuth(t, s)
+	if err := s.store.SetDisabled(context.Background(), "admin", true); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest("GET", "/", nil)
+	req.RemoteAddr = "192.0.2.10:5555"
+	req.AddCookie(&http.Cookie{Name: cookieName, Value: tok})
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, req)
+	if rr.Code != http.StatusSeeOther || rr.Header().Get("Location") != "/login" {
+		t.Fatalf("код %d, location %q", rr.Code, rr.Header().Get("Location"))
 	}
 }
 

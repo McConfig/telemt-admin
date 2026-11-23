@@ -1,0 +1,50 @@
+package main
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/McConfig/telemt-admin/internal/config"
+	"github.com/alicebob/miniredis/v2"
+)
+
+func TestNewHandlerServesLogin(t *testing.T) {
+	mr := miniredis.RunT(t)
+	cfg := &config.Config{
+		Listen: ":0", LinkMode: "tls", SessionTTL: time.Hour,
+		BaseURL:      mustParseURL("https://tgadmin.example.com"),
+		AllowedCIDRs: mustCIDRs("127.0.0.1/32"),
+		ValkeyURL:    "redis://" + mr.Addr() + "/0",
+		TelemtURL:    "http://127.0.0.1:1",
+	}
+	h, closeFn, err := newHandler(cfg)
+	if err != nil {
+		t.Fatalf("newHandler: %v", err)
+	}
+	defer closeFn()
+
+	req := httptest.NewRequest("GET", "/login", nil)
+	req.RemoteAddr = "127.0.0.1:5555"
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("код %d: %s", rr.Code, rr.Body.String())
+	}
+	if !contains(rr.Body.String(), "Вход") {
+		t.Fatalf("нет страницы входа: %s", rr.Body.String())
+	}
+}
+
+func contains(s, sub string) bool {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
+}
+
+var _ = context.Background

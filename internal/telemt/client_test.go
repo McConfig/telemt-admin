@@ -48,7 +48,7 @@ func TestListUsers(t *testing.T) {
 func TestAPIError(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte(`{"error":{"code":404,"type":"not_found","message":"нет такого"}}`))
+		_, _ = w.Write([]byte(`{"ok":false,"error":{"code":"not_found","message":"нет такого"},"request_id":7}`))
 	})
 	_, err := c.GetUser(context.Background(), "ghost")
 	var apiErr *APIError

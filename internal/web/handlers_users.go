@@ -2,6 +2,7 @@ package web
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -43,12 +44,22 @@ func (s *Server) usersPage(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) telemtError(w http.ResponseWriter, r *http.Request, err error) {
 	var apiErr *telemt.APIError
-	switch {
-	case errors.As(err, &apiErr):
-		http.Error(w, "telemt API: "+apiErr.Message, http.StatusBadGateway)
-	default:
-		http.Error(w, "telemt не отвечает: "+err.Error(), http.StatusBadGateway)
+	if errors.As(err, &apiErr) {
+		slog.Warn("telemt API", "method", r.Method, "path", r.URL.Path, "status", apiErr.Status)
+		if apiErr.Status >= http.StatusInternalServerError {
+			http.Error(w, "telemt не отвечает", http.StatusBadGateway)
+			return
+		}
+		code := http.StatusBadGateway
+		switch apiErr.Status {
+		case http.StatusBadRequest, http.StatusForbidden, http.StatusNotFound, http.StatusConflict:
+			code = apiErr.Status
+		}
+		http.Error(w, "telemt API: "+apiErr.Message, code)
+		return
 	}
+	slog.Warn("telemt недоступен", "method", r.Method, "path", r.URL.Path, "err", err)
+	http.Error(w, "telemt не отвечает", http.StatusBadGateway)
 }
 
 type userData struct {
@@ -118,6 +129,7 @@ var secretRe = regexp.MustCompile(`^[0-9a-f]{32}$`)
 type newUserData struct {
 	Title string
 	Error string
+	CSRF  string
 }
 
 func (s *Server) newUserPage(w http.ResponseWriter, r *http.Request) {
@@ -125,7 +137,12 @@ func (s *Server) newUserPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "нет прав", http.StatusForbidden)
 		return
 	}
-	s.render(w, r, "new.html", newUserData{Title: "Новый пользователь"})
+	sess := s.currentSession(r)
+	csrf := ""
+	if sess != nil {
+		csrf = sess.CSRF
+	}
+	s.render(w, r, "new.html", newUserData{Title: "Новый пользователь", CSRF: csrf})
 }
 
 func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {

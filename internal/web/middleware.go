@@ -64,6 +64,12 @@ func (s *Server) withSession(next http.Handler) http.Handler {
 			s.redirectLogin(w, r)
 			return
 		}
+		u, err := s.store.GetUser(r.Context(), sess.User)
+		if err != nil || u.Disabled {
+			s.clearCookie(w)
+			s.redirectLogin(w, r)
+			return
+		}
 		ctx := context.WithValue(r.Context(), sessionCtxKey, sess)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

@@ -109,3 +109,15 @@ func testServerWithTelemtDetail(t *testing.T) *Server {
 	s.telemt = telemt.New(srv.URL, "", 5*time.Second)
 	return s
 }
+
+func testServerWithMissingUser(t *testing.T) *Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"ok":false,"error":{"code":"not_found","message":"User not found"},"request_id":1}`))
+	}))
+	t.Cleanup(srv.Close)
+	s := testServer(t)
+	s.telemt = telemt.New(srv.URL, "", 5*time.Second)
+	return s
+}

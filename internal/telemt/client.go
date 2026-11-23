@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -41,10 +42,15 @@ type envelope struct {
 	OK    bool            `json:"ok"`
 	Data  json.RawMessage `json:"data"`
 	Error *struct {
-		Code    int    `json:"code"`
-		Type    string `json:"type"`
+		Code    string `json:"code"`
 		Message string `json:"message"`
 	} `json:"error"`
+}
+
+// redact убирает из текста секреты, если API вернул их в сообщении.
+func redact(s string) string {
+	re := regexp.MustCompile(`(?i)(secret=)[0-9a-f]+|\b[0-9a-f]{32}\b`)
+	return re.ReplaceAllString(s, "${1}***")
 }
 
 func (c *Client) do(ctx context.Context, method, path string, in, out any) error {
@@ -78,16 +84,20 @@ func (c *Client) do(ctx context.Context, method, path string, in, out any) error
 	}
 	var env envelope
 	if len(raw) > 0 {
-		if err := json.Unmarshal(raw, &env); err != nil {
-			return fmt.Errorf("ответ telemt: %w", err)
-		}
+		_ = json.Unmarshal(raw, &env)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		msg := strings.TrimSpace(string(raw))
+		msg := strings.TrimSpace(http.StatusText(resp.StatusCode))
 		if env.Error != nil && env.Error.Message != "" {
-			msg = env.Error.Message
+			msg = redact(env.Error.Message)
 		}
 		return &APIError{Status: resp.StatusCode, Message: msg}
+	}
+	if len(raw) == 0 {
+		return nil
+	}
+	if env.Data == nil {
+		return fmt.Errorf("ответ telemt: нет поля data")
 	}
 	if out != nil {
 		if len(env.Data) == 0 {

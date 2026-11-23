@@ -2,6 +2,7 @@ package telemt
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"sync"
@@ -73,6 +74,32 @@ func TestRenameRollsBackOnKeyMismatch(t *testing.T) {
 	}
 	if !deletedNew {
 		t.Fatal("новый пользователь не удалён при откате")
+	}
+}
+
+func TestRenameKeepsDisabledState(t *testing.T) {
+	var created map[string]any
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/v1/users/alice" && r.Method == http.MethodGet:
+			_, _ = w.Write([]byte(`{"ok":true,"data":{"username":"alice","enabled":false,"links":{"tls":["tg://proxy?secret=ee00112233445566778899aabbccddeeff6578616d706c652e636f6d"]}}}`))
+		case r.URL.Path == "/v1/users" && r.Method == http.MethodPost:
+			_ = json.NewDecoder(r.Body).Decode(&created)
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"ok":true,"data":{"user":{"username":"bob","enabled":false}}}`))
+		case r.URL.Path == "/v1/users/bob" && r.Method == http.MethodGet:
+			_, _ = w.Write([]byte(`{"ok":true,"data":{"username":"bob","enabled":false,"links":{"tls":["tg://proxy?secret=ee00112233445566778899aabbccddeeff6578616d706c652e636f6d"]}}}`))
+		case r.URL.Path == "/v1/users/alice" && r.Method == http.MethodDelete:
+			_, _ = w.Write([]byte(`{"ok":true,"data":{}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	})
+	if err := c.Rename(context.Background(), "alice", "bob"); err != nil {
+		t.Fatalf("Rename: %v", err)
+	}
+	if created["enabled"] != false {
+		t.Fatalf("enabled не передан: %v", created)
 	}
 }
 
