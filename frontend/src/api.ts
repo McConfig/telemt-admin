@@ -1,5 +1,10 @@
 export type Role = 'admin' | 'viewer';
 
+export interface Meta {
+  version: string;
+  repo: string;
+}
+
 export interface Me {
   user: { name: string; role: Role };
   csrf: string;
@@ -117,6 +122,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 }
 
 export const api = {
+  meta: () => request<Meta>('GET', '/api/meta'),
   async me(): Promise<Me> {
     const me = await request<Me>('GET', '/api/me');
     setCSRF(me.csrf);

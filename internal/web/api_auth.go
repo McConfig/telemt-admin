@@ -2,6 +2,8 @@ package web
 
 import (
 	"net/http"
+
+	"github.com/McConfig/telemt-admin/internal/version"
 	"strings"
 
 	"github.com/McConfig/telemt-admin/internal/auth"
@@ -34,6 +36,13 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, m)
+}
+
+func (s *Server) apiMeta(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{
+		"version": version.Version,
+		"repo":    "https://github.com/McConfig/telemt-admin",
+	})
 }
 
 type loginRequest struct {

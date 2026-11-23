@@ -49,6 +49,7 @@ func New(cfg *config.Config, st *store.Store, tc *telemt.Client, metrics http.Ha
 		r.Get("/metrics", metrics.ServeHTTP)
 	}
 	r.Route("/api", func(r chi.Router) {
+		r.Get("/meta", s.apiMeta)
 		r.Post("/login", s.apiLogin)
 		r.Group(func(r chi.Router) {
 			r.Use(s.withAPISession)

@@ -4,11 +4,13 @@ import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { api, ApiError, type AuditItem } from '../api';
 import { formatTime } from '../format';
+import { useMedia } from '../useMedia';
 
 export default function AuditPage() {
   const [items, setItems] = useState<AuditItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const isMobile = useMedia('(max-width: 760px)');
 
   useEffect(() => {
     api
@@ -40,7 +42,27 @@ export default function AuditPage() {
       </div>
       {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
       <Card view="filled" style={{ padding: 8 }}>
-        {loading ? <Loader size="m" /> : <Table table={table} emptyContent="Событий нет" />}
+        {loading ? (
+          <Loader size="m" />
+        ) : isMobile ? (
+          <div className="user-cards">
+            {items.length === 0 && <Text className="muted">Событий нет</Text>}
+            {items.map((e) => (
+              <div className="user-card" key={`${e.at}-${e.action}-${e.target}`}>
+                <div className="row">
+                  <Text>{e.action}</Text>
+                  <span className="muted">{formatTime(e.at)}</span>
+                </div>
+                <div className="muted">
+                  {e.actor} → {e.target || '—'} · {e.result}
+                </div>
+                <div className="muted">{e.ip}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Table table={table} emptyContent="Событий нет" />
+        )}
       </Card>
     </div>
   );

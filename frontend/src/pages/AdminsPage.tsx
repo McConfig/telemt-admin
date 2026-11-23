@@ -4,6 +4,7 @@ import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { api, ApiError, type AdminUser, type Me } from '../api';
 import { formatTime } from '../format';
+import { useMedia } from '../useMedia';
 
 export default function AdminsPage({ me }: { me: Me }) {
   const [items, setItems] = useState<AdminUser[]>([]);
@@ -12,6 +13,7 @@ export default function AdminsPage({ me }: { me: Me }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [generated, setGenerated] = useState('');
   const [resetFor, setResetFor] = useState<string | null>(null);
+  const isMobile = useMedia('(max-width: 760px)');
 
   const load = useCallback(() => {
     setLoading(true);
@@ -118,7 +120,56 @@ export default function AdminsPage({ me }: { me: Me }) {
         />
       )}
       <Card view="filled" style={{ padding: 8 }}>
-        {loading ? <Loader size="m" /> : <Table table={table} emptyContent="Пользователей нет" />}
+        {loading ? (
+          <Loader size="m" />
+        ) : isMobile ? (
+          <div className="user-cards" style={{ padding: 8 }}>
+            {items.map((u) => (
+              <div className="user-card" key={u.name}>
+                <div className="row">
+                  <Text>{u.name}</Text>
+                  <Label theme={u.role === 'admin' ? 'success' : 'info'} size="s">
+                    {u.role}
+                  </Label>
+                  <Label theme={u.disabled ? 'danger' : 'success'} size="s">
+                    {u.disabled ? 'отключён' : 'активен'}
+                  </Label>
+                </div>
+                <div className="muted">
+                  сессий: {u.sessions} · создан {formatTime(u.createdAt)}
+                </div>
+                <div className="row">
+                  <Button view="flat" onClick={() => setResetFor(u.name)}>
+                    Пароль
+                  </Button>
+                  <Button
+                    view="flat"
+                    disabled={u.name === me.user.name}
+                    onClick={() => void run(() => api.patchAdmin(u.name, { disabled: !u.disabled }))}
+                  >
+                    {u.disabled ? 'Включить' : 'Отключить'}
+                  </Button>
+                  <Button
+                    view="flat"
+                    disabled={u.name === me.user.name || u.sessions === 0}
+                    onClick={() => void run(() => api.revokeAdminSessions(u.name))}
+                  >
+                    Сессии
+                  </Button>
+                  <Button
+                    view="flat-danger"
+                    disabled={u.name === me.user.name}
+                    onClick={() => void run(() => api.deleteAdmin(u.name))}
+                  >
+                    Удалить
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Table table={table} emptyContent="Пользователей нет" />
+        )}
       </Card>
       <CreateAdminDialog
         open={createOpen}

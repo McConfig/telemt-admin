@@ -4,6 +4,7 @@ import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { api, ApiError, type SessionItem } from '../api';
 import { formatTime } from '../format';
+import { useMedia } from '../useMedia';
 
 export default function AccountPage() {
   const [sessions, setSessions] = useState<SessionItem[]>([]);
@@ -13,6 +14,7 @@ export default function AccountPage() {
   const [next, setNext] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const isMobile = useMedia('(max-width: 760px)');
 
   const load = () => {
     setLoading(true);
@@ -84,7 +86,30 @@ export default function AccountPage() {
         <Text variant="header-1" style={{ padding: 8 }}>
           Сессии
         </Text>
-        {loading ? <Loader size="m" /> : <Table table={table} emptyContent="Других сессий нет" />}
+        {loading ? (
+          <Loader size="m" />
+        ) : isMobile ? (
+          <div className="user-cards" style={{ padding: 8 }}>
+            {sessions.map((item) => (
+              <div className="user-card" key={item.id}>
+                <div>{item.userAgent || 'устройство не определено'}</div>
+                <div className="muted">
+                  {item.ip} · {formatTime(item.createdAt)}
+                </div>
+                {item.current ? (
+                  <Text color="secondary">текущая</Text>
+                ) : (
+                  <Button view="flat" onClick={() => void api.revoke(item.id).then(load)}>
+                    Завершить
+                  </Button>
+                )}
+              </div>
+            ))}
+            {sessions.length === 0 && <Text className="muted">Других сессий нет</Text>}
+          </div>
+        ) : (
+          <Table table={table} emptyContent="Других сессий нет" />
+        )}
       </Card>
     </div>
   );

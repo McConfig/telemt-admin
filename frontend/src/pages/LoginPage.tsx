@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Alert, Button, Card, Text, TextInput } from '@gravity-ui/uikit';
 import { api, ApiError, type Me } from '../api';
+import Footer from '../Footer';
 
 export default function LoginPage({ onLogin }: { onLogin: (me: Me) => void }) {
   const [username, setUsername] = useState('');
@@ -45,6 +46,7 @@ export default function LoginPage({ onLogin }: { onLogin: (me: Me) => void }) {
           </Button>
         </form>
       </Card>
+      <Footer />
     </div>
   );
 }

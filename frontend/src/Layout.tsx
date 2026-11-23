@@ -1,7 +1,9 @@
 import { useState, type ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { Button, Label } from '@gravity-ui/uikit';
+import { ArrowRightFromSquare, Moon, Sun } from '@gravity-ui/icons';
 import type { Me } from './api';
+import Footer from './Footer';
 
 export default function Layout({
   me,
@@ -18,6 +20,7 @@ export default function Layout({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const close = () => setMenuOpen(false);
+  const ThemeIcon = theme === 'dark' ? Sun : Moon;
 
   return (
     <>
@@ -37,24 +40,25 @@ export default function Layout({
               Пользователи
             </NavLink>
             <NavLink to="/audit">Аудит</NavLink>
-            <NavLink to="/account">Аккаунт</NavLink>
             {me.user.role === 'admin' && <NavLink to="/admins">Пользователи UI</NavLink>}
           </nav>
           <div className="topbar-user">
-            <span className="muted">{me.user.name}</span>
-            <Label theme={me.user.role === 'admin' ? 'success' : 'info'} size="s">
-              {me.user.role}
-            </Label>
-            <Button view="flat" onClick={onToggleTheme}>
-              {theme === 'dark' ? 'Светлая' : 'Тёмная'}
+            <Link to="/account" onClick={close} title="Аккаунт">
+              <Label theme={me.user.role === 'admin' ? 'success' : 'info'} size="s">
+                {me.user.role}
+              </Label>
+            </Link>
+            <Button view="flat" aria-label="Переключить тему" title="Тема" onClick={onToggleTheme}>
+              <ThemeIcon width={18} height={18} />
             </Button>
-            <Button view="flat" onClick={onLogout}>
-              Выйти
+            <Button view="flat" aria-label="Выйти" title="Выйти" onClick={onLogout}>
+              <ArrowRightFromSquare width={18} height={18} />
             </Button>
           </div>
         </div>
       </header>
       <main className="page">{children}</main>
+      <Footer />
     </>
   );
 }
