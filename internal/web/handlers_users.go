@@ -304,3 +304,29 @@ func (s *Server) deleteUser(w http.ResponseWriter, r *http.Request) {
 	s.audit(r, "user.delete", name, "ok")
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
+
+func (s *Server) renameUser(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) || !s.checkCSRF(w, r) {
+		return
+	}
+	oldName := chi.URLParam(r, "name")
+	newName := strings.TrimSpace(r.PostFormValue("new_name"))
+	if !nameRe.MatchString(newName) {
+		http.Error(w, "новое имя: латиница, цифры, точка, дефис, подчёркивание, до 64 символов", http.StatusBadRequest)
+		return
+	}
+	if err := s.telemt.Rename(r.Context(), oldName, newName); err != nil {
+		var partial *telemt.RenamePartialError
+		if errors.As(err, &partial) {
+			s.audit(r, "user.rename", oldName, "partial")
+			http.Error(w, "новый пользователь создан, старый удалить не удалось. Оба ключа работают, повторите удаление старого вручную.",
+				http.StatusConflict)
+			return
+		}
+		s.audit(r, "user.rename", oldName, "error")
+		s.telemtError(w, r, err)
+		return
+	}
+	s.audit(r, "user.rename", oldName+" -> "+newName, "ok")
+	http.Redirect(w, r, "/users/"+newName, http.StatusSeeOther)
+}

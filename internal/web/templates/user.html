@@ -43,6 +43,13 @@
     <button type="submit">Сохранить</button>
   </form>
 
+  <h2>Переименовать</h2>
+  <form method="post" action="/users/{{.User.Username}}/rename">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <p>Новое имя: <input name="new_name" required pattern="[A-Za-z0-9_.-]{1,64}">
+       <button type="submit">Переименовать</button></p>
+  </form>
+
   <h2>Удаление</h2>
   <form method="post" action="/users/{{.User.Username}}/delete">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
