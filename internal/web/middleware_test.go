@@ -1,17 +1,10 @@
 package web
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
-
-func testServer(t *testing.T) *Server {
-	t.Helper()
-	s, _ := testServerWithMR(t)
-	return s
-}
 
 func TestAllowlist(t *testing.T) {
 	s := testServer(t)
@@ -34,23 +27,6 @@ func TestAllowlist(t *testing.T) {
 	}
 }
 
-func TestDisabledSessionRejected(t *testing.T) {
-	s := testServer(t)
-	seedAdmin(t, s)
-	tok, _ := adminAuth(t, s)
-	if err := s.store.SetDisabled(context.Background(), "admin", true); err != nil {
-		t.Fatal(err)
-	}
-	req := httptest.NewRequest("GET", "/", nil)
-	req.RemoteAddr = "192.0.2.10:5555"
-	req.AddCookie(&http.Cookie{Name: cookieName, Value: tok})
-	rr := httptest.NewRecorder()
-	s.Handler().ServeHTTP(rr, req)
-	if rr.Code != http.StatusSeeOther || rr.Header().Get("Location") != "/login" {
-		t.Fatalf("код %d, location %q", rr.Code, rr.Header().Get("Location"))
-	}
-}
-
 func TestSecurityHeaders(t *testing.T) {
 	s := testServer(t)
 	h := s.securityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
@@ -58,5 +34,8 @@ func TestSecurityHeaders(t *testing.T) {
 	h.ServeHTTP(rr, httptest.NewRequest("GET", "/", nil))
 	if rr.Header().Get("X-Frame-Options") != "DENY" {
 		t.Fatalf("заголовки: %v", rr.Header())
+	}
+	if rr.Header().Get("Content-Security-Policy") == "" {
+		t.Fatal("нет CSP")
 	}
 }

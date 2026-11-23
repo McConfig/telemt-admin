@@ -1,18 +1,11 @@
 package web
 
 import (
-	"context"
 	"net"
 	"net/http"
 	"net/netip"
 	"strings"
-
-	"github.com/McConfig/telemt-admin/internal/store"
 )
-
-type ctxKey int
-
-const sessionCtxKey ctxKey = 1
 
 func clientAddr(r *http.Request) (netip.Addr, bool) {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -44,38 +37,7 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "same-origin")
-		h.Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'")
+		h.Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'")
 		next.ServeHTTP(w, r)
 	})
-}
-
-const cookieName = "tgadmin_session"
-
-func (s *Server) withSession(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		c, err := r.Cookie(cookieName)
-		if err != nil {
-			s.redirectLogin(w, r)
-			return
-		}
-		sess, err := s.store.GetSession(r.Context(), c.Value)
-		if err != nil {
-			s.clearCookie(w)
-			s.redirectLogin(w, r)
-			return
-		}
-		u, err := s.store.GetUser(r.Context(), sess.User)
-		if err != nil || u.Disabled {
-			s.clearCookie(w)
-			s.redirectLogin(w, r)
-			return
-		}
-		ctx := context.WithValue(r.Context(), sessionCtxKey, sess)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
-func (s *Server) currentSession(r *http.Request) *store.Session {
-	sess, _ := r.Context().Value(sessionCtxKey).(*store.Session)
-	return sess
 }

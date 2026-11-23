@@ -41,6 +41,7 @@ TLS завершается внешним reverse-proxy. Приложение п
 ## Требования
 
 - Docker и Docker Compose;
+- для разработки без Docker: Go 1.26 и Node.js 24;
 - открытый порт прокси (по умолчанию 8444), если нужен доступ снаружи;
 - свой домен и TLS для публикации интерфейса.
 
@@ -260,12 +261,16 @@ AOF лежит в том же томе `valkey_data`; для полного бэ
 ## Разработка
 
 ```bash
+cd frontend && npm ci && npm run build && cd ..
 go test ./...
 go vet ./...
 go build ./cmd/tgadmin
 ```
 
-Тесты используют `miniredis` и `httptest`, внешние сервисы не нужны.
+Фронтенд собирается в `internal/web/dist` и встраивается в бинарь. Для
+разработки: `cd frontend && npm run dev` (проксирует `/api` на
+`http://127.0.0.1:18090`). Тесты Go используют `miniredis` и `httptest`,
+тесты фронтенда — Vitest; внешние сервисы не нужны.
 
 Локальная проверка по HTTP без TLS: задайте `TGADMIN_COOKIE_SECURE=false`,
 иначе браузер не отправит cookie сессии. В продакшене оставляйте `true`.

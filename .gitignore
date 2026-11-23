@@ -7,3 +7,9 @@
 
 deploy/telemt/config.toml
 deploy/telemt/secret
+
+frontend/node_modules/
+internal/web/dist/*
+!internal/web/dist/.gitkeep
+
+.idea/

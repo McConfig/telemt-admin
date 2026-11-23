@@ -11,7 +11,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 )
 
-func TestNewHandlerServesLogin(t *testing.T) {
+func TestNewHandlerServesAPI(t *testing.T) {
 	mr := miniredis.RunT(t)
 	cfg := &config.Config{
 		Listen: ":0", LinkMode: "tls", SessionTTL: time.Hour,
@@ -26,15 +26,15 @@ func TestNewHandlerServesLogin(t *testing.T) {
 	}
 	defer func() { _ = closeFn() }()
 
-	req := httptest.NewRequest("GET", "/login", nil)
+	req := httptest.NewRequest("GET", "/api/me", nil)
 	req.RemoteAddr = "127.0.0.1:5555"
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
-	if rr.Code != http.StatusOK {
+	if rr.Code != http.StatusUnauthorized {
 		t.Fatalf("код %d: %s", rr.Code, rr.Body.String())
 	}
-	if !contains(rr.Body.String(), "Вход") {
-		t.Fatalf("нет страницы входа: %s", rr.Body.String())
+	if !contains(rr.Body.String(), "unauthorized") {
+		t.Fatalf("нет JSON-ошибки: %s", rr.Body.String())
 	}
 }
 
