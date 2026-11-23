@@ -190,7 +190,10 @@ export default function UserPage({ me }: { me: Me }) {
         confirmWord={user.username}
         applyText="Перевыпустить"
         onClose={() => setRotateOpen(false)}
-        onApply={() => void run(() => api.rotate(user.username))}
+        onApply={() => {
+          setRotateOpen(false);
+          void run(() => api.rotate(user.username));
+        }}
       />
       <ConfirmDialog
         open={deleteOpen}
@@ -200,6 +203,7 @@ export default function UserPage({ me }: { me: Me }) {
         applyText="Удалить"
         onClose={() => setDeleteOpen(false)}
         onApply={() => {
+          setDeleteOpen(false);
           void run(async () => {
             await api.remove(user.username);
             navigate('/');
@@ -212,6 +216,7 @@ export default function UserPage({ me }: { me: Me }) {
         onClose={() => setRenameOpen(false)}
         onApply={async (next) => {
           await api.rename(user.username, next);
+          setRenameOpen(false);
           navigate(`/users/${encodeURIComponent(next)}`);
         }}
       />

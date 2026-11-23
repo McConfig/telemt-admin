@@ -10,3 +10,5 @@ body { margin: 0; }
 .qr { background: #fff; padding: 8px; width: 264px; border-radius: 8px; }
 .link { word-break: break-all; font-family: monospace; }
 .muted { color: var(--g-color-text-secondary); }
+
+table { width: 100%; }
