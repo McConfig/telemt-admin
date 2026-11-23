@@ -6,6 +6,7 @@
 <body><main>
 <h1>{{.User.Username}}</h1>
 <p><a href="/">← к списку</a></p>
+<form method="post" action="/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button type="submit">Выйти</button></form>
 {{if .User.Enabled}}<p>Статус: включён</p>{{else}}<p class="error">Статус: заблокирован</p>{{end}}
 <p>Соединения: {{.User.CurrentConnections}} · активные IP: {{.User.ActiveUniqueIPs}} · трафик: {{bytes .User.TotalOctets}}</p>
 {{if .User.ActiveUniqueIPList}}<p>IP: {{range .User.ActiveUniqueIPList}}{{.}} {{end}}</p>{{end}}
@@ -14,6 +15,7 @@
   {{if .Link}}
   <h2>Ссылка</h2>
   <p><code>{{.Link}}</code></p>
+  <p class="error">Ссылка равна паролю: не публикуйте её и не пересылайте в открытых чатах.</p>
   <p><img src="/users/{{.User.Username}}/qr" alt="QR" width="256" height="256"></p>
   {{else}}
   <p class="error">У пользователя нет TLS-ссылки</p>
@@ -39,7 +41,8 @@
         value="{{if .User.MaxUniqueIPs}}{{.User.MaxUniqueIPs}}{{end}}">
         <label><input type="checkbox" name="clear_max_unique_ips" value="1"> снять лимит</label></p>
     <p>Максимум соединений: <input name="max_tcp_conns" type="number" min="1"
-        value="{{if .User.MaxTCPConns}}{{.User.MaxTCPConns}}{{end}}"></p>
+        value="{{if .User.MaxTCPConns}}{{.User.MaxTCPConns}}{{end}}">
+        <label><input type="checkbox" name="clear_max_tcp_conns" value="1"> снять лимит</label></p>
     <button type="submit">Сохранить</button>
   </form>
 

@@ -20,9 +20,11 @@ type userRow struct {
 }
 
 type usersData struct {
-	Title string
-	Users []userRow
-	Query string
+	Title     string
+	Users     []userRow
+	Query     string
+	CanManage bool
+	CSRF      string
 }
 
 func (s *Server) usersPage(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +41,15 @@ func (s *Server) usersPage(w http.ResponseWriter, r *http.Request) {
 		}
 		rows = append(rows, userRow{User: u, Link: u.Link(s.cfg.LinkMode)})
 	}
-	s.render(w, r, "users.html", usersData{Title: "Пользователи", Users: rows, Query: q})
+	sess := s.currentSession(r)
+	csrf := ""
+	if sess != nil {
+		csrf = sess.CSRF
+	}
+	s.render(w, r, "users.html", usersData{
+		Title: "Пользователи", Users: rows, Query: q,
+		CanManage: s.isAdmin(r), CSRF: csrf,
+	})
 }
 
 func (s *Server) telemtError(w http.ResponseWriter, r *http.Request, err error) {
@@ -284,6 +294,8 @@ func (s *Server) updateLimits(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		patch["max_tcp_conns"] = n
+	} else if r.PostFormValue("clear_max_tcp_conns") == "1" {
+		patch["max_tcp_conns"] = nil
 	}
 	if len(patch) == 0 {
 		http.Redirect(w, r, "/users/"+name, http.StatusSeeOther)

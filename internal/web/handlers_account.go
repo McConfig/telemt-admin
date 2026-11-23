@@ -11,6 +11,7 @@ import (
 type auditData struct {
 	Title  string
 	Events []store.AuditEvent
+	CSRF   string
 }
 
 func (s *Server) auditPage(w http.ResponseWriter, r *http.Request) {
@@ -19,7 +20,12 @@ func (s *Server) auditPage(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.render(w, r, "audit.html", auditData{Title: "Аудит", Events: events})
+	sess := s.currentSession(r)
+	csrf := ""
+	if sess != nil {
+		csrf = sess.CSRF
+	}
+	s.render(w, r, "audit.html", auditData{Title: "Аудит", Events: events, CSRF: csrf})
 }
 
 type accountData struct {

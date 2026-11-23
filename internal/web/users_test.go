@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/McConfig/telemt-admin/internal/store"
 )
 
 func TestUsersPageShowsTelemtUsers(t *testing.T) {
@@ -26,6 +28,24 @@ func TestUsersPageFilter(t *testing.T) {
 	body := rr.Body.String()
 	if contains(body, ">alice<") || !contains(body, ">bob<") {
 		t.Fatalf("фильтр не работает: %s", body)
+	}
+}
+
+func TestUsersPageViewerHasNoCreateLink(t *testing.T) {
+	s := testServerWithTelemtDetail(t)
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, authRequestAs(t, s, store.RoleViewer, "GET", "/"))
+	if contains(rr.Body.String(), "Создать пользователя") {
+		t.Fatalf("viewer видит ссылку создания: %s", rr.Body.String())
+	}
+}
+
+func TestUsersPageNoStore(t *testing.T) {
+	s := testServerWithTelemt(t)
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, authRequest(t, s, "GET", "/", nil))
+	if rr.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("Cache-Control = %q", rr.Header().Get("Cache-Control"))
 	}
 }
 

@@ -53,7 +53,8 @@ func New(cfg *config.Config, st *store.Store, tc *telemt.Client) *Server {
 	r.Use(s.allowlist)
 	r.Use(s.securityHeaders)
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, _ = w.Write([]byte("ok\n"))
 	})
 	r.Get("/static/*", s.staticHandler)
 	r.Get("/login", s.loginPage)

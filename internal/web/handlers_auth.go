@@ -73,6 +73,9 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
+	if !s.checkCSRF(w, r) {
+		return
+	}
 	if sess := s.currentSession(r); sess != nil {
 		_ = s.store.DeleteSession(r.Context(), cookieValue(r))
 		_ = s.store.Audit(r.Context(), store.AuditEvent{
@@ -86,7 +89,7 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 func (s *Server) setCookie(w http.ResponseWriter, token string) {
 	http.SetCookie(w, &http.Cookie{
 		Name: cookieName, Value: token, Path: "/",
-		HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
+		HttpOnly: true, Secure: s.cfg.CookieSecure, SameSite: http.SameSiteLaxMode,
 		MaxAge: int(s.cfg.SessionTTL.Seconds()),
 	})
 }
@@ -94,7 +97,7 @@ func (s *Server) setCookie(w http.ResponseWriter, token string) {
 func (s *Server) clearCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name: cookieName, Value: "", Path: "/", MaxAge: -1,
-		HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
+		HttpOnly: true, Secure: s.cfg.CookieSecure, SameSite: http.SameSiteLaxMode,
 	})
 }
 
@@ -134,6 +137,7 @@ func (s *Server) checkCSRF(w http.ResponseWriter, r *http.Request) bool {
 
 func (s *Server) render(w http.ResponseWriter, r *http.Request, name string, data any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
 	if err := s.tmpl.ExecuteTemplate(w, name, data); err != nil {
 		s.serverError(w, r, err)
 	}

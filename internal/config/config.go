@@ -19,6 +19,7 @@ type Config struct {
 	TelemtURL      string
 	TelemtToken    string
 	LinkMode       string
+	CookieSecure   bool
 }
 
 // Load читает конфигурацию. getenv передаётся для тестируемости.
@@ -36,6 +37,7 @@ func Load(getenv func(string) string) (*Config, error) {
 		TelemtURL:      get("TELEMT_API_URL", "http://127.0.0.1:9091"),
 		TelemtToken:    getenv("TELEMT_API_TOKEN"),
 		LinkMode:       get("TELEMT_LINK_MODE", "tls"),
+		CookieSecure:   get("TGADMIN_COOKIE_SECURE", "true") != "false",
 	}
 
 	d, err := time.ParseDuration(get("TGADMIN_SESSION_TTL", "720h"))

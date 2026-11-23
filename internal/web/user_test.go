@@ -20,6 +20,15 @@ func TestUserPageAdminSeesLink(t *testing.T) {
 	}
 }
 
+func TestUserPageWarnsAboutLink(t *testing.T) {
+	s := testServerWithTelemtDetail(t)
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, authRequest(t, s, "GET", "/users/alice", nil))
+	if !contains(rr.Body.String(), "не публикуйте") {
+		t.Fatalf("нет предупреждения: %s", rr.Body.String())
+	}
+}
+
 func TestUserPageViewerHidesLink(t *testing.T) {
 	s := testServerWithTelemtDetail(t)
 	rr := httptest.NewRecorder()

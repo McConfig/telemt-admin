@@ -88,6 +88,7 @@ curl -fsS http://127.0.0.1:8090/healthz
 | `TGADMIN_ALLOWED_CIDRS` | `127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` | сети, которым разрешён доступ |
 | `TGADMIN_BASE_URL` | `https://tgadmin.example.com` | внешний адрес; проверка Origin и ссылки |
 | `TGADMIN_SESSION_TTL` | `720h` | срок жизни сессии |
+| `TGADMIN_COOKIE_SECURE` | `true` | `Secure` у cookie; выключайте только для локальной проверки по HTTP |
 | `VALKEY_URL` | `redis://valkey:6379/0` | подключение к Valkey |
 | `VALKEY_PASSWORD` | — | пароль Valkey, задайте свой |
 | `TELEMT_API_URL` | `http://127.0.0.1:9091` | Control API telemt |
@@ -238,6 +239,9 @@ go build ./cmd/tgadmin
 ```
 
 Тесты используют `miniredis` и `httptest`, внешние сервисы не нужны.
+
+Локальная проверка по HTTP без TLS: задайте `TGADMIN_COOKIE_SECURE=false`,
+иначе браузер не отправит cookie сессии. В продакшене оставляйте `true`.
 
 ## Лицензия
 

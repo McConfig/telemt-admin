@@ -76,6 +76,29 @@ func TestExpiredSessionRedirectsToLogin(t *testing.T) {
 	}
 }
 
+func TestLogoutRequiresCSRFAndRevokes(t *testing.T) {
+	s := testServer(t)
+	seedAdmin(t, s)
+	tok, csrf := adminAuth(t, s)
+	req := httptest.NewRequest("POST", "/logout", strings.NewReader("csrf="+csrf))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.RemoteAddr = "192.0.2.10:5555"
+	req.AddCookie(&http.Cookie{Name: cookieName, Value: tok})
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, req)
+	if rr.Code != http.StatusSeeOther || rr.Header().Get("Location") != "/login" {
+		t.Fatalf("код %d, location %q", rr.Code, rr.Header().Get("Location"))
+	}
+	req2 := httptest.NewRequest("GET", "/", nil)
+	req2.RemoteAddr = "192.0.2.10:5555"
+	req2.AddCookie(&http.Cookie{Name: cookieName, Value: tok})
+	rr2 := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr2, req2)
+	if rr2.Code != http.StatusSeeOther {
+		t.Fatalf("сессия не завершена: %d", rr2.Code)
+	}
+}
+
 func TestLoginWithoutUsersShowsHint(t *testing.T) {
 	s := testServer(t)
 	req := httptest.NewRequest("GET", "/login", nil)

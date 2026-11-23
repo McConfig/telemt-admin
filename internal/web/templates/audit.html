@@ -6,6 +6,7 @@
 <body><main>
 <h1>Аудит</h1>
 <p><a href="/">← к пользователям</a></p>
+<form method="post" action="/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button type="submit">Выйти</button></form>
 <table>
 <thead><tr><th>Время</th><th>Кто</th><th>Действие</th><th>Цель</th><th>Результат</th><th>IP</th></tr></thead>
 <tbody>

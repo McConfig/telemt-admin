@@ -32,7 +32,7 @@ func testServerWithMR(t *testing.T) (*Server, *miniredis.Miniredis) {
 	t.Helper()
 	st, mr := newTestStoreMR(t)
 	cfg := &config.Config{
-		Listen: ":0", LinkMode: "tls", SessionTTL: time.Hour,
+		Listen: ":0", LinkMode: "tls", SessionTTL: time.Hour, CookieSecure: true,
 		BaseURL:      mustURL("https://tgadmin.example.com"),
 		AllowedCIDRs: []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")},
 	}

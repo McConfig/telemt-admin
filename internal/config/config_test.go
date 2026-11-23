@@ -23,6 +23,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.LinkMode != "tls" {
 		t.Errorf("LinkMode = %q, хочу tls", cfg.LinkMode)
 	}
+	if !cfg.CookieSecure {
+		t.Error("CookieSecure по умолчанию должен быть включён")
+	}
 }
 
 func TestLoadOverrides(t *testing.T) {
@@ -43,6 +46,16 @@ func TestLoadOverrides(t *testing.T) {
 	}
 	if cfg.BaseURL.Host != "tgadmin.example.com" {
 		t.Errorf("BaseURL = %v", cfg.BaseURL)
+	}
+}
+
+func TestLoadCookieSecure(t *testing.T) {
+	cfg, err := Load(env(map[string]string{"TGADMIN_COOKIE_SECURE": "false"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.CookieSecure {
+		t.Fatal("CookieSecure должен быть выключен")
 	}
 }
 
