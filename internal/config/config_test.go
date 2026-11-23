@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"net/netip"
+	"testing"
+)
 
 func env(values map[string]string) func(string) string {
 	return func(k string) string { return values[k] }
@@ -56,6 +59,16 @@ func TestLoadCookieSecure(t *testing.T) {
 	}
 	if cfg.CookieSecure {
 		t.Fatal("CookieSecure должен быть выключен")
+	}
+}
+
+func TestLoadTrustedProxies(t *testing.T) {
+	cfg, err := Load(env(map[string]string{"TGADMIN_TRUSTED_PROXIES": "10.0.0.1/32"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.TrustedProxies) != 1 || !cfg.TrustsProxy(netip.MustParseAddr("10.0.0.1")) {
+		t.Fatalf("доверенные прокси: %v", cfg.TrustedProxies)
 	}
 }
 

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func clientAddr(r *http.Request) (netip.Addr, bool) {
+func parseRemote(r *http.Request) (netip.Addr, bool) {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		host = r.RemoteAddr
@@ -19,9 +19,28 @@ func clientAddr(r *http.Request) (netip.Addr, bool) {
 	return addr, true
 }
 
+// clientAddr учитывает X-Forwarded-For только от доверенного reverse-proxy.
+// Берётся последний адрес в цепочке: роутер дописывает реальный источник.
+func (s *Server) clientAddr(r *http.Request) (netip.Addr, bool) {
+	addr, ok := parseRemote(r)
+	if !ok || !s.cfg.TrustsProxy(addr) {
+		return addr, ok
+	}
+	xff := r.Header.Get("X-Forwarded-For")
+	if xff == "" {
+		return addr, true
+	}
+	parts := strings.Split(xff, ",")
+	last, err := netip.ParseAddr(strings.TrimSpace(parts[len(parts)-1]))
+	if err != nil {
+		return addr, true
+	}
+	return last, true
+}
+
 func (s *Server) allowlist(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		addr, ok := clientAddr(r)
+		addr, ok := s.clientAddr(r)
 		if !ok || !s.cfg.Allows(addr) {
 			http.Error(w, "доступ только из локальной сети", http.StatusForbidden)
 			return

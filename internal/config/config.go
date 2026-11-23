@@ -12,6 +12,7 @@ import (
 type Config struct {
 	Listen         string
 	AllowedCIDRs   []netip.Prefix
+	TrustedProxies []netip.Prefix
 	BaseURL        *url.URL
 	SessionTTL     time.Duration
 	ValkeyURL      string
@@ -62,6 +63,19 @@ func Load(getenv func(string) string) (*Config, error) {
 		return nil, fmt.Errorf("TGADMIN_ALLOWED_CIDRS пуст")
 	}
 
+	trusted := get("TGADMIN_TRUSTED_PROXIES", "")
+	for _, item := range strings.Split(trusted, ",") {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		p, err := netip.ParsePrefix(item)
+		if err != nil {
+			return nil, fmt.Errorf("TGADMIN_TRUSTED_PROXIES %q: %w", item, err)
+		}
+		cfg.TrustedProxies = append(cfg.TrustedProxies, p)
+	}
+
 	base := get("TGADMIN_BASE_URL", "https://tgadmin.example.com")
 	u, err := url.Parse(base)
 	if err != nil || u.Host == "" {
@@ -75,6 +89,16 @@ func Load(getenv func(string) string) (*Config, error) {
 		return nil, fmt.Errorf("TELEMT_LINK_MODE %q: допустимы tls, secure, classic", cfg.LinkMode)
 	}
 	return cfg, nil
+}
+
+// TrustsProxy сообщает, можно ли верить X-Forwarded-For от этого адреса.
+func (c *Config) TrustsProxy(addr netip.Addr) bool {
+	for _, p := range c.TrustedProxies {
+		if p.Contains(addr) {
+			return true
+		}
+	}
+	return false
 }
 
 // Allows проверяет адрес по списку разрешённых сетей.

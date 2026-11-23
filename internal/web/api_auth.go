@@ -48,7 +48,7 @@ func (s *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	username := strings.TrimSpace(in.Username)
-	addr, _ := clientAddr(r)
+	addr, _ := s.clientAddr(r)
 	allowed, err := s.store.LoginAllowed(r.Context(), addr.String(), username)
 	if err != nil {
 		s.serverErrorJSON(w, r, err)

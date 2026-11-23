@@ -151,7 +151,7 @@ func (s *Server) audit(r *http.Request, action, target, result string) {
 	if sess != nil {
 		actor = sess.User
 	}
-	addr, _ := clientAddr(r)
+	addr, _ := s.clientAddr(r)
 	_ = s.store.Audit(r.Context(), store.AuditEvent{
 		Actor: actor, Action: action, Target: target, Result: result, IP: addr.String(),
 	})
