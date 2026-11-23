@@ -57,7 +57,7 @@ TLS завершается внешним reverse-proxy. Приложение п
 Образы для `linux/amd64` и `linux/arm64` публикуются в GHCR:
 
 ```bash
-docker pull ghcr.io/mcconfig/telemt-admin:v0.1.2
+docker pull ghcr.io/mcconfig/telemt-admin:v0.4.0
 ```
 
 Тег `latest` не используется: в примере и в `deploy/docker-compose.yml`
