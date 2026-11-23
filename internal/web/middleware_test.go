@@ -3,22 +3,13 @@ package web
 import (
 	"net/http"
 	"net/http/httptest"
-	"net/netip"
 	"testing"
-	"time"
-
-	"github.com/McConfig/telemt-admin/internal/config"
 )
 
 func testServer(t *testing.T) *Server {
 	t.Helper()
-	cfg := &config.Config{
-		Listen: ":0", LinkMode: "tls", SessionTTL: time.Hour,
-		BaseURL:      mustURL("https://tgadmin.example.com"),
-		AllowedCIDRs: []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")},
-	}
-	st := newTestStore(t)
-	return New(cfg, st, nil)
+	s, _ := testServerWithMR(t)
+	return s
 }
 
 func TestAllowlist(t *testing.T) {
