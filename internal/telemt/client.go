@@ -1,0 +1,101 @@
+package telemt
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+)
+
+// APIError — ошибка Control API.
+type APIError struct {
+	Status  int
+	Message string
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("telemt API %d: %s", e.Status, e.Message)
+}
+
+// Client — клиент Control API telemt.
+type Client struct {
+	base  string
+	token string
+	hc    *http.Client
+}
+
+// New создаёт клиент.
+func New(baseURL, token string, timeout time.Duration) *Client {
+	return &Client{
+		base:  strings.TrimRight(baseURL, "/"),
+		token: token,
+		hc:    &http.Client{Timeout: timeout},
+	}
+}
+
+type envelope struct {
+	OK    bool            `json:"ok"`
+	Data  json.RawMessage `json:"data"`
+	Error *struct {
+		Code    int    `json:"code"`
+		Type    string `json:"type"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
+func (c *Client) do(ctx context.Context, method, path string, in, out any) error {
+	var body io.Reader
+	if in != nil {
+		raw, err := json.Marshal(in)
+		if err != nil {
+			return err
+		}
+		body = bytes.NewReader(raw)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, c.base+path, body)
+	if err != nil {
+		return err
+	}
+	if in != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if c.token != "" {
+		req.Header.Set("Authorization", c.token)
+	}
+	resp, err := c.hc.Do(req)
+	if err != nil {
+		return fmt.Errorf("запрос к telemt: %w", err)
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	if err != nil {
+		return err
+	}
+	var env envelope
+	if len(raw) > 0 {
+		if err := json.Unmarshal(raw, &env); err != nil {
+			return fmt.Errorf("ответ telemt: %w", err)
+		}
+	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		msg := strings.TrimSpace(string(raw))
+		if env.Error != nil && env.Error.Message != "" {
+			msg = env.Error.Message
+		}
+		return &APIError{Status: resp.StatusCode, Message: msg}
+	}
+	if out != nil {
+		if len(env.Data) == 0 {
+			return fmt.Errorf("telemt API: пустой data")
+		}
+		if err := json.Unmarshal(env.Data, out); err != nil {
+			return fmt.Errorf("разбор data: %w", err)
+		}
+	}
+	return nil
+}
