@@ -3,7 +3,6 @@ package web
 import "net/http"
 
 // Заглушки маршрутов: реализуются в задачах 9–15.
-func (s *Server) usersPage(w http.ResponseWriter, r *http.Request)     { http.Error(w, "не реализовано", http.StatusNotImplemented) }
 func (s *Server) newUserPage(w http.ResponseWriter, r *http.Request)   { http.Error(w, "не реализовано", http.StatusNotImplemented) }
 func (s *Server) createUser(w http.ResponseWriter, r *http.Request)    { http.Error(w, "не реализовано", http.StatusNotImplemented) }
 func (s *Server) userPage(w http.ResponseWriter, r *http.Request)      { http.Error(w, "не реализовано", http.StatusNotImplemented) }

@@ -1,0 +1,29 @@
+{{define "users.html"}}<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Пользователи · TeleMT Admin</title>
+<link rel="stylesheet" href="/static/style.css"></head>
+<body><main>
+<h1>Пользователи telemt</h1>
+<p><a href="/users/new">Создать пользователя</a> · <a href="/">Обновить</a> · <a href="/audit">Аудит</a> · <a href="/account">Аккаунт</a></p>
+<form method="get" action="/">
+  <input name="q" value="{{.Query}}" placeholder="поиск по имени"> <button type="submit">Найти</button>
+</form>
+<table>
+<thead><tr><th>Имя</th><th>Статус</th><th>IP</th><th>Соединения</th><th>Трафик</th><th></th></tr></thead>
+<tbody>
+{{range .Users}}
+<tr>
+  <td><a href="/users/{{.Username}}">{{.Username}}</a></td>
+  <td>{{if .Enabled}}Включён{{else}}Заблокирован{{end}}</td>
+  <td>{{.ActiveUniqueIPs}}</td>
+  <td>{{.CurrentConnections}}</td>
+  <td>{{bytes .TotalOctets}}</td>
+  <td><a href="/users/{{.Username}}">Открыть</a></td>
+</tr>
+{{else}}
+<tr><td colspan="6">Пользователей нет</td></tr>
+{{end}}
+</tbody>
+</table>
+</main></body></html>{{end}}
