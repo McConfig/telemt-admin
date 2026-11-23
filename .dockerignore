@@ -1,0 +1,8 @@
+.git
+bin
+tgadmin
+*.out
+.env
+.env.*
+!.env.example
+.superpowers
