@@ -103,8 +103,10 @@ func (s *Store) DeleteUser(ctx context.Context, name string) error {
 	pipe.Del(ctx, userKey(name))
 	pipe.SRem(ctx, usersIndex(), name)
 	pipe.Del(ctx, "auth:sessions:"+name)
-	_, err := pipe.Exec(ctx)
-	return err
+	if _, err := pipe.Exec(ctx); err != nil {
+		return err
+	}
+	return s.DeleteUserSessions(ctx, name, "")
 }
 
 // SetPassword меняет хэш пароля.
