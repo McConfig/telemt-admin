@@ -10,10 +10,23 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/McConfig/telemt-admin/internal/cli"
 	"github.com/McConfig/telemt-admin/internal/config"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] != "serve" {
+		cfg, err := config.Load(os.Getenv)
+		if err != nil {
+			slog.Error("конфигурация", "err", err)
+			os.Exit(1)
+		}
+		if err := cli.Run(context.Background(), os.Args[1:], cfg, os.Stdin, os.Stdout); err != nil {
+			slog.Error("команда", "err", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if err := run(); err != nil {
 		slog.Error("остановка", "err", err)
 		os.Exit(1)
