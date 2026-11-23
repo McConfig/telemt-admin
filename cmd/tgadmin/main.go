@@ -47,6 +47,7 @@ func healthcheck() error {
 		url = "http://127.0.0.1:8090/readyz"
 	}
 	client := &http.Client{Timeout: 3 * time.Second}
+	// #nosec G704 -- адрес задаётся оператором через TGADMIN_HEALTH_URL.
 	resp, err := client.Get(url)
 	if err != nil {
 		return err
