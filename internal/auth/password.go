@@ -64,6 +64,10 @@ func Verify(encoded, password string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	if len(want) == 0 || len(want) > 1024 {
+		return false, errors.New("неверная длина хэша")
+	}
+	// #nosec G115 -- длина ключа ограничена 1024 байтами выше.
 	got := argon2.IDKey([]byte(password), salt, timeCost, memory, threads, uint32(len(want)))
 	return subtle.ConstantTimeCompare(got, want) == 1, nil
 }

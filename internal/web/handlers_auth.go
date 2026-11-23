@@ -87,6 +87,7 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) setCookie(w http.ResponseWriter, token string) {
+	// #nosec G124 -- Secure управляется TGADMIN_COOKIE_SECURE, по умолчанию true.
 	http.SetCookie(w, &http.Cookie{
 		Name: cookieName, Value: token, Path: "/",
 		HttpOnly: true, Secure: s.cfg.CookieSecure, SameSite: http.SameSiteLaxMode,
@@ -95,6 +96,7 @@ func (s *Server) setCookie(w http.ResponseWriter, token string) {
 }
 
 func (s *Server) clearCookie(w http.ResponseWriter) {
+	// #nosec G124 -- Secure управляется TGADMIN_COOKIE_SECURE, по умолчанию true.
 	http.SetCookie(w, &http.Cookie{
 		Name: cookieName, Value: "", Path: "/", MaxAge: -1,
 		HttpOnly: true, Secure: s.cfg.CookieSecure, SameSite: http.SameSiteLaxMode,

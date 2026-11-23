@@ -121,6 +121,7 @@ func (s *Server) userQR(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "image/png")
 	w.Header().Set("Cache-Control", "no-store")
+	// #nosec G705 -- PNG сгенерирован внутри приложения, данные не пользовательские.
 	_, _ = w.Write(img)
 }
 
@@ -186,7 +187,7 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r, "user.create", name, "ok")
-	http.Redirect(w, r, "/users/"+name, http.StatusSeeOther)
+	s.redirectToUser(w, r, name)
 }
 
 func parseUintPtr(raw string) (*uint64, error) {
@@ -199,6 +200,15 @@ func parseUintPtr(raw string) (*uint64, error) {
 		return nil, err
 	}
 	return &v, nil
+}
+
+func (s *Server) redirectToUser(w http.ResponseWriter, r *http.Request, name string) {
+	if !nameRe.MatchString(name) {
+		http.Error(w, "недопустимое имя", http.StatusBadRequest)
+		return
+	}
+	// #nosec G710 -- имя проверено nameRe, редирект только на /users/<name>.
+	http.Redirect(w, r, "/users/"+name, http.StatusSeeOther)
 }
 
 func (s *Server) requireAdmin(w http.ResponseWriter, r *http.Request) bool {
@@ -242,7 +252,7 @@ func (s *Server) rotateSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r, "user.rotate", name, "ok")
-	http.Redirect(w, r, "/users/"+name, http.StatusSeeOther)
+	s.redirectToUser(w, r, name)
 }
 
 func (s *Server) enableUser(w http.ResponseWriter, r *http.Request) {
@@ -255,7 +265,7 @@ func (s *Server) enableUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r, "user.enable", name, "ok")
-	http.Redirect(w, r, "/users/"+name, http.StatusSeeOther)
+	s.redirectToUser(w, r, name)
 }
 
 func (s *Server) disableUser(w http.ResponseWriter, r *http.Request) {
@@ -268,7 +278,7 @@ func (s *Server) disableUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r, "user.disable", name, "ok")
-	http.Redirect(w, r, "/users/"+name, http.StatusSeeOther)
+	s.redirectToUser(w, r, name)
 }
 
 func (s *Server) updateLimits(w http.ResponseWriter, r *http.Request) {
@@ -298,7 +308,7 @@ func (s *Server) updateLimits(w http.ResponseWriter, r *http.Request) {
 		patch["max_tcp_conns"] = nil
 	}
 	if len(patch) == 0 {
-		http.Redirect(w, r, "/users/"+name, http.StatusSeeOther)
+		s.redirectToUser(w, r, name)
 		return
 	}
 	if err := s.telemt.PatchUser(r.Context(), name, patch); err != nil {
@@ -306,7 +316,7 @@ func (s *Server) updateLimits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r, "user.limits", name, "ok")
-	http.Redirect(w, r, "/users/"+name, http.StatusSeeOther)
+	s.redirectToUser(w, r, name)
 }
 
 func (s *Server) deleteUser(w http.ResponseWriter, r *http.Request) {
@@ -357,5 +367,5 @@ func (s *Server) renameUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r, "user.rename", oldName+" -> "+newName, "ok")
-	http.Redirect(w, r, "/users/"+newName, http.StatusSeeOther)
+	s.redirectToUser(w, r, newName)
 }
