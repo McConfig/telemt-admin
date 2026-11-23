@@ -3,6 +3,8 @@ package web
 import (
 	"errors"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/McConfig/telemt-admin/internal/store"
@@ -108,4 +110,86 @@ func (s *Server) isAdmin(r *http.Request) bool {
 	}
 	u, err := s.store.GetUser(r.Context(), sess.User)
 	return err == nil && u.Role == store.RoleAdmin
+}
+
+var nameRe = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,64}$`)
+var secretRe = regexp.MustCompile(`^[0-9a-f]{32}$`)
+
+type newUserData struct {
+	Title string
+	Error string
+}
+
+func (s *Server) newUserPage(w http.ResponseWriter, r *http.Request) {
+	if !s.isAdmin(r) {
+		http.Error(w, "нет прав", http.StatusForbidden)
+		return
+	}
+	s.render(w, r, "new.html", newUserData{Title: "Новый пользователь"})
+}
+
+func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) || !s.checkCSRF(w, r) {
+		return
+	}
+	name := strings.TrimSpace(r.PostFormValue("name"))
+	if !nameRe.MatchString(name) {
+		http.Error(w, "имя: латиница, цифры, точка, дефис, подчёркивание, до 64 символов", http.StatusBadRequest)
+		return
+	}
+	in := telemt.CreateInput{Username: name}
+	if secret := strings.TrimSpace(r.PostFormValue("secret")); secret != "" {
+		if !secretRe.MatchString(secret) {
+			http.Error(w, "секрет: ровно 32 hex-символа в нижнем регистре", http.StatusBadRequest)
+			return
+		}
+		in.Secret = secret
+	}
+	var err error
+	if in.MaxUniqueIPs, err = parseUintPtr(r.PostFormValue("max_unique_ips")); err != nil {
+		http.Error(w, "лимит IP: нужно целое число", http.StatusBadRequest)
+		return
+	}
+	if in.MaxTCPConns, err = parseUintPtr(r.PostFormValue("max_tcp_conns")); err != nil {
+		http.Error(w, "лимит соединений: нужно целое число", http.StatusBadRequest)
+		return
+	}
+	if _, err := s.telemt.CreateUser(r.Context(), in); err != nil {
+		s.telemtError(w, r, err)
+		return
+	}
+	s.audit(r, "user.create", name, "ok")
+	http.Redirect(w, r, "/users/"+name, http.StatusSeeOther)
+}
+
+func parseUintPtr(raw string) (*uint64, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	v, err := strconv.ParseUint(raw, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (s *Server) requireAdmin(w http.ResponseWriter, r *http.Request) bool {
+	if !s.isAdmin(r) {
+		http.Error(w, "нет прав", http.StatusForbidden)
+		return false
+	}
+	return true
+}
+
+func (s *Server) audit(r *http.Request, action, target, result string) {
+	sess := s.currentSession(r)
+	actor := ""
+	if sess != nil {
+		actor = sess.User
+	}
+	addr, _ := clientAddr(r)
+	_ = s.store.Audit(r.Context(), store.AuditEvent{
+		Actor: actor, Action: action, Target: target, Result: result, IP: addr.String(),
+	})
 }

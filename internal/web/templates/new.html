@@ -1,0 +1,16 @@
+{{define "new.html"}}<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Новый пользователь · TeleMT Admin</title>
+<link rel="stylesheet" href="/static/style.css"></head>
+<body><main>
+<h1>Новый пользователь</h1>
+<form method="post" action="/users">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <p><label>Имя<br><input name="name" required pattern="[A-Za-z0-9_.-]{1,64}"></label></p>
+  <p><label>Секрет (необязательно, 32 hex; пусто — сгенерировать)<br><input name="secret" pattern="[0-9a-f]{32}"></label></p>
+  <p><label>Максимум уникальных IP<br><input name="max_unique_ips" type="number" min="1"></label></p>
+  <p><label>Максимум соединений<br><input name="max_tcp_conns" type="number" min="1"></label></p>
+  <p><button type="submit">Создать</button></p>
+</form>
+</main></body></html>{{end}}
