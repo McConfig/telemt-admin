@@ -1,0 +1,6 @@
+/tgadmin
+/bin/
+.env
+.env.*
+!.env.example
+*.out
