@@ -32,6 +32,7 @@ tgadmin :8090
   └─ клиент Control API → telemt :9091
 
 Valkey ── пользователи UI, сессии, счётчики входов, аудит
+telemt :8444 ── MTProto-прокси для Telegram
 ```
 
 TLS завершается внешним reverse-proxy. Приложение получает обычный HTTP и
@@ -39,8 +40,13 @@ TLS завершается внешним reverse-proxy. Приложение п
 
 ## Требования
 
-- telemt с включённым Control API (проверено на 3.5.17);
 - Docker и Docker Compose;
+- открытый порт прокси (по умолчанию 8444), если нужен доступ снаружи;
+- свой домен и TLS для публикации интерфейса.
+
+`deploy/docker-compose.yml` поднимает все три сервиса: `telemt`, `tgadmin`,
+`valkey`. Если `telemt` у вас уже есть, уберите сервис `telemt` из compose и
+укажите его адрес в `TELEMT_API_URL`.
 - reverse-proxy с TLS для публикации (nginx, Caddy, Traefik или встроенный
   reverse-proxy роутера);
 - сеть, из которой разрешён доступ.
@@ -58,30 +64,38 @@ docker pull ghcr.io/mcconfig/telemt-admin:v0.1.2
 
 ## Установка
 
-1. Скопируйте пример окружения и задайте значения:
+1. Соберите конфигурацию telemt и секрет:
+
+```bash
+DOMAIN=proxy.example.com PORT=8444 bash deploy/telemt-init.sh
+```
+
+Скрипт создаёт `deploy/telemt/secret`, собирает `deploy/telemt/config.toml`
+и печатает ссылку `tg://proxy`. Повторный запуск секрет не меняет.
+
+2. Скопируйте пример окружения и задайте значения:
 
 ```bash
 cp deploy/.env.example deploy/.env
 ```
 
-Обязательно поменяйте `VALKEY_PASSWORD`, `TGADMIN_BASE_URL` и
-`TELEMT_API_URL`.
-
-2. Создайте первого администратора. Пароль вводится интерактивно и в
-   переменные окружения не попадает:
-
-```bash
-cd deploy
-docker compose run --rm tgadmin user add admin --role admin
-```
+Обязательно поменяйте `VALKEY_PASSWORD` и `TGADMIN_BASE_URL`.
 
 3. Запустите сервисы:
 
 ```bash
+cd deploy
 docker compose up -d
 ```
 
-4. Проверьте, что приложение отвечает:
+4. Создайте первого администратора. Пароль вводится интерактивно и в
+   переменные окружения не попадает:
+
+```bash
+docker compose run --rm tgadmin user add admin --role admin
+```
+
+5. Проверьте, что приложение отвечает:
 
 ```bash
 curl -fsS http://127.0.0.1:8090/healthz
@@ -89,7 +103,9 @@ curl -fsS http://127.0.0.1:8090/healthz
 
 Ожидаемый ответ: `ok`.
 
-5. Откройте интерфейс по адресу из `TGADMIN_BASE_URL` и войдите.
+6. Откройте интерфейс по адресу из `TGADMIN_BASE_URL` и войдите.
+7. Подключите Telegram по ссылке из карточки пользователя `main` (или создайте
+   отдельного пользователя).
 
 ## Переменные окружения
 

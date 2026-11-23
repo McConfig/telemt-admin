@@ -1,11 +1,30 @@
 name: telemt-admin
 
 services:
+  telemt:
+    image: ghcr.io/telemt/telemt:3.5.17
+    restart: unless-stopped
+    command: ["/etc/telemt/config.toml"]
+    # Образ работает от nonroot; каталог конфига принадлежит пользователю
+    # хоста. При необходимости задайте UID/GID через .env.
+    user: "${TELEMT_UID:-1000}:${TELEMT_GID:-1000}"
+    volumes: ["./telemt:/etc/telemt"]
+    ports:
+      - "8444:8444"
+      - "3129:3129"
+    read_only: true
+    tmpfs: ["/run/telemt:mode=1777,size=16m"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "2" }
+
   tgadmin:
     image: ghcr.io/mcconfig/telemt-admin:v0.1.2
     restart: unless-stopped
     env_file: .env
-    depends_on: [valkey]
+    depends_on: [valkey, telemt]
     ports: ["8090:8090"]
     read_only: true
     tmpfs: ["/tmp"]

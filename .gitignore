@@ -4,3 +4,6 @@
 .env.*
 !.env.example
 *.out
+
+deploy/telemt/config.toml
+deploy/telemt/secret

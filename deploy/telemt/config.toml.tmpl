@@ -1,0 +1,37 @@
+# Шаблон конфигурации telemt для примера compose.
+# Собирается скриптом deploy/telemt-init.sh: подставляет секрет, домен и порт.
+
+[general]
+use_middle_proxy = true
+log_level = "normal"
+
+[general.links]
+# Домен и порт в ссылках tg://proxy. На прослушивание не влияют.
+public_host = "__DOMAIN__"
+public_port = __PORT__
+
+[general.modes]
+classic = false
+secure = false
+tls = true
+
+[server]
+port = __PORT__
+metrics_listen = "0.0.0.0:3129"
+
+[server.api]
+enabled = true
+listen = "0.0.0.0:9091"
+# API не публикуется на хост; доступен только контейнерам compose.
+whitelist = ["0.0.0.0/0"]
+
+[[server.listeners]]
+ip = "0.0.0.0"
+
+[censorship]
+tls_domain = "__DOMAIN__"
+mask = true
+tls_emulation = false
+
+[access.users]
+main = "__SECRET__"
