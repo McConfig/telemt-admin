@@ -18,6 +18,37 @@
   {{else}}
   <p class="error">У пользователя нет TLS-ссылки</p>
   {{end}}
+
+  <h2>Перевыпуск секрета</h2>
+  <form method="post" action="/users/{{.User.Username}}/rotate">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <p>Введите имя <code>{{.User.Username}}</code>: <input name="confirm" required>
+       <button type="submit">Перевыпустить</button></p>
+  </form>
+
+  <h2>Доступ</h2>
+  <form method="post" action="/users/{{.User.Username}}/{{if .User.Enabled}}disable{{else}}enable{{end}}">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <button type="submit">{{if .User.Enabled}}Заблокировать{{else}}Разблокировать{{end}}</button>
+  </form>
+
+  <h2>Лимиты</h2>
+  <form method="post" action="/users/{{.User.Username}}/limits">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <p>Максимум уникальных IP: <input name="max_unique_ips" type="number" min="1"
+        value="{{if .User.MaxUniqueIPs}}{{.User.MaxUniqueIPs}}{{end}}">
+        <label><input type="checkbox" name="clear_max_unique_ips" value="1"> снять лимит</label></p>
+    <p>Максимум соединений: <input name="max_tcp_conns" type="number" min="1"
+        value="{{if .User.MaxTCPConns}}{{.User.MaxTCPConns}}{{end}}"></p>
+    <button type="submit">Сохранить</button>
+  </form>
+
+  <h2>Удаление</h2>
+  <form method="post" action="/users/{{.User.Username}}/delete">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <p>Введите имя <code>{{.User.Username}}</code>: <input name="confirm" required>
+       <button type="submit">Удалить</button></p>
+  </form>
 {{else}}
   <p>Ссылка скрыта: нет прав</p>
 {{end}}

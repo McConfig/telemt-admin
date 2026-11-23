@@ -193,3 +193,114 @@ func (s *Server) audit(r *http.Request, action, target, result string) {
 		Actor: actor, Action: action, Target: target, Result: result, IP: addr.String(),
 	})
 }
+
+func (s *Server) confirmMatches(w http.ResponseWriter, r *http.Request, name string) bool {
+	if r.PostFormValue("confirm") != name {
+		http.Error(w, "введите имя пользователя для подтверждения", http.StatusBadRequest)
+		return false
+	}
+	return true
+}
+
+func (s *Server) rotateSecret(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) || !s.checkCSRF(w, r) {
+		return
+	}
+	name := chi.URLParam(r, "name")
+	if !s.confirmMatches(w, r, name) {
+		return
+	}
+	if err := s.telemt.RotateSecret(r.Context(), name); err != nil {
+		s.telemtError(w, r, err)
+		return
+	}
+	s.audit(r, "user.rotate", name, "ok")
+	http.Redirect(w, r, "/users/"+name, http.StatusSeeOther)
+}
+
+func (s *Server) enableUser(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) || !s.checkCSRF(w, r) {
+		return
+	}
+	name := chi.URLParam(r, "name")
+	if err := s.telemt.EnableUser(r.Context(), name); err != nil {
+		s.telemtError(w, r, err)
+		return
+	}
+	s.audit(r, "user.enable", name, "ok")
+	http.Redirect(w, r, "/users/"+name, http.StatusSeeOther)
+}
+
+func (s *Server) disableUser(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) || !s.checkCSRF(w, r) {
+		return
+	}
+	name := chi.URLParam(r, "name")
+	if err := s.telemt.DisableUser(r.Context(), name); err != nil {
+		s.telemtError(w, r, err)
+		return
+	}
+	s.audit(r, "user.disable", name, "ok")
+	http.Redirect(w, r, "/users/"+name, http.StatusSeeOther)
+}
+
+func (s *Server) updateLimits(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) || !s.checkCSRF(w, r) {
+		return
+	}
+	name := chi.URLParam(r, "name")
+	patch := map[string]any{}
+	if v := strings.TrimSpace(r.PostFormValue("max_unique_ips")); v != "" {
+		n, err := strconv.ParseUint(v, 10, 64)
+		if err != nil {
+			http.Error(w, "лимит IP: нужно целое число", http.StatusBadRequest)
+			return
+		}
+		patch["max_unique_ips"] = n
+	} else if r.PostFormValue("clear_max_unique_ips") == "1" {
+		patch["max_unique_ips"] = nil
+	}
+	if v := strings.TrimSpace(r.PostFormValue("max_tcp_conns")); v != "" {
+		n, err := strconv.ParseUint(v, 10, 64)
+		if err != nil {
+			http.Error(w, "лимит соединений: нужно целое число", http.StatusBadRequest)
+			return
+		}
+		patch["max_tcp_conns"] = n
+	}
+	if len(patch) == 0 {
+		http.Redirect(w, r, "/users/"+name, http.StatusSeeOther)
+		return
+	}
+	if err := s.telemt.PatchUser(r.Context(), name, patch); err != nil {
+		s.telemtError(w, r, err)
+		return
+	}
+	s.audit(r, "user.limits", name, "ok")
+	http.Redirect(w, r, "/users/"+name, http.StatusSeeOther)
+}
+
+func (s *Server) deleteUser(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) || !s.checkCSRF(w, r) {
+		return
+	}
+	name := chi.URLParam(r, "name")
+	if !s.confirmMatches(w, r, name) {
+		return
+	}
+	users, err := s.telemt.ListUsers(r.Context())
+	if err != nil {
+		s.telemtError(w, r, err)
+		return
+	}
+	if len(users) <= 1 {
+		http.Error(w, "нельзя удалить последнего пользователя", http.StatusConflict)
+		return
+	}
+	if err := s.telemt.DeleteUser(r.Context(), name); err != nil {
+		s.telemtError(w, r, err)
+		return
+	}
+	s.audit(r, "user.delete", name, "ok")
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
