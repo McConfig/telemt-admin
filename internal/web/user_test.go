@@ -28,7 +28,7 @@ func TestUserPageViewerHidesLink(t *testing.T) {
 	if contains(rr.Body.String(), "tg://proxy?") {
 		t.Fatalf("viewer увидел ссылку: %s", rr.Body.String())
 	}
-	if !contains(rr.Body.String(), "скрыто") {
+	if !contains(rr.Body.String(), "Ссылка скрыта") {
 		t.Fatalf("нет пометки: %s", rr.Body.String())
 	}
 }
