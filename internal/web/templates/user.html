@@ -1,0 +1,24 @@
+{{define "user.html"}}<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.User.Username}} · TeleMT Admin</title>
+<link rel="stylesheet" href="/static/style.css"></head>
+<body><main>
+<h1>{{.User.Username}}</h1>
+<p><a href="/">← к списку</a></p>
+{{if .User.Enabled}}<p>Статус: включён</p>{{else}}<p class="error">Статус: заблокирован</p>{{end}}
+<p>Соединения: {{.User.CurrentConnections}} · активные IP: {{.User.ActiveUniqueIPs}} · трафик: {{bytes .User.TotalOctets}}</p>
+{{if .User.ActiveUniqueIPList}}<p>IP: {{range .User.ActiveUniqueIPList}}{{.}} {{end}}</p>{{end}}
+
+{{if .CanManage}}
+  {{if .Link}}
+  <h2>Ссылка</h2>
+  <p><code>{{.Link}}</code></p>
+  <p><img src="/users/{{.User.Username}}/qr" alt="QR" width="256" height="256"></p>
+  {{else}}
+  <p class="error">У пользователя нет TLS-ссылки</p>
+  {{end}}
+{{else}}
+  <p>Ссылка скрыта: нет прав</p>
+{{end}}
+</main></body></html>{{end}}

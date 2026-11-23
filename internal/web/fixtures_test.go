@@ -92,3 +92,20 @@ func authRequestAs(t *testing.T, s *Server, role store.Role, method, path string
 	req.AddCookie(&http.Cookie{Name: cookieName, Value: tok})
 	return req
 }
+
+func testServerWithTelemtDetail(t *testing.T) *Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/users/alice" {
+			_, _ = w.Write([]byte(`{"ok":true,"data":{"username":"alice","enabled":true,"in_runtime":true,
+			 "current_connections":2,"active_unique_ips":1,"active_unique_ips_list":["192.0.2.10"],
+			 "total_octets":2048,"links":{"classic":[],"secure":[],"tls":["tg://proxy?server=proxy.example.com&port=443&secret=ee00112233445566778899aabbccddeeff6578616d706c652e636f6d"]}}}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	s := testServer(t)
+	s.telemt = telemt.New(srv.URL, "", 5*time.Second)
+	return s
+}
