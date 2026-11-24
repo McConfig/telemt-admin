@@ -85,7 +85,7 @@ type cityRecord struct {
 }
 
 type asnRecord struct {
-	Number uint   `maxminddb:"autonomous_system_number"`
+	Number uint32 `maxminddb:"autonomous_system_number"`
 	Org    string `maxminddb:"autonomous_system_organization"`
 }
 
@@ -116,7 +116,7 @@ func (r *Resolver) Lookup(ip string) Info {
 		var rec asnRecord
 		if res := r.asn.Lookup(addr); res.Found() {
 			if err := res.Decode(&rec); err == nil {
-				out.ASN = uint32(rec.Number)
+				out.ASN = rec.Number
 				out.ASNOrg = rec.Org
 			}
 		}
