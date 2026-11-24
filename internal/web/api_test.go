@@ -151,6 +151,35 @@ func TestAPIUserStatsAndHistory(t *testing.T) {
 	}
 }
 
+func TestAPIUserTraffic(t *testing.T) {
+	s := testServerWithTelemt(t)
+	now := time.Now().UTC()
+	if err := s.store.RecordIPObservation(context.Background(), "main",
+		[]string{"192.0.2.10"}, nil, 1000, now.Add(-24*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.store.RecordIPObservation(context.Background(), "main",
+		[]string{"192.0.2.10"}, nil, 1500, now); err != nil {
+		t.Fatal(err)
+	}
+	tok, _ := seedSession(t, s, store.RoleAdmin)
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, apiRequest(t, "GET", "/api/users/main/traffic?days=7", "", tok, ""))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("код %d: %s", rr.Code, rr.Body.String())
+	}
+	var days []apiTrafficDay
+	if err := json.Unmarshal(rr.Body.Bytes(), &days); err != nil {
+		t.Fatal(err)
+	}
+	if len(days) != 2 {
+		t.Fatalf("дни: %+v", days)
+	}
+	if days[1].Bytes != 500 {
+		t.Fatalf("трафик за текущие сутки: %+v", days)
+	}
+}
+
 func TestAPICSRFRequired(t *testing.T) {
 	s := testServerWithTelemt(t)
 	tok, _ := seedSession(t, s, store.RoleAdmin)

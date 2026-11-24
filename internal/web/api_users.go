@@ -527,6 +527,39 @@ func (s *Server) apiDeleteHistory(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+type apiTrafficDay struct {
+	Day   string `json:"day"`
+	Bytes uint64 `json:"bytes"`
+}
+
+// apiUserTraffic отдаёт трафик по дням для графика в карточке клиента.
+func (s *Server) apiUserTraffic(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+	if !nameRe.MatchString(name) {
+		writeError(w, http.StatusBadRequest, "bad_request", "недопустимое имя")
+		return
+	}
+	days := 30
+	if raw := r.URL.Query().Get("days"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 || n > 90 {
+			writeError(w, http.StatusBadRequest, "bad_request", "days: от 1 до 90")
+			return
+		}
+		days = n
+	}
+	history, err := s.store.TrafficHistory(r.Context(), name, days, s.now())
+	if err != nil {
+		s.serverErrorJSON(w, r, err)
+		return
+	}
+	out := make([]apiTrafficDay, 0, len(history))
+	for _, item := range history {
+		out = append(out, apiTrafficDay{Day: item.Day, Bytes: item.Bytes})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
 func (s *Server) apiHistoryCSV(w http.ResponseWriter, r *http.Request) {
 	if !s.requireAdminAPI(w, r) {
 		return

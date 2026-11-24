@@ -65,6 +65,16 @@ func TestIPHistoryAndStats(t *testing.T) {
 	if stats.TrafficToday != 200 {
 		t.Fatalf("трафик новых суток: %d", stats.TrafficToday)
 	}
+	traffic, err := st.TrafficHistory(ctx, "alice", 7, next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(traffic) != 2 {
+		t.Fatalf("история трафика: %+v", traffic)
+	}
+	if traffic[0].Bytes != 500 || traffic[1].Bytes != 200 {
+		t.Fatalf("значения трафика: %+v", traffic)
+	}
 }
 
 func TestRetentionExpiresHistory(t *testing.T) {

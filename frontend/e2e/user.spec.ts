@@ -12,6 +12,9 @@ test('карточка клиента: плитки, страны, иконки 
   await expect(page.getByRole('columnheader', { name: 'Оператор' })).toBeVisible();
   await expect(page.getByText('Novotelecom Ltd')).toBeVisible();
 
+  await expect(page.locator('.traffic-chart .traffic-col')).toHaveCount(3);
+  await expect(page.getByText('Трафик по дням')).toBeVisible();
+
   const actions = page.locator('.page-head .icon-actions button');
   await expect(actions).toHaveCount(4);
   await expect(page.getByRole('button', { name: 'Перевыпустить секрет' })).toBeVisible();
