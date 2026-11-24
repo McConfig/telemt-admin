@@ -6,6 +6,13 @@ updates:
   - package-ecosystem: npm
     directory: /frontend
     schedule: { interval: weekly }
+    # Gravity UI 8 требует react-window и auto-sizer версий ^1; мажорные
+    # обновления ломают peer-зависимости.
+    ignore:
+      - dependency-name: react-window
+        update-types: ["version-update:semver-major"]
+      - dependency-name: react-virtualized-auto-sizer
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
