@@ -89,7 +89,10 @@ export const users = [main, chernyh];
  * Подменяет все запросы к /api. Возвращает журнал тел PATCH-запросов
  * к лимитам, чтобы тест мог проверить отправленные значения.
  */
-export async function mockApi(page: Page): Promise<{ limitBodies: unknown[] }> {
+export async function mockApi(
+  page: Page,
+  options: { totp?: boolean } = {},
+): Promise<{ limitBodies: unknown[] }> {
   let loggedIn = false;
   const limitBodies: unknown[] = [];
 
@@ -110,6 +113,11 @@ export async function mockApi(page: Page): Promise<{ limitBodies: unknown[] }> {
         : json(route, { error: { code: 'unauthorized', message: 'требуется вход' } }, 401);
     }
     if (path === '/api/login' && method === 'POST') {
+      if (options.totp) return json(route, { totpRequired: true });
+      loggedIn = true;
+      return json(route, { user: { name: 'mcconfig', role: 'admin' }, csrf: 'csrf' });
+    }
+    if (path === '/api/login/totp' && method === 'POST') {
       loggedIn = true;
       return json(route, { user: { name: 'mcconfig', role: 'admin' }, csrf: 'csrf' });
     }
@@ -145,6 +153,21 @@ export async function mockApi(page: Page): Promise<{ limitBodies: unknown[] }> {
       limitBodies.push(route.request().postDataJSON());
       return json(route, users.find((u) => u.username === userMatch[1]) ?? { ok: true });
     }
+    if (path === '/api/account/totp') {
+      return json(route, { available: true, enabled: false, recoveryLeft: 0 });
+    }
+    if (path === '/api/account/totp/setup') {
+      return json(route, {
+        secret: 'JBSWY3DPEHPK3PXP',
+        url: 'otpauth://totp/TeleMT%20Admin:mcconfig?secret=JBSWY3DPEHPK3PXP',
+        qr: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      });
+    }
+    if (path === '/api/account/totp/enable') {
+      return json(route, {
+        recoveryCodes: ['AAAA-BBBB', 'CCCC-DDDD', 'EEEE-FFFF', 'GGGG-HHHH', 'IIII-JJJJ', 'KKKK-LLLL', 'MMMM-NNNN', 'OOOO-PPPP'],
+      });
+    }
     if (/\/api\/users\/[^/]+\/trusted$/.test(path)) {
       if (method === 'PUT') {
         return json(route, route.request().postDataJSON());
@@ -179,6 +202,7 @@ export async function mockApi(page: Page): Promise<{ limitBodies: unknown[] }> {
           createdAt: now(),
           passwordChangedAt: now(),
           sessions: 3,
+          totpEnabled: true,
         },
         {
           name: 'watcher',
@@ -187,6 +211,7 @@ export async function mockApi(page: Page): Promise<{ limitBodies: unknown[] }> {
           createdAt: now(),
           passwordChangedAt: now(),
           sessions: 1,
+          totpEnabled: false,
         },
       ]);
     }

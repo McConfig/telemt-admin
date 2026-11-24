@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/McConfig/telemt-admin/internal/totp"
 )
 
 // Config — настройки сервиса из переменных окружения.
@@ -29,6 +31,7 @@ type Config struct {
 	Retention       time.Duration
 	GeoIPCity       string
 	GeoIPASN        string
+	TOTPKey         []byte
 }
 
 // Load читает конфигурацию. getenv передаётся для тестируемости.
@@ -98,6 +101,12 @@ func Load(getenv func(string) string) (*Config, error) {
 		}
 		cfg.TrustedProxies = append(cfg.TrustedProxies, p)
 	}
+
+	totpKey, err := totp.ParseKey(getenv("TGADMIN_TOTP_KEY"))
+	if err != nil {
+		return nil, err
+	}
+	cfg.TOTPKey = totpKey
 
 	base := get("TGADMIN_BASE_URL", "https://tgadmin.example.com")
 	u, err := url.Parse(base)

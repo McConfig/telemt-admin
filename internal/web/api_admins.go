@@ -18,6 +18,7 @@ type adminUser struct {
 	CreatedAt         string `json:"createdAt"`
 	PasswordChangedAt string `json:"passwordChangedAt"`
 	Sessions          int64  `json:"sessions"`
+	TOTPEnabled       bool   `json:"totpEnabled"`
 }
 
 func (s *Server) adminView(r *http.Request, u store.User) adminUser {
@@ -27,6 +28,7 @@ func (s *Server) adminView(r *http.Request, u store.User) adminUser {
 		CreatedAt:         u.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 		PasswordChangedAt: u.PasswordChangedAt.UTC().Format("2006-01-02T15:04:05Z"),
 		Sessions:          sessions,
+		TOTPEnabled:       u.TOTPEnabled,
 	}
 }
 

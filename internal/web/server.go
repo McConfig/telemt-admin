@@ -58,6 +58,7 @@ func New(cfg *config.Config, st *store.Store, tc *telemt.Client, metrics http.Ha
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/meta", s.apiMeta)
 		r.Post("/login", s.apiLogin)
+		r.Post("/login/totp", s.apiLoginTOTP)
 		r.Group(func(r chi.Router) {
 			r.Use(s.withAPISession)
 			r.Get("/me", s.apiMe)
@@ -95,6 +96,12 @@ func New(cfg *config.Config, st *store.Store, tc *telemt.Client, metrics http.Ha
 				r.Get("/account/sessions", s.apiSessions)
 				r.Post("/account/password", s.apiChangePassword)
 				r.Post("/account/sessions/{id}/revoke", s.apiRevokeSession)
+				r.Get("/account/totp", s.apiTOTPStatus)
+				r.Post("/account/totp/setup", s.apiTOTPSetup)
+				r.Post("/account/totp/enable", s.apiTOTPEnable)
+				r.Post("/account/totp/disable", s.apiTOTPDisable)
+				r.Post("/account/totp/recovery", s.apiTOTPRecovery)
+				r.Post("/admins/{name}/totp-reset", s.apiResetAdminTOTP)
 			})
 		})
 	})
