@@ -21,7 +21,7 @@ func TestCountryName(t *testing.T) {
 
 func TestLookupInternal(t *testing.T) {
 	r := &Resolver{}
-	for _, ip := range []string{"10.0.0.9", "127.0.0.1", "192.168.1.5", "172.16.0.4", "fe80::1"} {
+	for _, ip := range []string{"10.20.30.40", "127.0.0.1", "192.168.1.5", "172.16.0.4", "fe80::1"} {
 		info := r.Lookup(ip)
 		if !info.Internal {
 			t.Errorf("%s: ждали внутренний адрес, получили %+v", ip, info)

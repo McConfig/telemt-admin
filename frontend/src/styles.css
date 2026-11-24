@@ -42,6 +42,7 @@ table a:hover, .user-card a:hover { text-decoration: underline; text-underline-o
 .stat-label { font-size: 12px; color: var(--g-color-text-secondary); }
 .stat-value { font-size: 20px; font-weight: 600; }
 .card-head { display: flex; align-items: center; gap: 8px; }
+.table-scroll { overflow-x: auto; }
 .icon-actions { display: flex; align-items: center; gap: 2px; flex-wrap: nowrap; }
 .link-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: start; }
 .link-box { padding: 10px 12px; border-radius: 8px; background: var(--g-color-base-generic); font-family: monospace; word-break: break-all; }

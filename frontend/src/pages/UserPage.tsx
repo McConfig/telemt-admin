@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
@@ -24,6 +24,7 @@ import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { api, ApiError, type IPHistoryItem, type Me, type ProxyUser } from '../api';
 import { formatBytes } from '../format';
+import { useMedia } from '../useMedia';
 
 export default function UserPage({ me }: { me: Me }) {
   const { name = '' } = useParams();
@@ -510,7 +511,8 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 function IPHistoryTable({ items }: { items: IPHistoryItem[] }) {
-  const columns: ColumnDef<IPHistoryItem>[] = [
+  const isMobile = useMedia('(max-width: 760px)');
+  const columns = useMemo<ColumnDef<IPHistoryItem>[]>(() => [
     { id: 'ip', header: 'IP', cell: ({ row }) => row.original.ip },
     {
       id: 'country',
@@ -540,12 +542,27 @@ function IPHistoryTable({ items }: { items: IPHistoryItem[] }) {
         );
       },
     },
-    { id: 'first', header: 'Впервые', cell: ({ row }) => new Date(row.original.firstSeen).toLocaleString('ru-RU') },
-    { id: 'last', header: 'Последний раз', cell: ({ row }) => new Date(row.original.lastSeen).toLocaleString('ru-RU') },
-    { id: 'count', header: 'Наблюдений', cell: ({ row }) => row.original.count },
-  ];
+    ...(isMobile
+      ? [
+          {
+            id: 'last',
+            header: 'Последний раз',
+            cell: ({ row }: { row: { original: IPHistoryItem } }) =>
+              new Date(row.original.lastSeen).toLocaleString('ru-RU'),
+          },
+        ]
+      : [
+          { id: 'first', header: 'Впервые', cell: ({ row }: { row: { original: IPHistoryItem } }) => new Date(row.original.firstSeen).toLocaleString('ru-RU') },
+          { id: 'last', header: 'Последний раз', cell: ({ row }: { row: { original: IPHistoryItem } }) => new Date(row.original.lastSeen).toLocaleString('ru-RU') },
+          { id: 'count', header: 'Наблюдений', cell: ({ row }: { row: { original: IPHistoryItem } }) => row.original.count },
+        ]),
+  ], [isMobile]);
   const table = useTable({ columns, data: items });
-  return <Table table={table} />;
+  return (
+    <div className="table-scroll">
+      <Table table={table} />
+    </div>
+  );
 }
 
 function ConfirmDialog({
