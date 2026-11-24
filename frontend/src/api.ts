@@ -66,6 +66,11 @@ export interface ProxyUser {
   countryCodes?: string[];
 }
 
+export interface TrafficDay {
+  day: string;
+  bytes: number;
+}
+
 export interface AuditItem {
   at: string;
   actor: string;
@@ -171,6 +176,11 @@ export const api = {
     request<{ note: string }>('PUT', `/api/users/${encodeURIComponent(name)}/note`, { note }),
   deleteHistory: (name: string) => request<void>('DELETE', `/api/users/${encodeURIComponent(name)}/history`),
   historyCSVUrl: (name: string) => `/api/users/${encodeURIComponent(name)}/history.csv`,
+  userTraffic: (name: string, days = 30) =>
+    request<TrafficDay[]>(
+      'GET',
+      `/api/users/${encodeURIComponent(name)}/traffic?days=${days}`,
+    ),
   auditCSVUrl: () => '/api/audit.csv',
   admins: () => request<AdminUser[]>('GET', '/api/admins'),
   createAdmin: (body: { name: string; role: Role; password?: string }) =>

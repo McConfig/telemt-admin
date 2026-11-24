@@ -22,7 +22,14 @@ import {
 } from '@gravity-ui/icons';
 import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
-import { api, ApiError, type IPHistoryItem, type Me, type ProxyUser } from '../api';
+import {
+  api,
+  ApiError,
+  type IPHistoryItem,
+  type Me,
+  type ProxyUser,
+  type TrafficDay,
+} from '../api';
 import { formatBytes } from '../format';
 import { useMedia } from '../useMedia';
 
@@ -54,6 +61,7 @@ export default function UserPage({ me }: { me: Me }) {
   const [noteSaved, setNoteSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [traffic, setTraffic] = useState<TrafficDay[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -70,6 +78,10 @@ export default function UserPage({ me }: { me: Me }) {
       setExpiration(value.expiration ? value.expiration.slice(0, 16) : '');
       setSourceDeny((value.sourceDeny ?? []).join('\n'));
       setNote(value.note ?? '');
+      api
+        .userTraffic(name)
+        .then(setTraffic)
+        .catch(() => setTraffic([]));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'не удалось загрузить пользователя');
     } finally {
@@ -308,6 +320,17 @@ export default function UserPage({ me }: { me: Me }) {
         </Card>
       )}
 
+      <Card view="filled" style={{ padding: 16 }}>
+        <div className="stack">
+          <div className="card-head">
+            <Text variant="header-1">Трафик по дням</Text>
+            <div style={{ flex: 1 }} />
+            <Text className="muted">30 дней</Text>
+          </div>
+          <TrafficChart items={traffic} />
+        </div>
+      </Card>
+
       {isAdmin && (
         <>
           <Card view="filled" style={{ padding: 16 }}>
@@ -511,6 +534,31 @@ export default function UserPage({ me }: { me: Me }) {
           navigate(`/users/${encodeURIComponent(next)}`);
         }}
       />
+    </div>
+  );
+}
+
+function TrafficChart({ items }: { items: TrafficDay[] }) {
+  if (items.length === 0) {
+    return <Text className="muted">Данных пока нет: первый срез появится через минуту</Text>;
+  }
+  const max = Math.max(...items.map((item) => item.bytes), 1);
+  return (
+    <div className="traffic-chart">
+      {items.map((item, index) => {
+        const height = Math.max(2, Math.round((item.bytes / max) * 100));
+        const showLabel = index === 0 || index === items.length - 1 || index % 5 === 0;
+        return (
+          <div
+            className="traffic-col"
+            key={item.day}
+            title={`${item.day}: ${formatBytes(item.bytes)}`}
+          >
+            <div className="traffic-bar" style={{ height: `${height}%` }} />
+            <span className="traffic-label">{showLabel ? item.day.slice(8) : ''}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -16,6 +16,7 @@ func ipKey(user, ip string) string       { return "iphist:ip:" + user + ":" + ip
 func dayKey(user, day string) string     { return "iphist:day:" + user + ":" + day }
 func maxKey(user, day string) string     { return "iphist:max:" + user + ":" + day }
 func trafficKey(user string) string      { return "iphist:traffic:" + user }
+func trafficDaysKey(user string) string  { return "iphist:trafficdays:" + user }
 func geoKey(user string) string          { return "iphist:geo:" + user }
 func countryKey(user, day string) string { return "iphist:country:" + user + ":" + day }
 func foreignKey(user, day string) string { return "iphist:foreign:" + user + ":" + day }
@@ -185,9 +186,16 @@ func (s *Store) recordTraffic(ctx context.Context, user string, total uint64, da
 		return err
 	}
 	if len(m) == 0 {
-		return s.rdb.HSet(ctx, trafficKey(user), map[string]any{
+		if err := s.rdb.HSet(ctx, trafficKey(user), map[string]any{
 			"day": day, "day_bytes": 0, "last_total": total,
-		}).Err()
+		}).Err(); err != nil {
+			return err
+		}
+		if err := s.rdb.HSet(ctx, trafficDaysKey(user), day, 0).Err(); err != nil {
+			return err
+		}
+		_ = s.rdb.Expire(ctx, trafficDaysKey(user), s.retention).Err()
+		return nil
 	}
 	last, _ := strconv.ParseUint(m["last_total"], 10, 64)
 	dayBytes, _ := strconv.ParseUint(m["day_bytes"], 10, 64)
@@ -208,7 +216,11 @@ func (s *Store) recordTraffic(ctx context.Context, user string, total uint64, da
 	}).Err(); err != nil {
 		return err
 	}
+	if err := s.rdb.HSet(ctx, trafficDaysKey(user), day, dayBytes).Err(); err != nil {
+		return err
+	}
 	_ = s.rdb.Expire(ctx, trafficKey(user), s.retention).Err()
+	_ = s.rdb.Expire(ctx, trafficDaysKey(user), s.retention).Err()
 	_ = now
 	return nil
 }
@@ -277,6 +289,33 @@ func (s *Store) UserIPStats(ctx context.Context, user string, now time.Time) (Us
 	return out, nil
 }
 
+// TrafficDay — трафик пользователя за календарный день.
+type TrafficDay struct {
+	Day   string
+	Bytes uint64
+}
+
+// TrafficHistory возвращает трафик по дням за последние days дней, старые
+// записи первыми. Дни без данных не попадают в ответ.
+func (s *Store) TrafficHistory(ctx context.Context, user string, days int, now time.Time) ([]TrafficDay, error) {
+	if days <= 0 || days > 90 {
+		days = 30
+	}
+	m, err := s.rdb.HGetAll(ctx, trafficDaysKey(user)).Result()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]TrafficDay, 0, days)
+	for i := days - 1; i >= 0; i-- {
+		day := now.UTC().AddDate(0, 0, -i).Format("2006-01-02")
+		if raw, ok := m[day]; ok {
+			bytes, _ := strconv.ParseUint(raw, 10, 64)
+			out = append(out, TrafficDay{Day: day, Bytes: bytes})
+		}
+	}
+	return out, nil
+}
+
 // IPHistory возвращает адреса пользователя, новые сверху.
 func (s *Store) IPHistory(ctx context.Context, user string) ([]IPStat, error) {
 	members, err := s.rdb.ZRangeWithScores(ctx, seenKey(user), 0, -1).Result()
@@ -336,7 +375,7 @@ func (s *Store) SetIPGeo(ctx context.Context, user, ip string, g IPGeo) error {
 
 // DeleteIPHistory удаляет историю адресов и трафика пользователя.
 func (s *Store) DeleteIPHistory(ctx context.Context, user string) error {
-	keys := []string{seenKey(user), firstKey(user), trafficKey(user), geoKey(user), countryFirstKey(user)}
+	keys := []string{seenKey(user), firstKey(user), trafficKey(user), trafficDaysKey(user), geoKey(user), countryFirstKey(user)}
 	for _, pattern := range []string{
 		"iphist:ip:" + user + ":*",
 		"iphist:day:" + user + ":*",

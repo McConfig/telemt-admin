@@ -127,6 +127,13 @@ export async function mockApi(page: Page): Promise<{ limitBodies: unknown[] }> {
       }
       return json(route, found);
     }
+    if (/\/api\/users\/[^/]+\/traffic$/.test(path)) {
+      return json(route, [
+        { day: '2026-11-22', bytes: 1048576 },
+        { day: '2026-11-23', bytes: 3145728 },
+        { day: '2026-11-24', bytes: 2097152 },
+      ]);
+    }
     if (/\/api\/users\/[^/]+\/qr\.png$/.test(path)) {
       return route.fulfill({ status: 200, contentType: 'image/png', body: png });
     }
