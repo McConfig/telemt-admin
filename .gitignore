@@ -21,3 +21,5 @@ frontend/tsconfig.tsbuildinfo
 
 frontend/playwright-report/
 frontend/test-results/
+
+coverage.out
