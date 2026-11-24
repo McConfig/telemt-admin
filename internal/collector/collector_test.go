@@ -74,7 +74,10 @@ func TestCollectorRunAndStatus(t *testing.T) {
 
 	c := New(st, telemt.New(srv.URL, "", time.Second), nil, 10*time.Millisecond, 3, 5, 15)
 	go c.Run(ctx)
-	time.Sleep(50 * time.Millisecond)
+	deadline := time.Now().Add(2 * time.Second)
+	for !c.Status().Up && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
 	cancel()
 	time.Sleep(20 * time.Millisecond)
 
