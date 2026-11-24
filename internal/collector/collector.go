@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/McConfig/telemt-admin/internal/geoip"
 	"github.com/McConfig/telemt-admin/internal/store"
 	"github.com/McConfig/telemt-admin/internal/telemt"
 )
@@ -25,12 +26,19 @@ type Snapshot struct {
 	TrafficTotal uint64
 	TrafficToday uint64
 	Risk         int
+	// ForeignCurrent — сколько активных адресов из других стран.
+	ForeignCurrent int64
+	// Countries — уникальные страны среди активных адресов, по алфавиту.
+	Countries []string
+	// CountryCodes — коды ISO тех же стран.
+	CountryCodes []string
 }
 
 // Collector периодически снимает активные IP и трафик через API telemt.
 type Collector struct {
 	st         *store.Store
 	tc         *telemt.Client
+	geo        *geoip.Resolver
 	interval   time.Duration
 	warn       int64
 	high       int64
@@ -43,12 +51,12 @@ type Collector struct {
 }
 
 // New создаёт сборщик.
-func New(st *store.Store, tc *telemt.Client, interval time.Duration, warn, high, distinct7d int64) *Collector {
+func New(st *store.Store, tc *telemt.Client, geo *geoip.Resolver, interval time.Duration, warn, high, distinct7d int64) *Collector {
 	if interval <= 0 {
 		interval = time.Minute
 	}
 	return &Collector{
-		st: st, tc: tc, interval: interval,
+		st: st, tc: tc, geo: geo, interval: interval,
 		warn: warn, high: high, distinct7d: distinct7d,
 		snap: map[string]Snapshot{},
 	}
@@ -82,7 +90,8 @@ func (c *Collector) collect(ctx context.Context) {
 	next := make(map[string]Snapshot, len(users))
 	for _, u := range users {
 		ips := u.ActiveUniqueIPList
-		if err := c.st.RecordIPObservation(ctx, u.Username, ips, u.TotalOctets, now); err != nil {
+		geo := c.lookupIPs(ips)
+		if err := c.st.RecordIPObservation(ctx, u.Username, ips, geo, u.TotalOctets, now); err != nil {
 			slog.Warn("запись истории IP", "user", u.Username, "err", err)
 			continue
 		}
@@ -91,6 +100,7 @@ func (c *Collector) collect(ctx context.Context) {
 			slog.Warn("агрегаты IP", "user", u.Username, "err", err)
 			continue
 		}
+		seenCountry := map[string]string{}
 		snap := Snapshot{
 			User: u.Username, Current: int64(len(ips)),
 			Distinct24h: stats.Distinct24h, Distinct7d: stats.Distinct7d,
@@ -98,6 +108,26 @@ func (c *Collector) collect(ctx context.Context) {
 			TrafficTotal: u.TotalOctets, TrafficToday: stats.TrafficToday,
 		}
 		snap.Risk = c.risk(snap)
+		for _, info := range geo {
+			if info.Internal {
+				continue
+			}
+			if info.Country != "" && info.Country != "RU" {
+				snap.ForeignCurrent++
+			}
+			if info.Country != "" {
+				seenCountry[info.Country] = info.CountryName
+			}
+		}
+		for code, name := range seenCountry {
+			snap.CountryCodes = append(snap.CountryCodes, code)
+			snap.Countries = append(snap.Countries, name)
+		}
+		sort.Strings(snap.CountryCodes)
+		sort.Strings(snap.Countries)
+		if err := c.st.SaveGeoStats(ctx, u.Username, snap.ForeignCurrent, snap.CountryCodes, snap.Countries); err != nil {
+			slog.Warn("запись GeoIP-агрегатов", "user", u.Username, "err", err)
+		}
 		next[u.Username] = snap
 	}
 	c.mu.Lock()
@@ -105,6 +135,20 @@ func (c *Collector) collect(ctx context.Context) {
 	c.lastOK = time.Now().UTC()
 	c.last = nil
 	c.mu.Unlock()
+}
+
+// lookupIPs обогащает адреса сведениями GeoIP. Без баз возвращает пустые
+// сведения: история продолжает собираться, страны появятся после подключения.
+func (c *Collector) lookupIPs(ips []string) map[string]store.IPGeo {
+	out := make(map[string]store.IPGeo, len(ips))
+	for _, ip := range ips {
+		info := c.geo.Lookup(ip)
+		out[ip] = store.IPGeo{
+			Country: info.CountryCode, CountryName: info.CountryName,
+			ASN: info.ASN, ASNOrg: info.ASNOrg, Internal: info.Internal,
+		}
+	}
+	return out
 }
 
 func (c *Collector) risk(s Snapshot) int {
@@ -166,6 +210,8 @@ func (c *Collector) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	writeMetric("tgadmin_user_traffic_bytes_total", "Суммарный трафик пользователя", "counter")
 	writeMetric("tgadmin_user_traffic_today_bytes", "Трафик пользователя за сутки", "gauge")
 	writeMetric("tgadmin_user_risk_level", "0 норма, 1 предупреждение, 2 высокий риск", "gauge")
+	writeMetric("tgadmin_user_foreign_ips_current", "Активные адреса пользователя из других стран", "gauge")
+	writeMetric("tgadmin_user_countries_current", "Стран среди активных адресов пользователя", "gauge")
 	for _, name := range names {
 		s := snap[name]
 		label := escape(name)
@@ -177,7 +223,15 @@ func (c *Collector) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 		_, _ = fmt.Fprintf(w, "tgadmin_user_traffic_bytes_total{user=%q} %d\n", label, s.TrafficTotal)
 		_, _ = fmt.Fprintf(w, "tgadmin_user_traffic_today_bytes{user=%q} %d\n", label, s.TrafficToday)
 		_, _ = fmt.Fprintf(w, "tgadmin_user_risk_level{user=%q} %d\n", label, s.Risk)
+		_, _ = fmt.Fprintf(w, "tgadmin_user_foreign_ips_current{user=%q} %d\n", label, s.ForeignCurrent)
+		_, _ = fmt.Fprintf(w, "tgadmin_user_countries_current{user=%q} %d\n", label, len(s.Countries))
 	}
+	writeMetric("tgadmin_geoip_loaded", "Загружены базы GeoIP", "gauge")
+	geoLoaded := 0
+	if c.geo.Enabled() {
+		geoLoaded = 1
+	}
+	_, _ = fmt.Fprintf(w, "tgadmin_geoip_loaded %d\n", geoLoaded)
 	writeMetric("tgadmin_collector_up", "Сборщик получает данные", "gauge")
 	up := 0
 	if lastErr == nil {

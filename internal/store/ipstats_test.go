@@ -11,10 +11,13 @@ func TestIPHistoryAndStats(t *testing.T) {
 	st, _ := newTestStore(t)
 	t0 := time.Date(2026, 11, 24, 10, 0, 0, 0, time.UTC)
 
-	if err := st.RecordIPObservation(ctx, "alice", []string{"192.0.2.1", "192.0.2.2"}, 1000, t0); err != nil {
+	geo := map[string]IPGeo{
+		"192.0.2.1": {Country: "NL", CountryName: "Нидерланды", ASN: 60781, ASNOrg: "LeaseWeb"},
+	}
+	if err := st.RecordIPObservation(ctx, "alice", []string{"192.0.2.1", "192.0.2.2"}, geo, 1000, t0); err != nil {
 		t.Fatal(err)
 	}
-	if err := st.RecordIPObservation(ctx, "alice", []string{"192.0.2.1", "192.0.2.3"}, 1500, t0.Add(time.Minute)); err != nil {
+	if err := st.RecordIPObservation(ctx, "alice", []string{"192.0.2.1", "192.0.2.3"}, geo, 1500, t0.Add(time.Minute)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -42,10 +45,20 @@ func TestIPHistoryAndStats(t *testing.T) {
 	if !history[0].LastSeen.Equal(t0.Add(time.Minute)) && !history[0].LastSeen.Equal(t0) {
 		t.Fatalf("порядок истории: %+v", history)
 	}
+	var enriched *IPStat
+	for i := range history {
+		if history[i].IP == "192.0.2.1" {
+			enriched = &history[i]
+		}
+	}
+	if enriched == nil || enriched.Country != "NL" || enriched.CountryName != "Нидерланды" ||
+		enriched.ASN != 60781 || enriched.ASNOrg != "LeaseWeb" {
+		t.Fatalf("GeoIP в истории: %+v", enriched)
+	}
 
 	// Новые сутки: день обнуляется, дельта считается от последнего значения.
 	next := t0.Add(24 * time.Hour)
-	if err := st.RecordIPObservation(ctx, "alice", []string{"192.0.2.1"}, 1700, next); err != nil {
+	if err := st.RecordIPObservation(ctx, "alice", []string{"192.0.2.1"}, nil, 1700, next); err != nil {
 		t.Fatal(err)
 	}
 	stats, _ = st.UserIPStats(ctx, "alice", next)
@@ -59,7 +72,7 @@ func TestRetentionExpiresHistory(t *testing.T) {
 	st, mr := newTestStore(t)
 	st.SetRetention(time.Hour)
 	now := time.Now().UTC()
-	if err := st.RecordIPObservation(ctx, "bob", []string{"192.0.2.5"}, 100, now); err != nil {
+	if err := st.RecordIPObservation(ctx, "bob", []string{"192.0.2.5"}, nil, 100, now); err != nil {
 		t.Fatal(err)
 	}
 	mr.FastForward(2 * time.Hour)

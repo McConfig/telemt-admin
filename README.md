@@ -17,7 +17,9 @@ MTProto-прокси для Telegram. Работает через официал
 - лимиты: максимум уникальных IP и максимум TCP-соединений;
 - роли `admin` и `viewer`; `viewer` не видит ссылки и ничего не меняет;
 - пароли Argon2id, сессии в Valkey, CSRF, ограничение попыток входа, аудит действий;
-- доступ только с разрешённых сетей.
+- доступ только с разрешённых сетей;
+- GeoIP: страна и оператор (ASN) каждого адреса, счётчики иностранных адресов
+  и фильтр «только с иностранными IP».
 
 ## Архитектура
 
@@ -120,6 +122,8 @@ curl -fsS http://127.0.0.1:8090/healthz
 | `TGADMIN_RISK_IPS_WARN` | `3` | одновременных IP, после которых предупреждение |
 | `TGADMIN_RISK_IPS_HIGH` | `5` | одновременных IP, после которых высокий риск |
 | `TGADMIN_RISK_DISTINCT_7D` | `15` | уникальных IP за 7 дней для предупреждения |
+| `TGADMIN_GEOIP_CITY` | `/opt/geoip/GeoLite2-City.mmdb` | городская база mmdb; пусто — не использовать |
+| `TGADMIN_GEOIP_ASN` | `/opt/geoip/GeoLite2-ASN.mmdb` | база ASN mmdb; пусто — не использовать |
 | `TGADMIN_BASE_URL` | `https://tgadmin.example.com` | внешний адрес; проверка Origin и ссылки |
 | `TGADMIN_SESSION_TTL` | `720h` | срок жизни сессии |
 | `TGADMIN_COOKIE_SECURE` | `true` | `Secure` у cookie; выключайте только для локальной проверки по HTTP |
@@ -265,6 +269,9 @@ tgadmin_user_ips_max_today{user="alice"}
 tgadmin_user_traffic_bytes_total{user="alice"}
 tgadmin_user_traffic_today_bytes{user="alice"}
 tgadmin_user_risk_level{user="alice"}
+tgadmin_user_foreign_ips_current{user="alice"}
+tgadmin_user_countries_current{user="alice"}
+tgadmin_geoip_loaded
 tgadmin_collector_up
 ```
 
@@ -274,6 +281,72 @@ tgadmin_collector_up
 
 Если Prometheus ходит из docker-сети, добавьте её в `TGADMIN_ALLOWED_CIDRS`
 (например, `172.16.0.0/12`): проверка источника действует и на `/metrics`.
+
+## GeoIP: страна и оператор
+
+Страна и автономная система определяются по офлайн-базам в формате MaxMind
+DB (mmdb). Подходят бесплатные DB-IP Lite: регистрация и лицензионный ключ
+не нужны, лицензия CC BY 4.0 требует указания источника — ссылка есть в
+нижней части этой страницы.
+
+1. Скачайте базы в каталог `deploy/geoip`:
+
+   ```bash
+   cd deploy
+   bash ../hack/update-geoip.sh geoip
+   ```
+
+   Ожидаемый вывод: две строки `скачиваю ...` и итоговый список
+   `GeoLite2-City.mmdb` и `GeoLite2-ASN.mmdb` с размерами (городская база
+   занимает около 120 МБ, ASN около 9 МБ).
+
+2. Смонтируйте каталог в контейнер. В `docker-compose.yml`:
+
+   ```yaml
+   tgadmin:
+     volumes: ["./geoip:/opt/geoip:ro"]
+   ```
+
+3. Перезапустите приложение:
+
+   ```bash
+   docker compose up -d tgadmin
+   ```
+
+4. Проверьте, что базы загрузились:
+
+   ```bash
+   curl -fsS http://127.0.0.1:8090/metrics | grep tgadmin_geoip_loaded
+   ```
+
+   Ожидание: `tgadmin_geoip_loaded 1`. Если `0`, в логах будет предупреждение
+   с путями:
+
+   ```bash
+   docker compose logs --tail 50 tgadmin | grep -i geoip
+   ```
+
+5. Подождите один цикл сбора (`TGADMIN_COLLECT_INTERVAL`, по умолчанию 60
+   секунд) и откройте карточку клиента: в таблице «Устройства» появятся
+   колонки «Страна» и «Оператор».
+
+Если файлов нет, приложение работает как раньше: история IP и трафик
+собираются, страна и оператор просто не показываются.
+
+Метрики: `tgadmin_geoip_loaded`, `tgadmin_user_foreign_ips_current`,
+`tgadmin_user_countries_current`. Приватные адреса (`10.0.0.0/8`,
+`192.168.0.0/16` и подобные) помечаются как «локальный» и не считаются
+иностранными.
+
+Обновление баз: раз в месяц запускайте `hack/update-geoip.sh` и
+перезапускайте контейнер — базы читаются при старте. Пример cron:
+
+```
+17 5 1 * * cd /opt/telemt-admin/deploy && bash ../hack/update-geoip.sh geoip && docker compose up -d --force-recreate tgadmin
+```
+
+Вместо DB-IP можно положить файлы GeoLite2 от MaxMind с теми же именами —
+формат совместим, но для скачивания нужен лицензионный ключ.
 
 ## Бэкап и восстановление Valkey
 
@@ -339,4 +412,7 @@ go build ./cmd/tgadmin
 
 ## Лицензия
 
-MIT, см. [LICENSE](LICENSE).
+Проект распространяется по лицензии MIT, см. [LICENSE](LICENSE). Базы
+DB-IP Lite, которые рекомендует раздел «GeoIP», распространяются по лицензии
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); источник —
+[DB-IP](https://db-ip.com).

@@ -27,6 +27,8 @@ type Config struct {
 	RiskIPsHigh     int
 	RiskDistinct7d  int
 	Retention       time.Duration
+	GeoIPCity       string
+	GeoIPASN        string
 }
 
 // Load читает конфигурацию. getenv передаётся для тестируемости.
@@ -48,6 +50,8 @@ func Load(getenv func(string) string) (*Config, error) {
 		RiskIPsWarn:    getInt(get("TGADMIN_RISK_IPS_WARN", "3"), 3),
 		RiskIPsHigh:    getInt(get("TGADMIN_RISK_IPS_HIGH", "5"), 5),
 		RiskDistinct7d: getInt(get("TGADMIN_RISK_DISTINCT_7D", "15"), 15),
+		GeoIPCity:      get("TGADMIN_GEOIP_CITY", "/opt/geoip/GeoLite2-City.mmdb"),
+		GeoIPASN:       get("TGADMIN_GEOIP_ASN", "/opt/geoip/GeoLite2-ASN.mmdb"),
 	}
 	collect, err := time.ParseDuration(get("TGADMIN_COLLECT_INTERVAL", "60s"))
 	if err != nil {

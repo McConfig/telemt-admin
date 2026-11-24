@@ -13,7 +13,10 @@ require (
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/maxmind/mmdbwriter v1.2.0 // indirect
+	github.com/oschwald/maxminddb-golang/v2 v2.9.1 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
 	go.uber.org/atomic v1.12.0 // indirect
+	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 	golang.org/x/sys v0.50.0 // indirect
 )

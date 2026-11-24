@@ -24,6 +24,11 @@ export interface IPHistoryItem {
   firstSeen: string;
   lastSeen: string;
   count: number;
+  country?: string;
+  countryName?: string;
+  asn?: number;
+  asnOrg?: string;
+  internal?: boolean;
 }
 
 export interface ProxyUser {
@@ -52,6 +57,9 @@ export interface ProxyUser {
   note?: string;
   ipHistory?: IPHistoryItem[];
   link?: string;
+  foreignIpsCurrent: number;
+  countries?: string[];
+  countryCodes?: string[];
 }
 
 export interface AuditItem {

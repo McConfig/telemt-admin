@@ -177,6 +177,14 @@ export default function UserPage({ me }: { me: Me }) {
             <Stat label="IP за 7 дней" value={user.ips7d} />
             <Stat label="Новых IP за сутки" value={user.new24h} />
             <Stat label="Пик за сутки" value={user.maxToday} />
+            <Stat
+              label="Стран сейчас"
+              value={(user.countries ?? []).length || '—'}
+            />
+            <Stat
+              label="Иностранных IP"
+              value={user.foreignIpsCurrent}
+            />
             <Stat label="Трафик всего" value={formatBytes(user.totalOctets)} />
             <Stat label="Трафик за сутки" value={formatBytes(user.trafficToday)} />
           </div>
@@ -184,6 +192,9 @@ export default function UserPage({ me }: { me: Me }) {
             IP сейчас: {user.activeIps.join(', ') || '—'} · лимит IP: {user.maxUniqueIps ?? 'нет'} ·
             лимит соединений: {user.maxTcpConns ?? 'нет'}
           </Text>
+          {(user.countries?.length ?? 0) > 0 && (
+            <Text className="muted">Страны сейчас: {user.countries!.join(', ')}</Text>
+          )}
           {user.note && <Text className="muted">Заметка: {user.note}</Text>}
         </div>
       </Card>
@@ -501,6 +512,34 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 function IPHistoryTable({ items }: { items: IPHistoryItem[] }) {
   const columns: ColumnDef<IPHistoryItem>[] = [
     { id: 'ip', header: 'IP', cell: ({ row }) => row.original.ip },
+    {
+      id: 'country',
+      header: 'Страна',
+      cell: ({ row }) => {
+        const item = row.original;
+        if (item.internal) return <Label size="s" theme="unknown">локальный</Label>;
+        if (!item.country) return '—';
+        return (
+          <span title={item.country}>
+            {item.countryName ?? item.country} <span className="muted">{item.country}</span>
+          </span>
+        );
+      },
+    },
+    {
+      id: 'asn',
+      header: 'Оператор',
+      cell: ({ row }) => {
+        const item = row.original;
+        if (!item.asn && !item.asnOrg) return '—';
+        return (
+          <span title={item.asn ? `AS${item.asn}` : undefined}>
+            {item.asnOrg ?? '—'}
+            {item.asn ? <span className="muted"> AS{item.asn}</span> : null}
+          </span>
+        );
+      },
+    },
     { id: 'first', header: 'Впервые', cell: ({ row }) => new Date(row.original.firstSeen).toLocaleString('ru-RU') },
     { id: 'last', header: 'Последний раз', cell: ({ row }) => new Date(row.original.lastSeen).toLocaleString('ru-RU') },
     { id: 'count', header: 'Наблюдений', cell: ({ row }) => row.original.count },

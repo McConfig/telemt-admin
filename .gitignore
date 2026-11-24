@@ -14,3 +14,7 @@ internal/web/dist/*
 
 .idea/
 frontend/tsconfig.tsbuildinfo
+
+# Базы GeoIP (скачиваются hack/update-geoip.sh)
+/geoip/
+/deploy/geoip/

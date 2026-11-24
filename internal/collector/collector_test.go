@@ -30,7 +30,7 @@ func TestCollectAndMetrics(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := New(st, telemt.New(srv.URL, "", 5*time.Second), time.Hour, 3, 5, 15)
+	c := New(st, telemt.New(srv.URL, "", 5*time.Second), nil, time.Hour, 3, 5, 15)
 	c.collect(context.Background())
 
 	snap, ok := c.Stats("alice")
@@ -49,6 +49,7 @@ func TestCollectAndMetrics(t *testing.T) {
 		`tgadmin_user_risk_level{user="alice"} 1`,
 		`tgadmin_user_traffic_bytes_total{user="alice"} 5000`,
 		"tgadmin_collector_up 1",
+		"tgadmin_geoip_loaded 0",
 	} {
 		if !strings.Contains(string(body), want) {
 			t.Fatalf("нет строки %q в метриках:\n%s", want, body)

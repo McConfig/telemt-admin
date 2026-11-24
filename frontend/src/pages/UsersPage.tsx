@@ -13,6 +13,7 @@ export default function UsersPage({ me }: { me: Me }) {
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [onlyRisk, setOnlyRisk] = useState(false);
+  const [onlyForeign, setOnlyForeign] = useState(false);
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const isMobile = useMedia('(max-width: 760px)');
@@ -38,12 +39,13 @@ export default function UsersPage({ me }: { me: Me }) {
     return users.filter((u) => {
       if (q && !u.username.toLowerCase().includes(q)) return false;
       if (onlyRisk && u.risk === 0) return false;
+      if (onlyForeign && u.foreignIpsCurrent === 0) return false;
       return true;
     });
-  }, [users, query, onlyRisk]);
+  }, [users, query, onlyRisk, onlyForeign]);
   useEffect(() => {
     setPage(1);
-  }, [query, onlyRisk]);
+  }, [query, onlyRisk, onlyForeign]);
   const pageSize = 20;
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const shown = useMemo(
@@ -69,6 +71,29 @@ export default function UsersPage({ me }: { me: Me }) {
       ),
     },
     { id: 'ips', header: 'Активные IP', cell: ({ row }) => row.original.activeUniqueIps },
+    {
+      id: 'countries',
+      header: 'Страны',
+      cell: ({ row }) => {
+        const countries = row.original.countries ?? [];
+        if (countries.length === 0) return '—';
+        return (
+          <span title={countries.join(', ')}>
+            {countries.slice(0, 2).join(', ')}
+            {countries.length > 2 ? ` +${countries.length - 2}` : ''}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'foreign',
+      header: 'Иностранные',
+      cell: ({ row }) => {
+        const n = row.original.foreignIpsCurrent;
+        if (!n) return <Label theme="success" size="s">нет</Label>;
+        return <Label theme="warning" size="s">{n}</Label>;
+      },
+    },
     { id: 'ips24h', header: 'IP за 24ч', cell: ({ row }) => row.original.ips24h },
     {
       id: 'risk',
@@ -124,6 +149,14 @@ export default function UsersPage({ me }: { me: Me }) {
           <input type="checkbox" checked={onlyRisk} onChange={(e) => setOnlyRisk(e.target.checked)} /> только
           подозрительные
         </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={onlyForeign}
+            onChange={(e) => setOnlyForeign(e.target.checked)}
+          />{' '}
+          только с иностранными IP
+        </label>
       </div>
       {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
       <Card view="filled" style={{ padding: 8 }}>
@@ -148,6 +181,12 @@ export default function UsersPage({ me }: { me: Me }) {
                 <div className="muted">
                   IP: {u.activeUniqueIps} · за 24ч: {u.ips24h} · соединений: {u.currentConnections}
                 </div>
+                {(u.countries?.length ?? 0) > 0 && (
+                  <div className="muted">
+                    Страны: {u.countries!.join(', ')}
+                    {u.foreignIpsCurrent > 0 ? ` · иностранных IP: ${u.foreignIpsCurrent}` : ''}
+                  </div>
+                )}
                 <div className="muted">Трафик: {formatBytes(u.totalOctets)}</div>
                 <div className="muted">
                   Последняя активность:{' '}

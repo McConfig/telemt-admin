@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"sort"
 	"strconv"
 	"time"
@@ -15,13 +16,75 @@ func ipKey(user, ip string) string   { return "iphist:ip:" + user + ":" + ip }
 func dayKey(user, day string) string { return "iphist:day:" + user + ":" + day }
 func maxKey(user, day string) string { return "iphist:max:" + user + ":" + day }
 func trafficKey(user string) string  { return "iphist:traffic:" + user }
+func geoKey(user string) string      { return "iphist:geo:" + user }
 
 // IPStat — один адрес в истории пользователя.
 type IPStat struct {
-	IP        string
-	FirstSeen time.Time
-	LastSeen  time.Time
-	Count     int64
+	IP          string
+	FirstSeen   time.Time
+	LastSeen    time.Time
+	Count       int64
+	Country     string
+	CountryName string
+	ASN         uint32
+	ASNOrg      string
+	Internal    bool
+}
+
+// IPGeo — сведения GeoIP, которые сохраняются вместе с адресом.
+type IPGeo struct {
+	Country     string
+	CountryName string
+	ASN         uint32
+	ASNOrg      string
+	Internal    bool
+}
+
+func (g IPGeo) empty() bool {
+	return g.Country == "" && g.ASN == 0 && g.ASNOrg == "" && !g.Internal
+}
+
+// GeoStats — последние агрегаты GeoIP по активным адресам пользователя.
+type GeoStats struct {
+	ForeignCurrent int64
+	CountryCodes   []string
+	Countries      []string
+}
+
+// SaveGeoStats сохраняет агрегаты GeoIP для карточки и списка клиентов.
+func (s *Store) SaveGeoStats(ctx context.Context, user string, foreign int64, codes, names []string) error {
+	codesJSON, err := json.Marshal(codes)
+	if err != nil {
+		return err
+	}
+	namesJSON, err := json.Marshal(names)
+	if err != nil {
+		return err
+	}
+	if err := s.rdb.HSet(ctx, geoKey(user), map[string]any{
+		"foreign": foreign, "codes": string(codesJSON), "names": string(namesJSON),
+	}).Err(); err != nil {
+		return err
+	}
+	return s.rdb.Expire(ctx, geoKey(user), s.retention).Err()
+}
+
+// GeoStats читает последние агрегаты GeoIP. Второй результат — есть ли запись.
+func (s *Store) GeoStats(ctx context.Context, user string) (GeoStats, bool, error) {
+	m, err := s.rdb.HGetAll(ctx, geoKey(user)).Result()
+	if err != nil {
+		return GeoStats{}, false, err
+	}
+	if len(m) == 0 {
+		return GeoStats{}, false, nil
+	}
+	var out GeoStats
+	if n, err := strconv.ParseInt(m["foreign"], 10, 64); err == nil {
+		out.ForeignCurrent = n
+	}
+	_ = json.Unmarshal([]byte(m["codes"]), &out.CountryCodes)
+	_ = json.Unmarshal([]byte(m["names"]), &out.Countries)
+	return out, true, nil
 }
 
 // UserIPStats — агрегаты по адресам и трафику пользователя.
@@ -34,7 +97,9 @@ type UserIPStats struct {
 }
 
 // RecordIPObservation сохраняет срез активных адресов и суммарный трафик.
-func (s *Store) RecordIPObservation(ctx context.Context, user string, ips []string, total uint64, now time.Time) error {
+// geo содержит сведения GeoIP по адресам; отсутствующие адреса просто не
+// обогащаются.
+func (s *Store) RecordIPObservation(ctx context.Context, user string, ips []string, geo map[string]IPGeo, total uint64, now time.Time) error {
 	now = now.UTC()
 	day := now.Format("2006-01-02")
 	ts := float64(now.Unix())
@@ -47,6 +112,25 @@ func (s *Store) RecordIPObservation(ctx context.Context, user string, ips []stri
 		pipe.HSet(ctx, key, "last_seen", now.Format(time.RFC3339))
 		pipe.HSetNX(ctx, key, "first_seen", now.Format(time.RFC3339))
 		pipe.HIncrBy(ctx, key, "count", 1)
+		if g, ok := geo[ip]; ok && !g.empty() {
+			fields := map[string]any{}
+			if g.Country != "" {
+				fields["country"] = g.Country
+				fields["country_name"] = g.CountryName
+			}
+			if g.ASN != 0 {
+				fields["asn"] = g.ASN
+			}
+			if g.ASNOrg != "" {
+				fields["asn_org"] = g.ASNOrg
+			}
+			if g.Internal {
+				fields["internal"] = "1"
+			}
+			if len(fields) > 0 {
+				pipe.HSet(ctx, key, fields)
+			}
+		}
 		pipe.Expire(ctx, key, s.retention)
 		pipe.SAdd(ctx, dayKey(user, day), ip)
 	}
@@ -156,8 +240,17 @@ func (s *Store) IPHistory(ctx context.Context, user string) ([]IPStat, error) {
 		if first, err := s.rdb.ZScore(ctx, firstKey(user), ip).Result(); err == nil {
 			stat.FirstSeen = time.Unix(int64(first), 0).UTC()
 		}
-		if count, err := s.rdb.HGet(ctx, ipKey(user, ip), "count").Int64(); err == nil {
-			stat.Count = count
+		if fields, err := s.rdb.HGetAll(ctx, ipKey(user, ip)).Result(); err == nil {
+			if n, err := strconv.ParseInt(fields["count"], 10, 64); err == nil {
+				stat.Count = n
+			}
+			stat.Country = fields["country"]
+			stat.CountryName = fields["country_name"]
+			stat.ASNOrg = fields["asn_org"]
+			stat.Internal = fields["internal"] == "1"
+			if n, err := strconv.ParseUint(fields["asn"], 10, 32); err == nil {
+				stat.ASN = uint32(n)
+			}
 		}
 		out = append(out, stat)
 	}
@@ -167,7 +260,7 @@ func (s *Store) IPHistory(ctx context.Context, user string) ([]IPStat, error) {
 
 // DeleteIPHistory удаляет историю адресов и трафика пользователя.
 func (s *Store) DeleteIPHistory(ctx context.Context, user string) error {
-	keys := []string{seenKey(user), firstKey(user), trafficKey(user)}
+	keys := []string{seenKey(user), firstKey(user), trafficKey(user), geoKey(user)}
 	for _, pattern := range []string{
 		"iphist:ip:" + user + ":*",
 		"iphist:day:" + user + ":*",

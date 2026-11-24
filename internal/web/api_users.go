@@ -21,10 +21,15 @@ var (
 )
 
 type apiIP struct {
-	IP        string `json:"ip"`
-	FirstSeen string `json:"firstSeen"`
-	LastSeen  string `json:"lastSeen"`
-	Count     int64  `json:"count"`
+	IP          string `json:"ip"`
+	FirstSeen   string `json:"firstSeen"`
+	LastSeen    string `json:"lastSeen"`
+	Count       int64  `json:"count"`
+	Country     string `json:"country,omitempty"`
+	CountryName string `json:"countryName,omitempty"`
+	ASN         uint32 `json:"asn,omitempty"`
+	ASNOrg      string `json:"asnOrg,omitempty"`
+	Internal    bool   `json:"internal,omitempty"`
 }
 
 type apiUser struct {
@@ -53,6 +58,9 @@ type apiUser struct {
 	LastSeen           string   `json:"lastSeen,omitempty"`
 	IPHistory          []apiIP  `json:"ipHistory,omitempty"`
 	Link               string   `json:"link,omitempty"`
+	ForeignIPsCurrent  int64    `json:"foreignIpsCurrent"`
+	Countries          []string `json:"countries,omitempty"`
+	CountryCodes       []string `json:"countryCodes,omitempty"`
 }
 
 func (s *Server) apiUserView(r *http.Request, u telemt.User) apiUser {
@@ -77,6 +85,11 @@ func (s *Server) apiUserView(r *http.Request, u telemt.User) apiUser {
 	if s.isAdmin(r) {
 		out.Link = u.Link(s.cfg.LinkMode)
 	}
+	if geo, ok, err := s.store.GeoStats(r.Context(), u.Username); err == nil && ok {
+		out.ForeignIPsCurrent = geo.ForeignCurrent
+		out.Countries = geo.Countries
+		out.CountryCodes = geo.CountryCodes
+	}
 	stats, err := s.store.UserIPStats(r.Context(), u.Username, time.Now().UTC())
 	if err == nil {
 		out.Ips24h = stats.Distinct24h
@@ -85,6 +98,24 @@ func (s *Server) apiUserView(r *http.Request, u telemt.User) apiUser {
 		out.MaxToday = stats.MaxToday
 		out.TrafficToday = stats.TrafficToday
 		out.Risk = s.risk(int64(len(u.ActiveUniqueIPList)), stats)
+	}
+	return out
+}
+
+// apiIPHistory отдаёт историю адресов вместе со сведениями GeoIP.
+func (s *Server) apiIPHistory(r *http.Request, name string) []apiIP {
+	history, err := s.store.IPHistory(r.Context(), name)
+	if err != nil {
+		return nil
+	}
+	out := make([]apiIP, 0, len(history))
+	for _, item := range history {
+		out = append(out, apiIP{
+			IP: item.IP, FirstSeen: item.FirstSeen.Format(time.RFC3339),
+			LastSeen: item.LastSeen.Format(time.RFC3339), Count: item.Count,
+			Country: item.Country, CountryName: item.CountryName,
+			ASN: item.ASN, ASNOrg: item.ASNOrg, Internal: item.Internal,
+		})
 	}
 	return out
 }
@@ -126,14 +157,7 @@ func (s *Server) apiUser(w http.ResponseWriter, r *http.Request) {
 	}
 	view := s.apiUserView(r, *u)
 	if s.isAdmin(r) {
-		if history, err := s.store.IPHistory(r.Context(), name); err == nil {
-			for _, item := range history {
-				view.IPHistory = append(view.IPHistory, apiIP{
-					IP: item.IP, FirstSeen: item.FirstSeen.Format(time.RFC3339),
-					LastSeen: item.LastSeen.Format(time.RFC3339), Count: item.Count,
-				})
-			}
-		}
+		view.IPHistory = s.apiIPHistory(r, name)
 	}
 	writeJSON(w, http.StatusOK, view)
 }
@@ -274,14 +298,7 @@ func (s *Server) apiUpdateLimits(w http.ResponseWriter, r *http.Request) {
 	}
 	view := s.apiUserView(r, *u)
 	if s.isAdmin(r) {
-		if history, err := s.store.IPHistory(r.Context(), name); err == nil {
-			for _, item := range history {
-				view.IPHistory = append(view.IPHistory, apiIP{
-					IP: item.IP, FirstSeen: item.FirstSeen.Format(time.RFC3339),
-					LastSeen: item.LastSeen.Format(time.RFC3339), Count: item.Count,
-				})
-			}
-		}
+		view.IPHistory = s.apiIPHistory(r, name)
 	}
 	writeJSON(w, http.StatusOK, view)
 }
@@ -313,14 +330,7 @@ func (s *Server) apiRotate(w http.ResponseWriter, r *http.Request) {
 	}
 	view := s.apiUserView(r, *u)
 	if s.isAdmin(r) {
-		if history, err := s.store.IPHistory(r.Context(), name); err == nil {
-			for _, item := range history {
-				view.IPHistory = append(view.IPHistory, apiIP{
-					IP: item.IP, FirstSeen: item.FirstSeen.Format(time.RFC3339),
-					LastSeen: item.LastSeen.Format(time.RFC3339), Count: item.Count,
-				})
-			}
-		}
+		view.IPHistory = s.apiIPHistory(r, name)
 	}
 	writeJSON(w, http.StatusOK, view)
 }
@@ -355,14 +365,7 @@ func (s *Server) setEnabled(w http.ResponseWriter, r *http.Request, enabled bool
 	}
 	view := s.apiUserView(r, *u)
 	if s.isAdmin(r) {
-		if history, err := s.store.IPHistory(r.Context(), name); err == nil {
-			for _, item := range history {
-				view.IPHistory = append(view.IPHistory, apiIP{
-					IP: item.IP, FirstSeen: item.FirstSeen.Format(time.RFC3339),
-					LastSeen: item.LastSeen.Format(time.RFC3339), Count: item.Count,
-				})
-			}
-		}
+		view.IPHistory = s.apiIPHistory(r, name)
 	}
 	writeJSON(w, http.StatusOK, view)
 }
@@ -528,9 +531,16 @@ func (s *Server) apiHistoryCSV(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", "attachment; filename=\"ips-"+name+".csv\"")
 	cw := csv.NewWriter(w)
-	_ = cw.Write([]string{"ip", "first_seen", "last_seen", "observations"})
+	_ = cw.Write([]string{"ip", "first_seen", "last_seen", "observations", "country", "asn", "asn_org"})
 	for _, h := range history {
-		_ = cw.Write([]string{h.IP, h.FirstSeen.Format(time.RFC3339), h.LastSeen.Format(time.RFC3339), strconv.FormatInt(h.Count, 10)})
+		asn := ""
+		if h.ASN != 0 {
+			asn = strconv.FormatUint(uint64(h.ASN), 10)
+		}
+		_ = cw.Write([]string{
+			h.IP, h.FirstSeen.Format(time.RFC3339), h.LastSeen.Format(time.RFC3339),
+			strconv.FormatInt(h.Count, 10), h.Country, asn, h.ASNOrg,
+		})
 	}
 	cw.Flush()
 }

@@ -114,8 +114,14 @@ func TestAPIUsersRoleBasedLink(t *testing.T) {
 
 func TestAPIUserStatsAndHistory(t *testing.T) {
 	s := testServerWithTelemt(t)
+	geo := map[string]store.IPGeo{
+		"192.0.2.10": {Country: "NL", CountryName: "Нидерланды", ASN: 60781, ASNOrg: "LeaseWeb"},
+	}
 	if err := s.store.RecordIPObservation(context.Background(), "main",
-		[]string{"192.0.2.10", "192.0.2.11"}, 3000, time.Now().UTC()); err != nil {
+		[]string{"192.0.2.10", "192.0.2.11"}, geo, 3000, time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.store.SaveGeoStats(context.Background(), "main", 1, []string{"NL"}, []string{"Нидерланды"}); err != nil {
 		t.Fatal(err)
 	}
 	tok, _ := seedSession(t, s, store.RoleAdmin)
@@ -130,6 +136,18 @@ func TestAPIUserStatsAndHistory(t *testing.T) {
 	}
 	if u.Ips24h != 2 || len(u.IPHistory) != 2 {
 		t.Fatalf("статистика: %+v", u)
+	}
+	if u.ForeignIPsCurrent != 1 || len(u.Countries) != 1 || u.Countries[0] != "Нидерланды" {
+		t.Fatalf("GeoIP-агрегаты: %+v", u)
+	}
+	var enriched *apiIP
+	for i := range u.IPHistory {
+		if u.IPHistory[i].IP == "192.0.2.10" {
+			enriched = &u.IPHistory[i]
+		}
+	}
+	if enriched == nil || enriched.Country != "NL" || enriched.ASNOrg != "LeaseWeb" {
+		t.Fatalf("GeoIP в истории: %+v", enriched)
 	}
 }
 
