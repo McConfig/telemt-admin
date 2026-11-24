@@ -274,6 +274,10 @@ func (c *Collector) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 		geoLoaded = 1
 	}
 	_, _ = fmt.Fprintf(w, "tgadmin_geoip_loaded %d\n", geoLoaded)
+	writeMetric("tgadmin_geoip_build_timestamp_seconds", "Время сборки баз GeoIP", "gauge")
+	if epoch := c.geo.BuildEpoch(); epoch > 0 {
+		_, _ = fmt.Fprintf(w, "tgadmin_geoip_build_timestamp_seconds %d\n", epoch)
+	}
 	writeMetric("tgadmin_collector_up", "Сборщик получает данные", "gauge")
 	up := 0
 	if lastErr == nil {

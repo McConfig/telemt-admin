@@ -17,6 +17,7 @@ func buildTestDB(t *testing.T, name, dbType string, record mmdbtype.Map) string 
 	tree, err := mmdbwriter.New(mmdbwriter.Options{
 		DatabaseType:            dbType,
 		RecordSize:              24,
+		BuildEpoch:              1_700_000_000,
 		IncludeReservedNetworks: true,
 	})
 	if err != nil {
@@ -62,6 +63,9 @@ func TestLookupWithDatabases(t *testing.T) {
 	defer r.Close()
 	if !r.Enabled() {
 		t.Fatal("резолвер должен быть включён")
+	}
+	if got := r.BuildEpoch(); got != 1_700_000_000 {
+		t.Fatalf("время сборки баз: %d", got)
 	}
 
 	info := r.Lookup("192.0.2.5")
