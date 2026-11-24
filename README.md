@@ -4,7 +4,7 @@
 [![codeql](https://github.com/McConfig/telemt-admin/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/McConfig/telemt-admin/actions/workflows/codeql.yml)
 [![release](https://img.shields.io/github/v/release/McConfig/telemt-admin)](https://github.com/McConfig/telemt-admin/releases)
 [![coverage](https://coveralls.io/repos/github/McConfig/telemt-admin/badge.svg?branch=main)](https://coveralls.io/github/McConfig/telemt-admin?branch=main)
-[![Go Report Card](https://goreportcard.com/badge/github.com/McConfig/telemt-admin)](https://goreportcard.com/report/github.com/McConfig/telemt-admin)
+[![golangci-lint](https://img.shields.io/badge/lint-golangci--lint-blue)](.golangci.yml)
 [![license](https://img.shields.io/github/license/McConfig/telemt-admin)](LICENSE)
 [![go](https://img.shields.io/github/go-mod/go-version/McConfig/telemt-admin)](go.mod)
 

@@ -19,7 +19,7 @@
 1. Сделайте снимок Valkey:
 
    ```bash
-   ssh mcconfig@10.0.0.9
+   ssh admin@192.0.2.10
    cd ~/lab/network
    sudo systemctl start valkey-backup.service
    ls -lh ~/backups/valkey/
@@ -34,7 +34,7 @@
 ## Обновление
 
 ```bash
-ssh mcconfig@10.0.0.9
+ssh admin@192.0.2.10
 cd ~/lab/network
 docker compose pull tgadmin
 docker compose up -d tgadmin
@@ -43,8 +43,8 @@ docker compose up -d tgadmin
 Проверка:
 
 ```bash
-ssh mcconfig@10.0.0.9 \
-  'curl -fsS http://10.0.0.9:8090/readyz'
+ssh admin@192.0.2.10 \
+  'curl -fsS http://127.0.0.1:8090/readyz'
 ```
 
 Ожидание: `{"status":"ok"}`.
@@ -71,7 +71,8 @@ curl -fsS https://tgadmin.example.com/api/meta
 
 3. Если новая версия повредила данные, остановите `tgadmin` и `valkey`,
    распакуйте последний снимок как `dump.rdb` в том `tgadmin_valkey` и
-   запустите контейнеры. Инструкция — в `dev/pantheon/README.md`.
+   запустите контейнеры. Порядок восстановления описан в разделе
+   «Бэкап и восстановление Valkey» файла `README.md`.
 
 Откат образа безопасен: схема Valkey совместима, старые версии просто
 игнорируют новые поля.
