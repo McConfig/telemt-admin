@@ -17,7 +17,7 @@ import (
 // Run выполняет CLI-команду.
 func Run(ctx context.Context, args []string, cfg *config.Config, stdin io.Reader, stdout io.Writer) error {
 	if len(args) < 2 || args[0] != "user" {
-		return errors.New("использование: tgadmin user add|passwd|list|disable|enable")
+		return errors.New("использование: tgadmin user add|passwd|list|disable|enable|totp-reset")
 	}
 	st, err := store.Open(ctx, cfg.ValkeyURL, cfg.ValkeyPassword)
 	if err != nil {
@@ -74,8 +74,32 @@ func Run(ctx context.Context, args []string, cfg *config.Config, stdin io.Reader
 			if u.Disabled {
 				state = "отключён"
 			}
-			_, _ = fmt.Fprintf(stdout, "%s\t%s\t%s\n", u.Name, u.Role, state)
+			totp := "2fa-выкл"
+			if u.TOTPEnabled {
+				totp = "2fa-вкл"
+			}
+			_, _ = fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\n", u.Name, u.Role, state, totp)
 		}
+		return nil
+	case "totp-reset":
+		if len(args) != 3 {
+			return errors.New("использование: tgadmin user totp-reset <name>")
+		}
+		u, err := st.GetUser(ctx, args[2])
+		if err != nil {
+			return err
+		}
+		if !u.TOTPEnabled {
+			_, _ = fmt.Fprintf(stdout, "у %s 2FA не включена\n", args[2])
+			return nil
+		}
+		if err := st.DisableTOTP(ctx, args[2]); err != nil {
+			return err
+		}
+		if err := st.DeleteUserSessions(ctx, args[2], ""); err != nil {
+			return err
+		}
+		_, _ = fmt.Fprintf(stdout, "2FA для %s сброшена, сессии завершены\n", args[2])
 		return nil
 	case "disable", "enable":
 		if len(args) != 3 {

@@ -79,6 +79,24 @@ func (s *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "unauthorized", "неверное имя или пароль")
 		return
 	}
+	if u.TOTPEnabled {
+		if len(s.cfg.TOTPKey) != 32 {
+			writeError(w, http.StatusServiceUnavailable, "totp_unavailable", "2FA включена, но на сервере не задан TGADMIN_TOTP_KEY")
+			return
+		}
+		pending, err := s.store.CreatePendingTOTP(r.Context(), username, addr.String(), r.UserAgent(), pendingTOTPTTL)
+		if err != nil {
+			s.serverErrorJSON(w, r, err)
+			return
+		}
+		_ = s.store.ResetLoginFailures(r.Context(), addr.String(), username)
+		_ = s.store.Audit(r.Context(), store.AuditEvent{
+			Actor: username, Action: "login.totp.required", Target: username, Result: "ok", IP: addr.String(),
+		})
+		s.setCookie(w, pending)
+		writeJSON(w, http.StatusOK, map[string]any{"totpRequired": true})
+		return
+	}
 	token, err := s.store.CreateSession(r.Context(), username, addr.String(), r.UserAgent(), s.cfg.SessionTTL)
 	if err != nil {
 		s.serverErrorJSON(w, r, err)

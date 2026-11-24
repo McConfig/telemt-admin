@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strconv"
 	"time"
@@ -23,6 +24,14 @@ type User struct {
 	CreatedAt         time.Time
 	PasswordChangedAt time.Time
 	Disabled          bool
+
+	// TOTP
+	TOTPEnabled     bool
+	TOTPSecret      string
+	TOTPPending     string
+	TOTPLastCounter int64
+	TOTPCreatedAt   time.Time
+	RecoveryCodes   []string
 }
 
 func userKey(name string) string { return "auth:user:" + name }
@@ -73,6 +82,14 @@ func decodeUser(name string, m map[string]string) *User {
 	u.CreatedAt, _ = time.Parse(time.RFC3339, m["created_at"])
 	u.PasswordChangedAt, _ = time.Parse(time.RFC3339, m["password_changed_at"])
 	u.Disabled, _ = strconv.ParseBool(m["disabled"])
+	u.TOTPEnabled, _ = strconv.ParseBool(m["totp_enabled"])
+	u.TOTPSecret = m["totp_secret"]
+	u.TOTPPending = m["totp_pending"]
+	u.TOTPLastCounter, _ = strconv.ParseInt(m["totp_last_counter"], 10, 64)
+	u.TOTPCreatedAt, _ = time.Parse(time.RFC3339, m["totp_created_at"])
+	if raw := m["totp_recovery"]; raw != "" {
+		_ = json.Unmarshal([]byte(raw), &u.RecoveryCodes)
+	}
 	return u
 }
 

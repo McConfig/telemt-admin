@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Card, Dialog, Label, Loader, Text, TextInput } from '@gravity-ui/uikit';
 import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
-import { ArrowRightFromSquare, Ban, Key, Play, TrashBin } from '@gravity-ui/icons';
+import { ArrowRightFromSquare, Ban, Key, Lock, Play, TrashBin } from '@gravity-ui/icons';
 import { api, ApiError, type AdminUser, type Me } from '../api';
 import { formatTime } from '../format';
 import { useMedia } from '../useMedia';
@@ -57,6 +57,16 @@ export default function AdminsPage({ me }: { me: Me }) {
         </Label>
       ),
     },
+    {
+      id: 'totp',
+      header: '2FA',
+      cell: ({ row }) =>
+        row.original.totpEnabled ? (
+          <Label theme="success" size="s">включена</Label>
+        ) : (
+          <Label theme="unknown" size="s">выключена</Label>
+        ),
+    },
     { id: 'sessions', header: 'Сессии', cell: ({ row }) => row.original.sessions },
     { id: 'created', header: 'Создан', cell: ({ row }) => formatTime(row.original.createdAt) },
     {
@@ -85,6 +95,19 @@ export default function AdminsPage({ me }: { me: Me }) {
               disabled={row.original.name === me.user.name}
             >
               {row.original.disabled ? <Play width={18} height={18} /> : <Ban width={18} height={18} />}
+            </Button>
+            <Button
+              view="flat"
+              aria-label="Сбросить 2FA"
+              title="Сбросить 2FA"
+              disabled={row.original.name === me.user.name || !row.original.totpEnabled}
+              onClick={() => {
+                if (window.confirm(`Сбросить 2FA для ${row.original.name}?`)) {
+                  void run(() => api.resetAdminTOTP(row.original.name));
+                }
+              }}
+            >
+              <Lock width={18} height={18} />
             </Button>
             <Button
               view="flat"
@@ -150,7 +173,8 @@ export default function AdminsPage({ me }: { me: Me }) {
                   </Label>
                 </div>
                 <div className="muted">
-                  сессий: {u.sessions} · создан {formatTime(u.createdAt)}
+                  сессий: {u.sessions} · создан {formatTime(u.createdAt)} · 2FA:{' '}
+                  {u.totpEnabled ? 'включена' : 'выключена'}
                 </div>
                 <div className="icon-actions">
                   <Button view="flat" aria-label="Сменить пароль" title="Сменить пароль" onClick={() => setResetFor(u.name)}>
@@ -164,6 +188,19 @@ export default function AdminsPage({ me }: { me: Me }) {
                     onClick={() => void run(() => api.patchAdmin(u.name, { disabled: !u.disabled }))}
                   >
                     {u.disabled ? <Play width={18} height={18} /> : <Ban width={18} height={18} />}
+                  </Button>
+                  <Button
+                    view="flat"
+                    aria-label="Сбросить 2FA"
+                    title="Сбросить 2FA"
+                    disabled={u.name === me.user.name || !u.totpEnabled}
+                    onClick={() => {
+                      if (window.confirm(`Сбросить 2FA для ${u.name}?`)) {
+                        void run(() => api.resetAdminTOTP(u.name));
+                      }
+                    }}
+                  >
+                    <Lock width={18} height={18} />
                   </Button>
                   <Button
                     view="flat"

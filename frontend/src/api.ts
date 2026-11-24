@@ -17,7 +17,23 @@ export interface AdminUser {
   createdAt: string;
   passwordChangedAt: string;
   sessions: number;
+  totpEnabled: boolean;
 }
+
+export interface TOTPStatus {
+  available: boolean;
+  enabled: boolean;
+  createdAt?: string;
+  recoveryLeft: number;
+}
+
+export interface TOTPSetup {
+  secret: string;
+  url: string;
+  qr: string;
+}
+
+export type LoginResult = Me | { totpRequired: true };
 
 export interface IPHistoryItem {
   ip: string;
@@ -172,8 +188,17 @@ export const api = {
     setCSRF(me.csrf);
     return me;
   },
-  async login(username: string, password: string): Promise<Me> {
-    const me = await request<Me>('POST', '/api/login', { username, password });
+  async login(username: string, password: string): Promise<LoginResult> {
+    const result = await request<Me & { totpRequired?: boolean }>('POST', '/api/login', {
+      username,
+      password,
+    });
+    if (result.totpRequired) return { totpRequired: true };
+    setCSRF(result.csrf);
+    return result;
+  },
+  async loginTotp(code: string): Promise<Me> {
+    const me = await request<Me>('POST', '/api/login/totp', { code });
     setCSRF(me.csrf);
     return me;
   },
@@ -209,6 +234,16 @@ export const api = {
     return request<AuditItem[]>('GET', `/api/audit${suffix ? `?${suffix}` : ''}`);
   },
   sessions: () => request<SessionItem[]>('GET', '/api/account/sessions'),
+  totpStatus: () => request<TOTPStatus>('GET', '/api/account/totp'),
+  totpSetup: () => request<TOTPSetup>('POST', '/api/account/totp/setup', {}),
+  totpEnable: (code: string) =>
+    request<{ recoveryCodes: string[] }>('POST', '/api/account/totp/enable', { code }),
+  totpDisable: (password: string, code: string) =>
+    request<void>('POST', '/api/account/totp/disable', { password, code }),
+  totpRecovery: (password: string, code: string) =>
+    request<{ recoveryCodes: string[] }>('POST', '/api/account/totp/recovery', { password, code }),
+  resetAdminTOTP: (name: string) =>
+    request<void>('POST', `/api/admins/${encodeURIComponent(name)}/totp-reset`),
   changePassword: (current: string, next: string) =>
     request<void>('POST', '/api/account/password', { current, new: next }),
   revoke: (id: string) => request<void>('POST', `/api/account/sessions/${id}/revoke`),

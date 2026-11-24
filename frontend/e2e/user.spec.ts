@@ -47,7 +47,7 @@ test('пользователи UI: действия иконками', async ({ 
   await login(page);
   await page.goto('/admins');
 
-  await expect(page.locator('.icon-actions button')).toHaveCount(8);
+  await expect(page.locator('.icon-actions button')).toHaveCount(10);
   await expect(page.getByRole('button', { name: 'Сменить пароль' })).toHaveCount(2);
   await expect(page.getByRole('button', { name: 'Удалить' })).toHaveCount(2);
 });
