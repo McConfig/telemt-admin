@@ -272,6 +272,7 @@ tgadmin_user_risk_level{user="alice"}
 tgadmin_user_foreign_ips_current{user="alice"}
 tgadmin_user_countries_current{user="alice"}
 tgadmin_geoip_loaded
+tgadmin_geoip_build_timestamp_seconds
 tgadmin_collector_up
 ```
 
