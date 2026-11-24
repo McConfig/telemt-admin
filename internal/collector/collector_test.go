@@ -56,3 +56,55 @@ func TestCollectAndMetrics(t *testing.T) {
 		}
 	}
 }
+
+func TestCollectorRunAndStatus(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	mr := miniredis.RunT(t)
+	st, err := store.Open(context.Background(), "redis://"+mr.Addr()+"/0", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = st.Close() }()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":[{"username":"alice","enabled":true,"total_octets":10}]}`))
+	}))
+	defer srv.Close()
+
+	c := New(st, telemt.New(srv.URL, "", time.Second), nil, 10*time.Millisecond, 3, 5, 15)
+	go c.Run(ctx)
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+	time.Sleep(20 * time.Millisecond)
+
+	status := c.Status()
+	if !status.Up || status.LastSuccess.IsZero() || status.LastError != "" {
+		t.Fatalf("статус: %+v", status)
+	}
+	if snap := c.Snapshot(); len(snap) != 1 {
+		t.Fatalf("срез: %+v", snap)
+	}
+	if _, ok := c.Stats("missing"); ok {
+		t.Fatal("найден несуществующий клиент")
+	}
+}
+
+func TestCollectorFailureStatus(t *testing.T) {
+	mr := miniredis.RunT(t)
+	st, err := store.Open(context.Background(), "redis://"+mr.Addr()+"/0", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = st.Close() }()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+	c := New(st, telemt.New(srv.URL, "", time.Second), nil, time.Hour, 3, 5, 15)
+	c.collect(context.Background())
+	status := c.Status()
+	if status.Up || status.LastError == "" {
+		t.Fatalf("статус ошибки: %+v", status)
+	}
+}

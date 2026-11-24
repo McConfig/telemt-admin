@@ -43,3 +43,21 @@ func TestKeyFromLink(t *testing.T) {
 		t.Fatal("ожидал ошибку формата")
 	}
 }
+
+func TestLinksModes(t *testing.T) {
+	u := User{Links: &Links{
+		Classic: []string{"classic-link"},
+		Secure:  []string{"secure-link"},
+		TLS:     []string{"tls-link"},
+	}}
+	for mode, want := range map[string]string{
+		"classic": "classic-link", "secure": "secure-link", "tls": "tls-link", "": "tls-link",
+	} {
+		if got := u.Link(mode); got != want {
+			t.Errorf("%q: %q", mode, got)
+		}
+	}
+	if (User{}).Link("tls") != "" {
+		t.Error("без ссылок должна быть пустая строка")
+	}
+}

@@ -8,7 +8,7 @@
 [![license](https://img.shields.io/github/license/McConfig/telemt-admin)](LICENSE)
 [![go](https://img.shields.io/github/go-mod/go-version/McConfig/telemt-admin)](go.mod)
 
-[История изменений](CHANGELOG.md) · [Политика безопасности](SECURITY.md)
+[История изменений](CHANGELOG.md) · [Политика безопасности](SECURITY.md) · [API](docs/API.md)
 
 Веб-интерфейс для управления пользователями [telemt](https://github.com/telemt/telemt) —
 MTProto-прокси для Telegram. Работает через официальный
@@ -243,6 +243,9 @@ docker compose run --rm tgadmin user totp-reset alice
 способ входа, если администратор потерял телефон и резервные коды.
 
 ## Обновление
+
+Порядок обновления, отката и совместимость схемы Valkey — в
+[docs/UPGRADE.md](docs/UPGRADE.md).
 
 ```bash
 cd deploy
@@ -480,10 +483,14 @@ AOF лежит в том же томе `valkey_data`; для полного бэ
 
 ```bash
 cd frontend && npm ci && npm run build && cd ..
-go test ./...
+go test -coverprofile=coverage.out ./...
+go tool cover -func=coverage.out | tail -1
 go vet ./...
 go build ./cmd/tgadmin
 ```
+
+CI требует не меньше 80% покрытия Go-кода (`go tool cover`). Текущее
+покрытие и отчёт по файлам — в бейдже Coveralls.
 
 Фронтенд собирается в `internal/web/dist` и встраивается в бинарь. Для
 разработки: `cd frontend && npm run dev` (проксирует `/api` на
