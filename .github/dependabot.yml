@@ -9,6 +9,11 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
+    # Обновлять все actions одним PR: CodeQL требует одинаковую версию
+    # init/autobuild/analyze, иначе workflow падает.
+    groups:
+      actions:
+        patterns: ["*"]
   - package-ecosystem: docker
     directory: /
     schedule: { interval: weekly }

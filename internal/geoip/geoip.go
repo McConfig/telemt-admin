@@ -66,16 +66,16 @@ func (r *Resolver) Enabled() bool {
 
 // BuildEpoch возвращает время сборки баз в секундах Unix. Берётся самая
 // старая из открытых баз: она определяет актуальность сведений.
-func (r *Resolver) BuildEpoch() int64 {
+func (r *Resolver) BuildEpoch() uint64 {
 	if r == nil {
 		return 0
 	}
-	var oldest int64
+	var oldest uint64
 	for _, reader := range []*maxminddb.Reader{r.city, r.asn} {
 		if reader == nil {
 			continue
 		}
-		epoch := int64(reader.Metadata.BuildEpoch)
+		epoch := uint64(reader.Metadata.BuildEpoch)
 		if oldest == 0 || (epoch > 0 && epoch < oldest) {
 			oldest = epoch
 		}
