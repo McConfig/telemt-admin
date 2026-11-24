@@ -232,3 +232,13 @@ func TestAPIMoreValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestAPITOTPNotEnabled(t *testing.T) {
+	s, token, csrf := coverageServer(t)
+	for _, path := range []string{"/api/account/totp/disable", "/api/account/totp/recovery"} {
+		body := `{"password":"long password 123","code":"123456"}`
+		if rr := call(t, s, "POST", path, body, token, csrf); rr.Code < 400 {
+			t.Errorf("%s без 2FA: %d", path, rr.Code)
+		}
+	}
+}

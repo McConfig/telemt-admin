@@ -27,8 +27,9 @@ func coverageServer(t *testing.T) (*Server, string, string) {
 	st, _ := newTestStoreMR(t)
 	var mu sync.Mutex
 	users := map[string]fakeUser{
-		"main":  {Username: "main", Enabled: true, Links: &telemt.Links{TLS: []string{testLink}}},
-		"other": {Username: "other", Enabled: true, Links: &telemt.Links{TLS: []string{testLink}}},
+		"main":   {Username: "main", Enabled: true, Links: &telemt.Links{TLS: []string{testLink}}},
+		"other":  {Username: "other", Enabled: true, Links: &telemt.Links{TLS: []string{testLink}}},
+		"nolink": {Username: "nolink", Enabled: true},
 	}
 	env := func(w http.ResponseWriter, data any) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "data": data})
@@ -124,6 +125,7 @@ func TestAPIReadEndpoints(t *testing.T) {
 		{"GET", "/api/users/main/history.csv", 200},
 		{"GET", "/api/users/main/qr.png", 200},
 		{"GET", "/api/users/missing/qr.png", 404},
+		{"GET", "/api/users/nolink/qr.png", 404},
 		{"GET", "/api/audit?q=main&limit=10", 200},
 		{"GET", "/api/audit.csv", 200},
 		{"GET", "/api/account/sessions", 200},
