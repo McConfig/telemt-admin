@@ -7,7 +7,7 @@ import (
 	"crypto/cipher"
 	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha1"
+	"crypto/sha1" // #nosec G505 -- SHA-1 обязателен по RFC 6238, используется только в HMAC
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base32"
@@ -50,6 +50,10 @@ func Code(secret string, at time.Time) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if at.Unix() < 0 {
+		return "", fmt.Errorf("время раньше 1970 года")
+	}
+	// #nosec G115 -- отрицательное время отсечено проверкой выше.
 	return codeForCounter(key, uint64(at.Unix()/period)), nil
 }
 
