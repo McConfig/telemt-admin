@@ -433,7 +433,10 @@ export default function UserPage({ me }: { me: Me }) {
                             .map((v) => v.trim())
                             .filter(Boolean),
                         })
-                        .then(() => setTrustedSaved(true))
+                        .then(() => {
+                          setTrustedSaved(true);
+                          void load();
+                        })
                     }
                   >
                     <Pencil width={16} height={16} /> Сохранить доверенные
