@@ -106,12 +106,12 @@ export async function mockApi(page: Page): Promise<{ limitBodies: unknown[] }> {
     }
     if (path === '/api/me') {
       return loggedIn
-        ? json(route, { user: { name: 'admin', role: 'admin' }, csrf: 'csrf' })
+        ? json(route, { user: { name: 'mcconfig', role: 'admin' }, csrf: 'csrf' })
         : json(route, { error: { code: 'unauthorized', message: 'требуется вход' } }, 401);
     }
     if (path === '/api/login' && method === 'POST') {
       loggedIn = true;
-      return json(route, { user: { name: 'admin', role: 'admin' }, csrf: 'csrf' });
+      return json(route, { user: { name: 'mcconfig', role: 'admin' }, csrf: 'csrf' });
     }
     if (path === '/api/logout') {
       loggedIn = false;

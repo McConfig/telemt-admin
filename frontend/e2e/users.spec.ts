@@ -8,6 +8,7 @@ test('вход и список клиентов', async ({ page }) => {
 
   await login(page);
   await expect(page.getByText('Пользователи telemt')).toBeVisible();
+  await expect(page.locator('.topbar-user').getByText('mcconfig')).toBeVisible();
   await expect(page.locator('.stat-tile')).toHaveCount(6);
   await expect(page.getByRole('link', { name: 'chernyh', exact: true })).toBeVisible();
   await expect(page.getByText('Нидерланды')).toBeVisible();

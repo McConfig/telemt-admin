@@ -43,9 +43,9 @@ export default function Layout({
             {me.user.role === 'admin' && <NavLink to="/admins">Пользователи UI</NavLink>}
           </nav>
           <div className="topbar-user">
-            <Link to="/account" onClick={close} title="Аккаунт">
+            <Link to="/account" onClick={close} title={`Аккаунт, роль: ${me.user.role}`}>
               <Label theme={me.user.role === 'admin' ? 'success' : 'info'} size="s">
-                {me.user.role}
+                {me.user.name}
               </Label>
             </Link>
             <Button view="flat" aria-label="Переключить тему" title="Тема" onClick={onToggleTheme}>
