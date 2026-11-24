@@ -28,6 +28,7 @@ import {
   type IPHistoryItem,
   type Me,
   type ProxyUser,
+  type TimelineDay,
   type TrafficDay,
 } from '../api';
 import { formatBytes } from '../format';
@@ -62,6 +63,8 @@ export default function UserPage({ me }: { me: Me }) {
   const [copied, setCopied] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [traffic, setTraffic] = useState<TrafficDay[]>([]);
+  const [timeline, setTimeline] = useState<TimelineDay[]>([]);
+  const [tab, setTab] = useState<'overview' | 'devices' | 'limits'>('overview');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -82,6 +85,10 @@ export default function UserPage({ me }: { me: Me }) {
         .userTraffic(name)
         .then(setTraffic)
         .catch(() => setTraffic([]));
+      api
+        .userTimeline(name)
+        .then(setTimeline)
+        .catch(() => setTimeline([]));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'не удалось загрузить пользователя');
     } finally {
@@ -186,6 +193,25 @@ export default function UserPage({ me }: { me: Me }) {
       </div>
       {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
 
+      <div className="tabs">
+        <Button
+          view={tab === 'overview' ? 'action' : 'flat'}
+          onClick={() => setTab('overview')}
+        >
+          Обзор
+        </Button>
+        <Button view={tab === 'devices' ? 'action' : 'flat'} onClick={() => setTab('devices')}>
+          Устройства
+        </Button>
+        {isAdmin && (
+          <Button view={tab === 'limits' ? 'action' : 'flat'} onClick={() => setTab('limits')}>
+            Лимиты
+          </Button>
+        )}
+      </div>
+
+      {tab === 'overview' && (
+        <>
       <Card view="filled" style={{ padding: 16 }}>
         <div className="stack">
           <div className="stat-grid">
@@ -223,45 +249,6 @@ export default function UserPage({ me }: { me: Me }) {
             </Text>
           )}
           {user.note && <Text className="muted">Заметка: {user.note}</Text>}
-        </div>
-      </Card>
-
-      <Card view="filled" style={{ padding: 16 }}>
-        <div className="stack">
-          <div className="card-head">
-            <Text variant="header-1">Устройства</Text>
-            <div style={{ flex: 1 }} />
-            {isAdmin && (
-              <div className="icon-actions">
-                <Button
-                  view="flat"
-                  aria-label="Экспорт истории в CSV"
-                  title="Экспорт истории в CSV"
-                  onClick={() => window.location.assign(api.historyCSVUrl(user.username))}
-                >
-                  <FileArrowDown width={18} height={18} />
-                </Button>
-                <Button
-                  view="flat"
-                  aria-label="Удалить историю"
-                  title="Удалить историю"
-                  onClick={() => setHistoryOpen(true)}
-                >
-                  <TrashBin width={18} height={18} />
-                </Button>
-              </div>
-            )}
-          </div>
-          {user.risk > 0 && (
-            <Alert
-              theme={user.risk === 2 ? 'danger' : 'warning'}
-              message="Столько одновременных адресов не похоже на обычное число устройств. Проверьте, не передан ли ключ."
-            />
-          )}
-          <Text className="muted">
-            Адреса за 24 часа: {user.ips24h}, за 7 дней: {user.ips7d}, новых: {user.new24h}, пик: {user.maxToday}
-          </Text>
-          {isAdmin && user.ipHistory && user.ipHistory.length > 0 && <IPHistoryTable items={user.ipHistory} />}
         </div>
       </Card>
 
@@ -331,7 +318,60 @@ export default function UserPage({ me }: { me: Me }) {
         </div>
       </Card>
 
-      {isAdmin && (
+        </>
+      )}
+
+      {tab === 'devices' && (
+        <>
+      <Card view="filled" style={{ padding: 16 }}>
+        <div className="stack">
+          <div className="card-head">
+            <Text variant="header-1">Устройства</Text>
+            <div style={{ flex: 1 }} />
+            {isAdmin && (
+              <div className="icon-actions">
+                <Button
+                  view="flat"
+                  aria-label="Экспорт истории в CSV"
+                  title="Экспорт истории в CSV"
+                  onClick={() => window.location.assign(api.historyCSVUrl(user.username))}
+                >
+                  <FileArrowDown width={18} height={18} />
+                </Button>
+                <Button
+                  view="flat"
+                  aria-label="Удалить историю"
+                  title="Удалить историю"
+                  onClick={() => setHistoryOpen(true)}
+                >
+                  <TrashBin width={18} height={18} />
+                </Button>
+              </div>
+            )}
+          </div>
+          {user.risk > 0 && (
+            <Alert
+              theme={user.risk === 2 ? 'danger' : 'warning'}
+              message="Столько одновременных адресов не похоже на обычное число устройств. Проверьте, не передан ли ключ."
+            />
+          )}
+          <Text className="muted">
+            Адреса за 24 часа: {user.ips24h}, за 7 дней: {user.ips7d}, новых: {user.new24h}, пик: {user.maxToday}
+          </Text>
+          {isAdmin && user.ipHistory && user.ipHistory.length > 0 && <IPHistoryTable items={user.ipHistory} />}
+        </div>
+      </Card>
+
+          <Card view="filled" style={{ padding: 16 }}>
+            <div className="stack">
+              <Text variant="header-1">Активность по дням</Text>
+              <Timeline items={timeline} />
+            </div>
+          </Card>
+        </>
+      )}
+
+      {tab === 'limits' && isAdmin && (
         <>
           <Card view="filled" style={{ padding: 16 }}>
             <form
@@ -534,6 +574,37 @@ export default function UserPage({ me }: { me: Me }) {
           navigate(`/users/${encodeURIComponent(next)}`);
         }}
       />
+    </div>
+  );
+}
+
+function Timeline({ items }: { items: TimelineDay[] }) {
+  if (items.length === 0) {
+    return <Text className="muted">Событий пока нет</Text>;
+  }
+  return (
+    <div className="timeline">
+      {[...items].reverse().map((day) => (
+        <div className="timeline-row" key={day.day}>
+          <span className="timeline-date">
+            {new Date(`${day.day}T00:00:00Z`).toLocaleDateString('ru-RU')}
+          </span>
+          <div className="timeline-events">
+            {day.newIps > 0 && (
+              <Label size="s" theme="info">
+                +{day.newIps} IP
+              </Label>
+            )}
+            {(day.newCountries ?? []).map((country) => (
+              <Label size="s" theme="warning" key={country.code}>
+                {country.name}
+              </Label>
+            ))}
+            {day.maxIps > 0 && <span className="muted">пик {day.maxIps}</span>}
+            {day.bytes > 0 && <span className="muted">{formatBytes(day.bytes)}</span>}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

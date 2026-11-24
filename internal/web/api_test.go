@@ -180,6 +180,61 @@ func TestAPIUserTraffic(t *testing.T) {
 	}
 }
 
+func TestAPISummary(t *testing.T) {
+	s := testServerWithTelemt(t)
+	tok, _ := seedSession(t, s, store.RoleAdmin)
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, apiRequest(t, "GET", "/api/summary", "", tok, ""))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("код %d: %s", rr.Code, rr.Body.String())
+	}
+	var summary apiSummary
+	if err := json.Unmarshal(rr.Body.Bytes(), &summary); err != nil {
+		t.Fatal(err)
+	}
+	if summary.Users != 2 || summary.Enabled != 1 {
+		t.Fatalf("сводка: %+v", summary)
+	}
+}
+
+func TestAPIUserTimeline(t *testing.T) {
+	s := testServerWithTelemt(t)
+	now := time.Now().UTC()
+	geo := map[string]store.IPGeo{
+		"192.0.2.30": {Country: "NL", CountryName: "Нидерланды"},
+	}
+	if err := s.store.RecordIPObservation(context.Background(), "main",
+		[]string{"192.0.2.30"}, geo, 1000, now.Add(-24*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.store.RecordIPObservation(context.Background(), "main",
+		[]string{"192.0.2.31"}, nil, 1500, now); err != nil {
+		t.Fatal(err)
+	}
+	tok, _ := seedSession(t, s, store.RoleAdmin)
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, apiRequest(t, "GET", "/api/users/main/timeline?days=7", "", tok, ""))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("код %d: %s", rr.Code, rr.Body.String())
+	}
+	var days []apiTimelineDay
+	if err := json.Unmarshal(rr.Body.Bytes(), &days); err != nil {
+		t.Fatal(err)
+	}
+	if len(days) == 0 {
+		t.Fatal("таймлайн пуст")
+	}
+	found := false
+	for _, day := range days {
+		if len(day.NewCountries) > 0 && day.NewCountries[0].Name == "Нидерланды" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("нет новой страны в таймлайне: %+v", days)
+	}
+}
+
 func TestAPICSRFRequired(t *testing.T) {
 	s := testServerWithTelemt(t)
 	tok, _ := seedSession(t, s, store.RoleAdmin)

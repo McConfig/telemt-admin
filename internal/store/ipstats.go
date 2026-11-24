@@ -316,6 +316,77 @@ func (s *Store) TrafficHistory(ctx context.Context, user string, days int, now t
 	return out, nil
 }
 
+// DayActivity — активность пользователя за день для таймлайна.
+type DayActivity struct {
+	Day          string
+	NewIPs       int
+	NewCountries []string
+	MaxIPs       int64
+	Bytes        uint64
+}
+
+// Timeline собирает активность по дням: новые адреса, новые страны, пик
+// одновременных адресов и трафик. Дни без событий не попадают в ответ.
+func (s *Store) Timeline(ctx context.Context, user string, days int, now time.Time) ([]DayActivity, error) {
+	if days <= 0 || days > 90 {
+		days = 14
+	}
+	now = now.UTC()
+	byDay := make(map[string]*DayActivity, days)
+	for i := days - 1; i >= 0; i-- {
+		day := now.AddDate(0, 0, -i).Format("2006-01-02")
+		byDay[day] = &DayActivity{Day: day}
+	}
+	history, err := s.IPHistory(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range history {
+		day := item.FirstSeen.UTC().Format("2006-01-02")
+		if a, ok := byDay[day]; ok {
+			a.NewIPs++
+		}
+	}
+	countries, err := s.rdb.ZRangeWithScores(ctx, countryFirstKey(user), 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range countries {
+		code, ok := c.Member.(string)
+		if !ok {
+			continue
+		}
+		day := time.Unix(int64(c.Score), 0).UTC().Format("2006-01-02")
+		if a, ok := byDay[day]; ok {
+			a.NewCountries = append(a.NewCountries, code)
+		}
+	}
+	traffic, err := s.rdb.HGetAll(ctx, trafficDaysKey(user)).Result()
+	if err != nil {
+		return nil, err
+	}
+	for day, raw := range traffic {
+		if a, ok := byDay[day]; ok {
+			a.Bytes, _ = strconv.ParseUint(raw, 10, 64)
+		}
+	}
+	for day, a := range byDay {
+		if max, err := s.rdb.Get(ctx, maxKey(user, day)).Int64(); err == nil {
+			a.MaxIPs = max
+		}
+	}
+	out := make([]DayActivity, 0, days)
+	for i := days - 1; i >= 0; i-- {
+		day := now.AddDate(0, 0, -i).Format("2006-01-02")
+		a := byDay[day]
+		if a.NewIPs == 0 && len(a.NewCountries) == 0 && a.MaxIPs == 0 && a.Bytes == 0 {
+			continue
+		}
+		out = append(out, *a)
+	}
+	return out, nil
+}
+
 // IPHistory возвращает адреса пользователя, новые сверху.
 func (s *Store) IPHistory(ctx context.Context, user string) ([]IPStat, error) {
 	members, err := s.rdb.ZRangeWithScores(ctx, seenKey(user), 0, -1).Result()

@@ -66,6 +66,26 @@ export interface ProxyUser {
   countryCodes?: string[];
 }
 
+export interface Summary {
+  users: number;
+  enabled: number;
+  riskHigh: number;
+  riskWarn: number;
+  foreignCurrent: number;
+  newCountries: number;
+  trafficToday: number;
+  collector: { up: boolean; lastSuccess?: string; lastError?: string };
+  geoip: { loaded: boolean; built?: string };
+}
+
+export interface TimelineDay {
+  day: string;
+  newIps: number;
+  newCountries?: { code: string; name: string }[];
+  maxIps: number;
+  bytes: number;
+}
+
 export interface TrafficDay {
   day: string;
   bytes: number;
@@ -176,6 +196,12 @@ export const api = {
     request<{ note: string }>('PUT', `/api/users/${encodeURIComponent(name)}/note`, { note }),
   deleteHistory: (name: string) => request<void>('DELETE', `/api/users/${encodeURIComponent(name)}/history`),
   historyCSVUrl: (name: string) => `/api/users/${encodeURIComponent(name)}/history.csv`,
+  summary: () => request<Summary>('GET', '/api/summary'),
+  userTimeline: (name: string, days = 14) =>
+    request<TimelineDay[]>(
+      'GET',
+      `/api/users/${encodeURIComponent(name)}/timeline?days=${days}`,
+    ),
   userTraffic: (name: string, days = 30) =>
     request<TrafficDay[]>(
       'GET',

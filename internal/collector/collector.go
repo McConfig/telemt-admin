@@ -213,6 +213,29 @@ func (c *Collector) risk(s Snapshot) int {
 	}
 }
 
+// Status — состояние сборщика для страницы со сводкой.
+type Status struct {
+	Up          bool
+	LastSuccess time.Time
+	LastError   string
+	GeoIPLoaded bool
+	GeoIPBuilt  uint64
+}
+
+// Status возвращает текущее состояние сборщика.
+func (c *Collector) Status() Status {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	out := Status{
+		Up: c.last == nil && !c.lastOK.IsZero(), LastSuccess: c.lastOK,
+		GeoIPLoaded: c.geo.Enabled(), GeoIPBuilt: c.geo.BuildEpoch(),
+	}
+	if c.last != nil {
+		out.LastError = c.last.Error()
+	}
+	return out
+}
+
 // Snapshot возвращает копию последнего среза.
 func (c *Collector) Snapshot() map[string]Snapshot {
 	c.mu.RLock()

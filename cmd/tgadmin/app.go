@@ -43,5 +43,7 @@ func newHandler(ctx context.Context, cfg *config.Config) (http.Handler, func() e
 		geo.Close()
 		return st.Close()
 	}
-	return web.New(cfg, st, tc, metrics).Handler(), closeFn, nil
+	handler := web.New(cfg, st, tc, metrics)
+	handler.SetCollectorStatus(col.Status)
+	return handler.Handler(), closeFn, nil
 }

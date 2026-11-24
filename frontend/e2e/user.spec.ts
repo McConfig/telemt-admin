@@ -8,12 +8,14 @@ test('карточка клиента: плитки, страны, иконки 
 
   await expect(page.locator('.page-head').getByText('main', { exact: true })).toBeVisible();
   await expect(page.locator('.stat-tile')).toHaveCount(13);
+  await expect(page.locator('.traffic-chart .traffic-col')).toHaveCount(3);
+  await expect(page.getByText('Трафик по дням')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Устройства' }).click();
   await expect(page.getByRole('columnheader', { name: 'Страна' })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'Оператор' })).toBeVisible();
   await expect(page.getByText('Novotelecom Ltd')).toBeVisible();
-
-  await expect(page.locator('.traffic-chart .traffic-col')).toHaveCount(3);
-  await expect(page.getByText('Трафик по дням')).toBeVisible();
+  await expect(page.locator('.timeline-row')).toHaveCount(2);
 
   const actions = page.locator('.page-head .icon-actions button');
   await expect(actions).toHaveCount(4);
@@ -26,6 +28,7 @@ test('лимиты: сохранение отправляет введённые
   await login(page);
   await page.goto('/users/main');
 
+  await page.getByRole('button', { name: 'Лимиты' }).click();
   const firstSection = page.locator('.form-section').first();
   await firstSection.getByRole('textbox').first().fill('2');
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();

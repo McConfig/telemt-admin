@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import { Alert, Button, Card, Dialog, Label, Loader, Text, TextInput } from '@gravity-ui/uikit';
 import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
-import { api, ApiError, type Me, type ProxyUser } from '../api';
+import { api, ApiError, type Me, type ProxyUser, type Summary } from '../api';
 import { formatBytes } from '../format';
 import { useMedia } from '../useMedia';
 
 export default function UsersPage({ me }: { me: Me }) {
   const [users, setUsers] = useState<ProxyUser[]>([]);
+  const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
@@ -23,7 +24,12 @@ export default function UsersPage({ me }: { me: Me }) {
     setLoading(true);
     setError('');
     try {
-      setUsers(await api.users());
+      const [list, total] = await Promise.all([
+        api.users(),
+        api.summary().catch(() => null),
+      ]);
+      setUsers(list);
+      setSummary(total);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'не удалось загрузить список');
     } finally {
@@ -157,6 +163,43 @@ export default function UsersPage({ me }: { me: Me }) {
           Обновить
         </Button>
       </div>
+      {summary && (
+        <>
+          <div className="stat-grid">
+            <SummaryTile label="Клиентов" value={summary.users} />
+            <SummaryTile label="Включено" value={summary.enabled} />
+            <SummaryTile
+              label="Подозрительных"
+              value={summary.riskWarn + summary.riskHigh}
+              tone={summary.riskHigh > 0 ? 'danger' : summary.riskWarn > 0 ? 'warning' : undefined}
+            />
+            <SummaryTile label="Иностранных за сутки" value={summary.foreignCurrent} />
+            <SummaryTile
+              label="Новых стран"
+              value={summary.newCountries}
+              tone={summary.newCountries > 0 ? 'warning' : undefined}
+            />
+            <SummaryTile label="Трафик за сутки" value={formatBytes(summary.trafficToday)} />
+          </div>
+          <Text className="muted">
+            Сборщик:{' '}
+            {summary.collector.up
+              ? `работает, последний сбор ${summary.collector.lastSuccess ? new Date(summary.collector.lastSuccess).toLocaleTimeString('ru-RU') : '—'}`
+              : 'не отвечает'}
+            {' · '}
+            GeoIP:{' '}
+            {summary.geoip.loaded && summary.geoip.built
+              ? `базы от ${new Date(summary.geoip.built).toLocaleDateString('ru-RU')}`
+              : 'не загружены'}
+          </Text>
+          {!summary.collector.up && (
+            <Alert
+              theme="danger"
+              message="Сборщик статистики не отвечает: история IP и трафик не пополняются. Проверьте контейнер tgadmin и Control API telemt."
+            />
+          )}
+        </>
+      )}
       <div className="row">
         <TextInput placeholder="Поиск по имени" value={query} onUpdate={setQuery} />
         <label>
@@ -248,6 +291,23 @@ export default function UsersPage({ me }: { me: Me }) {
           void load();
         }}
       />
+    </div>
+  );
+}
+
+function SummaryTile({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  tone?: 'warning' | 'danger';
+}) {
+  return (
+    <div className="stat-tile">
+      <span className="stat-label">{label}</span>
+      <span className={`stat-value${tone ? ` stat-value-${tone}` : ''}`}>{value}</span>
     </div>
   );
 }

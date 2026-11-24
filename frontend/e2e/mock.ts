@@ -141,6 +141,25 @@ export async function mockApi(page: Page): Promise<{ limitBodies: unknown[] }> {
       limitBodies.push(route.request().postDataJSON());
       return json(route, users.find((u) => u.username === userMatch[1]) ?? { ok: true });
     }
+    if (path === '/api/summary') {
+      return json(route, {
+        users: 2,
+        enabled: 1,
+        riskHigh: 1,
+        riskWarn: 0,
+        foreignCurrent: 1,
+        newCountries: 1,
+        trafficToday: 217_000,
+        collector: { up: true, lastSuccess: now() },
+        geoip: { loaded: true, built: now() },
+      });
+    }
+    if (/\/api\/users\/[^/]+\/timeline$/.test(path)) {
+      return json(route, [
+        { day: '2026-11-23', newIps: 1, newCountries: [{ code: 'NL', name: 'Нидерланды' }], maxIps: 2, bytes: 3145728 },
+        { day: '2026-11-24', newIps: 1, maxIps: 2, bytes: 2097152 },
+      ]);
+    }
     if (path === '/api/admins') {
       return json(route, [
         {
