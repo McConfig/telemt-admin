@@ -27,6 +27,15 @@ a[download] { text-decoration: none; }
 .footer a:hover { text-decoration: underline; text-underline-offset: 3px; }
 table a, .user-card a, .link a { color: var(--g-color-text-link); text-decoration: none; }
 table a:hover, .user-card a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.form-section { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--g-color-line-generic); border-radius: 10px; background: var(--g-color-base-generic); }
+.form-section .g-text-input { width: 100%; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field > span { font-size: 12px; color: var(--g-color-text-secondary); }
+.field select, .field input[type="datetime-local"] { font: inherit; color: inherit; background: transparent; border: 1px solid var(--g-color-line-generic); border-radius: 6px; padding: 8px; }
+.check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--g-color-text-secondary); }
+.form-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.span-2 { grid-column: span 2; }
 .page-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
 .stat-tile { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 8px; background: var(--g-color-base-generic); }
@@ -53,4 +62,6 @@ table a:hover, .user-card a:hover { text-decoration: underline; text-underline-o
   .qr { width: 200px; }
   .link-grid { grid-template-columns: 1fr; }
   .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .form-grid { grid-template-columns: 1fr; }
+  .span-2 { grid-column: span 1; }
 }

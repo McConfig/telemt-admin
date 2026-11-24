@@ -123,6 +123,48 @@ export default function UserPage({ me }: { me: Me }) {
             {user.risk === 2 ? 'высокий риск' : 'внимание'}
           </Label>
         )}
+        {isAdmin && (
+          <>
+            <div style={{ flex: 1 }} />
+            <div className="icon-actions">
+              <Button
+                view="flat"
+                aria-label="Перевыпустить секрет"
+                title="Перевыпустить секрет"
+                onClick={() => setRotateOpen(true)}
+              >
+                <ArrowRotateLeft width={18} height={18} />
+              </Button>
+              <Button
+                view="flat"
+                aria-label={user.enabled ? 'Заблокировать' : 'Разблокировать'}
+                title={user.enabled ? 'Заблокировать' : 'Разблокировать'}
+                loading={busy}
+                onClick={() =>
+                  void run(() => (user.enabled ? api.disable(user.username) : api.enable(user.username)))
+                }
+              >
+                {user.enabled ? <Ban width={18} height={18} /> : <Play width={18} height={18} />}
+              </Button>
+              <Button
+                view="flat"
+                aria-label="Переименовать"
+                title="Переименовать"
+                onClick={() => setRenameOpen(true)}
+              >
+                <Pencil width={18} height={18} />
+              </Button>
+              <Button
+                view="flat-danger"
+                aria-label="Удалить"
+                title="Удалить"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <TrashBin width={18} height={18} />
+              </Button>
+            </div>
+          </>
+        )}
       </div>
       {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
 
@@ -243,33 +285,6 @@ export default function UserPage({ me }: { me: Me }) {
       {isAdmin && (
         <>
           <Card view="filled" style={{ padding: 16 }}>
-            <div className="stack">
-              <Text variant="header-1">Действия</Text>
-              <div className="row">
-                <Button view="outlined" onClick={() => setRotateOpen(true)}>
-                  <ArrowRotateLeft width={16} height={16} /> Перевыпустить
-                </Button>
-                <Button
-                  view={user.enabled ? 'outlined-danger' : 'outlined-success'}
-                  onClick={() =>
-                    void run(() => (user.enabled ? api.disable(user.username) : api.enable(user.username)))
-                  }
-                  loading={busy}
-                >
-                  {user.enabled ? <Ban width={16} height={16} /> : <Play width={16} height={16} />}
-                  {user.enabled ? 'Заблокировать' : 'Разблокировать'}
-                </Button>
-                <Button view="outlined" onClick={() => setRenameOpen(true)}>
-                  <Pencil width={16} height={16} /> Переименовать
-                </Button>
-                <Button view="outlined-danger" onClick={() => setDeleteOpen(true)}>
-                  <TrashBin width={16} height={16} /> Удалить
-                </Button>
-              </div>
-            </div>
-          </Card>
-
-          <Card view="filled" style={{ padding: 16 }}>
             <form
               className="stack"
               onSubmit={(event) => {
@@ -298,95 +313,117 @@ export default function UserPage({ me }: { me: Me }) {
               }}
             >
               <Text variant="header-1">Лимиты</Text>
-              <TextInput
-                placeholder="Максимум уникальных IP"
-                value={maxIps}
-                onUpdate={setMaxIps}
-                disabled={clearIps}
-              />
-              <label>
-                <input type="checkbox" checked={clearIps} onChange={(e) => setClearIps(e.target.checked)} /> снять
-                лимит IP
-              </label>
-              <TextInput
-                placeholder="Максимум соединений"
-                value={maxConns}
-                onUpdate={setMaxConns}
-                disabled={clearConns}
-              />
-              <label>
-                <input type="checkbox" checked={clearConns} onChange={(e) => setClearConns(e.target.checked)} />{' '}
-                снять лимит соединений
-              </label>
-              <Text variant="subheader-1">Квота трафика</Text>
-              <TextInput
-                placeholder="Квота, ГиБ (пусто — без квоты)"
-                value={quotaGB}
-                onUpdate={setQuotaGB}
-                disabled={clearQuota}
-              />
-              <label>
-                Период:{' '}
-                <select value={period} onChange={(e) => setPeriod(e.target.value)} disabled={clearQuota}>
-                  <option value="">без сброса</option>
-                  <option value="daily">сутки</option>
-                  <option value="weekly">неделя</option>
-                  <option value="monthly">месяц</option>
-                </select>
-              </label>
-              <label>
-                <input type="checkbox" checked={clearQuota} onChange={(e) => setClearQuota(e.target.checked)} /> снять
-                квоту
-              </label>
+              <div className="form-grid">
+                <section className="form-section">
+                  <Text variant="subheader-1">Адреса и соединения</Text>
+                  <label className="field">
+                    <span>Максимум уникальных IP</span>
+                    <TextInput
+                      placeholder="например, 3"
+                      value={maxIps}
+                      onUpdate={setMaxIps}
+                      disabled={clearIps}
+                    />
+                  </label>
+                  <label className="check">
+                    <input type="checkbox" checked={clearIps} onChange={(e) => setClearIps(e.target.checked)} />
+                    снять лимит IP
+                  </label>
+                  <label className="field">
+                    <span>Максимум соединений</span>
+                    <TextInput
+                      placeholder="например, 10"
+                      value={maxConns}
+                      onUpdate={setMaxConns}
+                      disabled={clearConns}
+                    />
+                  </label>
+                  <label className="check">
+                    <input type="checkbox" checked={clearConns} onChange={(e) => setClearConns(e.target.checked)} />
+                    снять лимит соединений
+                  </label>
+                </section>
 
-              <Text variant="subheader-1">Скорость</Text>
-              <TextInput
-                placeholder="Вверх, Кбит/с"
-                value={rateUp}
-                onUpdate={setRateUp}
-                disabled={clearRates}
-              />
-              <TextInput
-                placeholder="Вниз, Кбит/с"
-                value={rateDown}
-                onUpdate={setRateDown}
-                disabled={clearRates}
-              />
-              <label>
-                <input type="checkbox" checked={clearRates} onChange={(e) => setClearRates(e.target.checked)} /> снять
-                лимиты скорости
-              </label>
+                <section className="form-section">
+                  <Text variant="subheader-1">Квота трафика</Text>
+                  <label className="field">
+                    <span>Квота, ГиБ</span>
+                    <TextInput
+                      placeholder="пусто — без квоты"
+                      value={quotaGB}
+                      onUpdate={setQuotaGB}
+                      disabled={clearQuota}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Период сброса</span>
+                    <select value={period} onChange={(e) => setPeriod(e.target.value)} disabled={clearQuota}>
+                      <option value="">без сброса</option>
+                      <option value="daily">сутки</option>
+                      <option value="weekly">неделя</option>
+                      <option value="monthly">месяц</option>
+                    </select>
+                  </label>
+                  <label className="check">
+                    <input type="checkbox" checked={clearQuota} onChange={(e) => setClearQuota(e.target.checked)} />
+                    снять квоту
+                  </label>
+                </section>
 
-              <Text variant="subheader-1">Срок действия</Text>
-              <input
-                type="datetime-local"
-                value={expiration}
-                disabled={clearExpiration}
-                onChange={(e) => setExpiration(e.target.value)}
-              />
-              <label>
-                <input
-                  type="checkbox"
-                  checked={clearExpiration}
-                  onChange={(e) => setClearExpiration(e.target.checked)}
-                />{' '}
-                без срока
-              </label>
+                <section className="form-section">
+                  <Text variant="subheader-1">Скорость</Text>
+                  <label className="field">
+                    <span>Вверх, Кбит/с</span>
+                    <TextInput value={rateUp} onUpdate={setRateUp} disabled={clearRates} />
+                  </label>
+                  <label className="field">
+                    <span>Вниз, Кбит/с</span>
+                    <TextInput value={rateDown} onUpdate={setRateDown} disabled={clearRates} />
+                  </label>
+                  <label className="check">
+                    <input type="checkbox" checked={clearRates} onChange={(e) => setClearRates(e.target.checked)} />
+                    снять лимиты скорости
+                  </label>
+                </section>
 
-              <Text variant="subheader-1">Запрещённые сети (source_deny)</Text>
-              <textarea
-                rows={3}
-                value={sourceDeny}
-                disabled={clearSource}
-                onChange={(e) => setSourceDeny(e.target.value)}
-                placeholder="по одному CIDR на строку"
-              />
-              <label>
-                <input type="checkbox" checked={clearSource} onChange={(e) => setClearSource(e.target.checked)} />{' '}
-                очистить список
-              </label>
+                <section className="form-section">
+                  <Text variant="subheader-1">Срок действия</Text>
+                  <label className="field">
+                    <span>Действует до</span>
+                    <input
+                      type="datetime-local"
+                      value={expiration}
+                      disabled={clearExpiration}
+                      onChange={(e) => setExpiration(e.target.value)}
+                    />
+                  </label>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={clearExpiration}
+                      onChange={(e) => setClearExpiration(e.target.checked)}
+                    />
+                    без срока
+                  </label>
+                </section>
 
-              <div className="row">
+                <section className="form-section span-2">
+                  <Text variant="subheader-1">Запрещённые сети (source_deny)</Text>
+                  <textarea
+                    rows={3}
+                    value={sourceDeny}
+                    disabled={clearSource}
+                    onChange={(e) => setSourceDeny(e.target.value)}
+                    placeholder="по одному CIDR на строку, например 203.0.113.0/24"
+                  />
+                  <label className="check">
+                    <input type="checkbox" checked={clearSource} onChange={(e) => setClearSource(e.target.checked)} />
+                    очистить список
+                  </label>
+                </section>
+              </div>
+
+              <div className="form-actions">
                 <Button view="action" type="submit" loading={busy}>
                   Сохранить
                 </Button>
