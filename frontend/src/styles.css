@@ -44,6 +44,9 @@ table a:hover, .user-card a:hover { text-decoration: underline; text-underline-o
 .stat-value-warning { color: var(--g-color-text-warning); }
 .stat-value-danger { color: var(--g-color-text-danger); }
 .card-head { display: flex; align-items: center; gap: 8px; }
+.select { font: inherit; color: inherit; background: var(--g-color-base-generic); border: 1px solid var(--g-color-line-generic); border-radius: 6px; padding: 8px; }
+.field-inline { flex-direction: row; align-items: center; gap: 6px; }
+.field-inline input[type="date"] { font: inherit; color: inherit; background: transparent; border: 1px solid var(--g-color-line-generic); border-radius: 6px; padding: 6px; }
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .timeline { display: flex; flex-direction: column; gap: 8px; }
 .timeline-row { display: flex; gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--g-color-line-generic); }

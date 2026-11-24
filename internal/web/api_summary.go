@@ -66,6 +66,7 @@ func (s *Server) apiSummary(w http.ResponseWriter, r *http.Request) {
 		}
 		out.GeoIP = apiGeoIPStatus{Loaded: st.GeoIPLoaded}
 		if st.GeoIPBuilt > 0 {
+			// #nosec G115 -- время сборки базы заведомо меньше int64.
 			out.GeoIP.Built = time.Unix(int64(st.GeoIPBuilt), 0).UTC().Format(time.RFC3339)
 		}
 	}

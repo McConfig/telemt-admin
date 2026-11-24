@@ -235,6 +235,36 @@ func TestAPIUserTimeline(t *testing.T) {
 	}
 }
 
+func TestAPITrusted(t *testing.T) {
+	s := testServerWithTelemt(t)
+	tok, csrf := seedSession(t, s, store.RoleAdmin)
+	rr := httptest.NewRecorder()
+	body := `{"countries":["tr","GE"],"ips":["192.0.2.50"]}`
+	s.Handler().ServeHTTP(rr, apiRequest(t, "PUT", "/api/users/main/trusted", body, tok, csrf))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("PUT код %d: %s", rr.Code, rr.Body.String())
+	}
+	rr = httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, apiRequest(t, "GET", "/api/users/main/trusted", "", tok, ""))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("GET код %d: %s", rr.Code, rr.Body.String())
+	}
+	var trusted trustedRequest
+	if err := json.Unmarshal(rr.Body.Bytes(), &trusted); err != nil {
+		t.Fatal(err)
+	}
+	if len(trusted.Countries) != 2 || trusted.Countries[0] != "GE" {
+		t.Fatalf("страны: %+v", trusted)
+	}
+
+	viewer, viewerCSRF := seedSession(t, s, store.RoleViewer)
+	rr = httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, apiRequest(t, "PUT", "/api/users/main/trusted", body, viewer, viewerCSRF))
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("viewer: код %d", rr.Code)
+	}
+}
+
 func TestAPICSRFRequired(t *testing.T) {
 	s := testServerWithTelemt(t)
 	tok, _ := seedSession(t, s, store.RoleAdmin)

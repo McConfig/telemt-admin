@@ -105,6 +105,8 @@ type UserIPStats struct {
 	Countries7d  int64
 	// NewCountries24h — иностранные страны, которых не было раньше.
 	NewCountries24h int64
+	// NewCountryCodes — коды этих стран.
+	NewCountryCodes []string
 }
 
 // RecordIPObservation сохраняет срез активных адресов и суммарный трафик.
@@ -280,11 +282,14 @@ func (s *Store) UserIPStats(ctx context.Context, user string, now time.Time) (Us
 		return out, err
 	}
 	if len(first) > 0 && int64(first[0].Score) <= now.Add(-24*time.Hour).Unix() {
-		out.NewCountries24h, err = s.rdb.ZCount(ctx, countryFirstKey(user),
-			strconv.FormatInt(now.Add(-24*time.Hour).Unix(), 10), "+inf").Result()
+		codes, err := s.rdb.ZRangeByScore(ctx, countryFirstKey(user), &redis.ZRangeBy{
+			Min: strconv.FormatInt(now.Add(-24*time.Hour).Unix(), 10), Max: "+inf",
+		}).Result()
 		if err != nil {
 			return out, err
 		}
+		out.NewCountryCodes = codes
+		out.NewCountries24h = int64(len(codes))
 	}
 	return out, nil
 }

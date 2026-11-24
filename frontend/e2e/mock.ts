@@ -40,6 +40,8 @@ const main = {
   newCountries24h: 0,
   countries: ['Россия'],
   countryCodes: ['RU'],
+  trustedCountries: [],
+  trustedIps: [],
   ipHistory: [
     {
       ip: '10.0.2.15',
@@ -76,6 +78,8 @@ const chernyh = {
   newCountries24h: 1,
   countries: ['Нидерланды'],
   countryCodes: ['NL'],
+  trustedCountries: [],
+  trustedIps: [],
   ipHistory: [],
 };
 
@@ -140,6 +144,12 @@ export async function mockApi(page: Page): Promise<{ limitBodies: unknown[] }> {
     if (userMatch && method === 'PATCH') {
       limitBodies.push(route.request().postDataJSON());
       return json(route, users.find((u) => u.username === userMatch[1]) ?? { ok: true });
+    }
+    if (/\/api\/users\/[^/]+\/trusted$/.test(path)) {
+      if (method === 'PUT') {
+        return json(route, route.request().postDataJSON());
+      }
+      return json(route, { countries: [], ips: [] });
     }
     if (path === '/api/summary') {
       return json(route, {

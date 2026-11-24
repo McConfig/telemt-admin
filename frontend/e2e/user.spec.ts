@@ -17,6 +17,11 @@ test('карточка клиента: плитки, страны, иконки 
   await expect(page.getByText('Novotelecom Ltd')).toBeVisible();
   await expect(page.locator('.timeline-row')).toHaveCount(2);
 
+  const trusted = page.locator('.form-section, .stack').filter({ hasText: 'Доверенные страны' }).first();
+  await trusted.getByPlaceholder('например, TR, GE').fill('TR');
+  await page.getByRole('button', { name: 'Сохранить доверенные' }).click();
+  await expect(page.getByText('сохранено')).toBeVisible();
+
   const actions = page.locator('.page-head .icon-actions button');
   await expect(actions).toHaveCount(4);
   await expect(page.getByRole('button', { name: 'Перевыпустить секрет' })).toBeVisible();

@@ -80,6 +80,8 @@ func New(cfg *config.Config, st *store.Store, tc *telemt.Client, metrics http.Ha
 				r.Get("/users/{name}/timeline", s.apiUserTimeline)
 				r.Get("/summary", s.apiSummary)
 				r.Delete("/users/{name}/history", s.apiDeleteHistory)
+				r.Get("/users/{name}/trusted", s.apiGetTrusted)
+				r.Put("/users/{name}/trusted", s.apiSetTrusted)
 				r.Get("/users/{name}/note", s.apiGetNote)
 				r.Put("/users/{name}/note", s.apiSetNote)
 				r.Get("/admins", s.apiAdmins)

@@ -10,6 +10,8 @@ import { useMedia } from '../useMedia';
 export default function UsersPage({ me }: { me: Me }) {
   const [users, setUsers] = useState<ProxyUser[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
@@ -61,7 +63,75 @@ export default function UsersPage({ me }: { me: Me }) {
     [filtered, page],
   );
 
+  const isAdmin = me.user.role === 'admin';
+  const shownNames = shown.map((u) => u.username);
+  const allShownSelected =
+    shownNames.length > 0 && shownNames.every((name) => selected.has(name));
+
+  const toggleOne = (name: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+  const toggleAll = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allShownSelected) shownNames.forEach((name) => next.delete(name));
+      else shownNames.forEach((name) => next.add(name));
+      return next;
+    });
+  };
+  const bulk = async (action: (name: string) => Promise<unknown>) => {
+    setBulkBusy(true);
+    setError('');
+    try {
+      for (const name of selected) await action(name);
+      setSelected(new Set());
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'массовое действие не выполнено');
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+  const exportLinks = () => {
+    const rows = users
+      .filter((u) => selected.has(u.username))
+      .map((u) => `${u.username},"${(u.link ?? '').replace(/"/g, '""')}"`);
+    const blob = new Blob([`username,link\n${rows.join('\n')}\n`], {
+      type: 'text/csv;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'telemt-links.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const columns = useMemo<ColumnDef<ProxyUser>[]>(() => [
+    {
+      id: 'select',
+      header: () => (
+        <input
+          type="checkbox"
+          aria-label="Выбрать всех"
+          checked={allShownSelected}
+          onChange={toggleAll}
+        />
+      ),
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          aria-label={`Выбрать ${row.original.username}`}
+          checked={selected.has(row.original.username)}
+          onChange={() => toggleOne(row.original.username)}
+        />
+      ),
+    },
     {
       id: 'username',
       header: 'Имя',
@@ -145,7 +215,7 @@ export default function UsersPage({ me }: { me: Me }) {
         </Link>
       ),
     },
-  ], []);
+  ], [allShownSelected, selected, shownNames.join(',')]);
 
   const table = useTable({ columns, data: shown });
 
@@ -223,6 +293,33 @@ export default function UsersPage({ me }: { me: Me }) {
           только с новыми странами
         </label>
       </div>
+      {selected.size > 0 && (
+        <div className="row bulk-bar">
+          <Text>Выбрано: {selected.size}</Text>
+          <Button
+            view="outlined-danger"
+            loading={bulkBusy}
+            onClick={() => void bulk((name) => api.disable(name))}
+          >
+            Отключить
+          </Button>
+          <Button
+            view="outlined"
+            loading={bulkBusy}
+            onClick={() => void bulk((name) => api.enable(name))}
+          >
+            Включить
+          </Button>
+          {isAdmin && (
+            <Button view="outlined" onClick={exportLinks}>
+              Ссылки CSV
+            </Button>
+          )}
+          <Button view="flat" onClick={() => setSelected(new Set())}>
+            Снять выбор
+          </Button>
+        </div>
+      )}
       {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
       <Card view="filled" style={{ padding: 8 }}>
         {loading ? (
@@ -233,6 +330,12 @@ export default function UsersPage({ me }: { me: Me }) {
             {shown.map((u) => (
               <div className="user-card" key={u.username}>
                 <div className="row">
+                  <input
+                    type="checkbox"
+                    aria-label={`Выбрать ${u.username}`}
+                    checked={selected.has(u.username)}
+                    onChange={() => toggleOne(u.username)}
+                  />
                   <Link to={`/users/${encodeURIComponent(u.username)}`}>{u.username}</Link>
                   <Label theme={u.enabled ? 'success' : 'danger'} size="s">
                     {u.enabled ? 'включён' : 'заблокирован'}

@@ -1,24 +1,57 @@
 import { useEffect, useState } from 'react';
-import { Alert, Card, Loader, Text } from '@gravity-ui/uikit';
+import { Alert, Button, Card, Loader, Text, TextInput } from '@gravity-ui/uikit';
 import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { api, ApiError, type AuditItem } from '../api';
 import { formatTime } from '../format';
 import { useMedia } from '../useMedia';
 
+const actions = [
+  '',
+  'auth.login',
+  'auth.logout',
+  'user.create',
+  'user.limits',
+  'user.rotate',
+  'user.enable',
+  'user.disable',
+  'user.rename',
+  'user.delete',
+  'user.trusted',
+  'user.note',
+  'user.history.clear',
+  'admin.create',
+  'admin.update',
+  'admin.delete',
+  'admin.sessions',
+];
+
+const pageSize = 50;
+
 export default function AuditPage() {
   const [items, setItems] = useState<AuditItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [q, setQ] = useState('');
+  const [action, setAction] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [page, setPage] = useState(0);
   const isMobile = useMedia('(max-width: 760px)');
 
   useEffect(() => {
+    setPage(0);
+  }, [q, action, from, to]);
+
+  useEffect(() => {
+    setLoading(true);
+    setError('');
     api
-      .audit()
+      .audit({ q, action, from, to, limit: pageSize, offset: page * pageSize })
       .then(setItems)
       .catch((err) => setError(err instanceof ApiError ? err.message : 'не удалось загрузить аудит'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [q, action, from, to, page]);
 
   const columns: ColumnDef<AuditItem>[] = [
     { id: 'at', header: 'Время', cell: ({ row }) => formatTime(row.original.at) },
@@ -41,6 +74,28 @@ export default function AuditPage() {
         </a>
       </div>
       {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
+      <div className="row">
+        <TextInput placeholder="Поиск по имени, цели, IP" value={q} onUpdate={setQ} />
+        <select
+          className="select"
+          value={action}
+          onChange={(event) => setAction(event.target.value)}
+        >
+          {actions.map((item) => (
+            <option value={item} key={item || 'all'}>
+              {item || 'все действия'}
+            </option>
+          ))}
+        </select>
+        <label className="field field-inline">
+          <span>с</span>
+          <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
+        </label>
+        <label className="field field-inline">
+          <span>по</span>
+          <input type="date" value={to} onChange={(event) => setTo(event.target.value)} />
+        </label>
+      </div>
       <Card view="filled" style={{ padding: 8 }}>
         {loading ? (
           <Loader size="m" />
@@ -64,6 +119,19 @@ export default function AuditPage() {
           <Table table={table} emptyContent="Событий нет" />
         )}
       </Card>
+      <div className="row">
+        <Button view="outlined" disabled={page === 0} onClick={() => setPage(page - 1)}>
+          Назад
+        </Button>
+        <Text className="muted">страница {page + 1}</Text>
+        <Button
+          view="outlined"
+          disabled={items.length < pageSize}
+          onClick={() => setPage(page + 1)}
+        >
+          Вперёд
+        </Button>
+      </div>
     </div>
   );
 }

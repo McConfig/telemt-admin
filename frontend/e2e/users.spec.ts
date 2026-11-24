@@ -22,6 +22,16 @@ test('фильтр «только с иностранными IP»', async ({ pa
   await expect(page.getByRole('link', { name: 'main', exact: true })).toBeHidden();
 });
 
+test('массовое отключение выбранных клиентов', async ({ page }) => {
+  await mockApi(page);
+  await login(page);
+
+  await page.getByRole('checkbox', { name: 'Выбрать main' }).check();
+  await expect(page.getByText('Выбрано: 1')).toBeVisible();
+  await page.getByRole('button', { name: 'Отключить' }).click();
+  await expect(page.getByText('Выбрано: 1')).toBeHidden();
+});
+
 test('фильтр «только с новыми странами»', async ({ page }) => {
   await mockApi(page);
   await login(page);

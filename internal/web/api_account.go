@@ -3,9 +3,12 @@ package web
 import (
 	"encoding/csv"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/McConfig/telemt-admin/internal/auth"
+	"github.com/McConfig/telemt-admin/internal/store"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -19,19 +22,84 @@ type auditItem struct {
 }
 
 func (s *Server) apiAudit(w http.ResponseWriter, r *http.Request) {
-	events, err := s.store.RecentAudit(r.Context(), 200)
+	events, err := s.store.RecentAudit(r.Context(), 10000)
 	if err != nil {
 		s.serverErrorJSON(w, r, err)
 		return
 	}
-	out := make([]auditItem, 0, len(events))
+	q := r.URL.Query()
+	actor := strings.ToLower(strings.TrimSpace(q.Get("actor")))
+	action := strings.ToLower(strings.TrimSpace(q.Get("action")))
+	target := strings.ToLower(strings.TrimSpace(q.Get("target")))
+	search := strings.ToLower(strings.TrimSpace(q.Get("q")))
+	from, to := s.parseAuditTime(q.Get("from")), s.parseAuditTime(q.Get("to"))
+	limit := 200
+	if raw := q.Get("limit"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 && n <= 1000 {
+			limit = n
+		}
+	}
+	offset := 0
+	if raw := q.Get("offset"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n >= 0 {
+			offset = n
+		}
+	}
+	filtered := make([]store.AuditEvent, 0, len(events))
 	for _, e := range events {
+		if actor != "" && !strings.Contains(strings.ToLower(e.Actor), actor) {
+			continue
+		}
+		if action != "" && e.Action != action {
+			continue
+		}
+		if target != "" && !strings.Contains(strings.ToLower(e.Target), target) {
+			continue
+		}
+		if search != "" {
+			line := strings.ToLower(e.Actor + " " + e.Action + " " + e.Target + " " + e.IP)
+			if !strings.Contains(line, search) {
+				continue
+			}
+		}
+		if !from.IsZero() && e.At.Before(from) {
+			continue
+		}
+		if !to.IsZero() && e.At.After(to.Add(24*time.Hour)) {
+			continue
+		}
+		filtered = append(filtered, e)
+	}
+	if offset >= len(filtered) {
+		filtered = nil
+	} else {
+		filtered = filtered[offset:]
+	}
+	if len(filtered) > limit {
+		filtered = filtered[:limit]
+	}
+	out := make([]auditItem, 0, len(filtered))
+	for _, e := range filtered {
 		out = append(out, auditItem{
 			At: e.At.UTC().Format("2006-01-02T15:04:05Z"), Actor: e.Actor,
 			Action: e.Action, Target: e.Target, Result: e.Result, IP: e.IP,
 		})
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) parseAuditTime(raw string) time.Time {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}
+	}
+	if t, err := time.Parse(time.RFC3339, raw); err == nil {
+		return t
+	}
+	if t, err := time.Parse("2006-01-02", raw); err == nil {
+		return t
+	}
+	return time.Time{}
 }
 
 type sessionItem struct {

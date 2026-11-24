@@ -64,6 +64,13 @@ export interface ProxyUser {
   newCountries24h: number;
   countries?: string[];
   countryCodes?: string[];
+  trustedCountries: string[];
+  trustedIps: string[];
+}
+
+export interface Trusted {
+  countries: string[];
+  ips: string[];
 }
 
 export interface Summary {
@@ -185,7 +192,22 @@ export const api = {
     request<{ username: string }>('POST', `/api/users/${encodeURIComponent(name)}/rename`, { newName }),
   remove: (name: string) =>
     request<void>('DELETE', `/api/users/${encodeURIComponent(name)}`, { confirm: name }),
-  audit: () => request<AuditItem[]>('GET', '/api/audit'),
+  audit: (params: {
+    q?: string;
+    target?: string;
+    action?: string;
+    from?: string;
+    to?: string;
+    limit?: number;
+    offset?: number;
+  } = {}) => {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== '' && value !== 0) query.set(key, String(value));
+    }
+    const suffix = query.toString();
+    return request<AuditItem[]>('GET', `/api/audit${suffix ? `?${suffix}` : ''}`);
+  },
   sessions: () => request<SessionItem[]>('GET', '/api/account/sessions'),
   changePassword: (current: string, next: string) =>
     request<void>('POST', '/api/account/password', { current, new: next }),
@@ -197,6 +219,10 @@ export const api = {
   deleteHistory: (name: string) => request<void>('DELETE', `/api/users/${encodeURIComponent(name)}/history`),
   historyCSVUrl: (name: string) => `/api/users/${encodeURIComponent(name)}/history.csv`,
   summary: () => request<Summary>('GET', '/api/summary'),
+  trusted: (name: string) =>
+    request<Trusted>('GET', `/api/users/${encodeURIComponent(name)}/trusted`),
+  setTrusted: (name: string, body: Trusted) =>
+    request<Trusted>('PUT', `/api/users/${encodeURIComponent(name)}/trusted`, body),
   userTimeline: (name: string, days = 14) =>
     request<TimelineDay[]>(
       'GET',

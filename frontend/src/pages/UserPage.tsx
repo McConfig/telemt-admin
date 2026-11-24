@@ -25,13 +25,14 @@ import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import {
   api,
   ApiError,
+  type AuditItem,
   type IPHistoryItem,
   type Me,
   type ProxyUser,
   type TimelineDay,
   type TrafficDay,
 } from '../api';
-import { formatBytes } from '../format';
+import { formatBytes, formatTime } from '../format';
 import { useMedia } from '../useMedia';
 
 export default function UserPage({ me }: { me: Me }) {
@@ -64,7 +65,11 @@ export default function UserPage({ me }: { me: Me }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [traffic, setTraffic] = useState<TrafficDay[]>([]);
   const [timeline, setTimeline] = useState<TimelineDay[]>([]);
-  const [tab, setTab] = useState<'overview' | 'devices' | 'limits'>('overview');
+  const [tab, setTab] = useState<'overview' | 'devices' | 'limits' | 'audit'>('overview');
+  const [auditItems, setAuditItems] = useState<AuditItem[]>([]);
+  const [trustedCountries, setTrustedCountries] = useState('');
+  const [trustedIps, setTrustedIps] = useState('');
+  const [trustedSaved, setTrustedSaved] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -81,6 +86,8 @@ export default function UserPage({ me }: { me: Me }) {
       setExpiration(value.expiration ? value.expiration.slice(0, 16) : '');
       setSourceDeny((value.sourceDeny ?? []).join('\n'));
       setNote(value.note ?? '');
+      setTrustedCountries((value.trustedCountries ?? []).join(', '));
+      setTrustedIps((value.trustedIps ?? []).join(', '));
       api
         .userTraffic(name)
         .then(setTraffic)
@@ -99,6 +106,14 @@ export default function UserPage({ me }: { me: Me }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (tab !== 'audit' || me.user.role !== 'admin') return;
+    api
+      .audit({ target: name, limit: 50 })
+      .then(setAuditItems)
+      .catch(() => setAuditItems([]));
+  }, [tab, name, me.user.role]);
 
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
@@ -204,9 +219,14 @@ export default function UserPage({ me }: { me: Me }) {
           Устройства
         </Button>
         {isAdmin && (
-          <Button view={tab === 'limits' ? 'action' : 'flat'} onClick={() => setTab('limits')}>
-            Лимиты
-          </Button>
+          <>
+            <Button view={tab === 'limits' ? 'action' : 'flat'} onClick={() => setTab('limits')}>
+              Лимиты
+            </Button>
+            <Button view={tab === 'audit' ? 'action' : 'flat'} onClick={() => setTab('audit')}>
+              Аудит
+            </Button>
+          </>
         )}
       </div>
 
@@ -368,6 +388,61 @@ export default function UserPage({ me }: { me: Me }) {
               <Timeline items={timeline} />
             </div>
           </Card>
+
+          {isAdmin && (
+            <Card view="filled" style={{ padding: 16 }}>
+              <div className="stack">
+                <Text variant="header-1">Доверенные страны и адреса</Text>
+                <Text className="muted">
+                  Такие адреса остаются в истории, но не поднимают риск и не дают алертов.
+                </Text>
+                <label className="field">
+                  <span>Страны, коды ISO через запятую</span>
+                  <TextInput
+                    placeholder="например, TR, GE"
+                    value={trustedCountries}
+                    onUpdate={(value) => {
+                      setTrustedCountries(value);
+                      setTrustedSaved(false);
+                    }}
+                  />
+                </label>
+                <label className="field">
+                  <span>Адреса через запятую</span>
+                  <TextInput
+                    placeholder="например, 203.0.113.10"
+                    value={trustedIps}
+                    onUpdate={(value) => {
+                      setTrustedIps(value);
+                      setTrustedSaved(false);
+                    }}
+                  />
+                </label>
+                <div className="row">
+                  <Button
+                    view="outlined"
+                    onClick={() =>
+                      void api
+                        .setTrusted(user.username, {
+                          countries: trustedCountries
+                            .split(/[\s,]+/)
+                            .map((v) => v.trim().toUpperCase())
+                            .filter(Boolean),
+                          ips: trustedIps
+                            .split(/[\s,]+/)
+                            .map((v) => v.trim())
+                            .filter(Boolean),
+                        })
+                        .then(() => setTrustedSaved(true))
+                    }
+                  >
+                    <Pencil width={16} height={16} /> Сохранить доверенные
+                  </Button>
+                  {trustedSaved && <Text color="positive">сохранено</Text>}
+                </div>
+              </div>
+            </Card>
+          )}
         </>
       )}
 
@@ -523,6 +598,34 @@ export default function UserPage({ me }: { me: Me }) {
             </form>
           </Card>
         </>
+      )}
+
+      {tab === 'audit' && isAdmin && (
+        <Card view="filled" style={{ padding: 16 }}>
+          <div className="stack">
+            <div className="card-head">
+              <Text variant="header-1">Аудит клиента</Text>
+              <div style={{ flex: 1 }} />
+              <a href={api.auditCSVUrl()} download="audit.csv" className="muted">
+                весь аудит
+              </a>
+            </div>
+            {auditItems.length === 0 ? (
+              <Text className="muted">Событий нет</Text>
+            ) : (
+              auditItems.map((event) => (
+                <div className="timeline-row" key={`${event.at}-${event.action}`}>
+                  <span className="timeline-date">{formatTime(event.at)}</span>
+                  <div className="timeline-events">
+                    <Text>{event.action}</Text>
+                    <span className="muted">{event.actor}</span>
+                    <span className="muted">{event.result}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </Card>
       )}
 
       <ConfirmDialog
