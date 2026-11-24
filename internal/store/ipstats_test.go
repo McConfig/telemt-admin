@@ -84,3 +84,60 @@ func TestRetentionExpiresHistory(t *testing.T) {
 		t.Fatalf("история не истекла: %+v", stats)
 	}
 }
+
+func TestGeoCounters(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newTestStore(t)
+	t0 := time.Date(2026, 11, 20, 10, 0, 0, 0, time.UTC)
+
+	geo := map[string]IPGeo{
+		"192.0.2.10": {Country: "NL", CountryName: "Нидерланды"},
+		"192.0.2.11": {Country: "RU", CountryName: "Россия"},
+	}
+	if err := st.RecordIPObservation(ctx, "alice", []string{"192.0.2.10", "192.0.2.11"}, geo, 100, t0); err != nil {
+		t.Fatal(err)
+	}
+	stats, err := st.UserIPStats(ctx, "alice", t0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.NewCountries24h != 0 {
+		t.Fatalf("в первый день новые страны не считаем: %+v", stats)
+	}
+	if stats.Foreign24h != 1 || stats.Countries24h != 2 || stats.Countries7d != 2 {
+		t.Fatalf("страны в первый день: %+v", stats)
+	}
+
+	// Через сутки появился новый адрес в Германии.
+	t1 := t0.Add(25 * time.Hour)
+	geo2 := map[string]IPGeo{
+		"192.0.2.20": {Country: "DE", CountryName: "Германия"},
+		"192.0.2.11": {Country: "RU", CountryName: "Россия"},
+	}
+	if err := st.RecordIPObservation(ctx, "alice", []string{"192.0.2.20", "192.0.2.11"}, geo2, 300, t1); err != nil {
+		t.Fatal(err)
+	}
+	stats, err = st.UserIPStats(ctx, "alice", t1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Foreign24h != 1 {
+		t.Fatalf("иностранных за сутки: %+v", stats)
+	}
+	if stats.NewCountries24h != 1 {
+		t.Fatalf("новая страна DE: %+v", stats)
+	}
+	if stats.Countries7d != 3 {
+		t.Fatalf("стран за 7 дней: %+v", stats)
+	}
+
+	// Повторная страна новой не считается.
+	if err := st.RecordIPObservation(ctx, "alice",
+		[]string{"192.0.2.20", "192.0.2.11"}, geo2, 400, t1.Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	stats, _ = st.UserIPStats(ctx, "alice", t1.Add(time.Hour))
+	if stats.NewCountries24h != 1 {
+		t.Fatalf("DE уже была, новых быть не должно: %+v", stats)
+	}
+}

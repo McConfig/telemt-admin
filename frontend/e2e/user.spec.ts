@@ -7,7 +7,7 @@ test('карточка клиента: плитки, страны, иконки 
   await page.goto('/users/main');
 
   await expect(page.locator('.page-head').getByText('main', { exact: true })).toBeVisible();
-  await expect(page.locator('.stat-tile')).toHaveCount(10);
+  await expect(page.locator('.stat-tile')).toHaveCount(13);
   await expect(page.getByRole('columnheader', { name: 'Страна' })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'Оператор' })).toBeVisible();
   await expect(page.getByText('Novotelecom Ltd')).toBeVisible();
@@ -48,7 +48,7 @@ test('мобильная карточка без горизонтальной п
   await page.goto('/users/main');
 
   await expect(page.locator('.page-head .icon-actions button')).toHaveCount(4);
-  await expect(page.locator('.stat-tile')).toHaveCount(10);
+  await expect(page.locator('.stat-tile')).toHaveCount(13);
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );

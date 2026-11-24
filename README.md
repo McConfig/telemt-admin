@@ -18,8 +18,9 @@ MTProto-прокси для Telegram. Работает через официал
 - роли `admin` и `viewer`; `viewer` не видит ссылки и ничего не меняет;
 - пароли Argon2id, сессии в Valkey, CSRF, ограничение попыток входа, аудит действий;
 - доступ только с разрешённых сетей;
-- GeoIP: страна и оператор (ASN) каждого адреса, счётчики иностранных адресов
-  и фильтр «только с иностранными IP».
+- GeoIP: страна и оператор (ASN) каждого адреса, история стран за сутки и
+  неделю, метка «новая страна», фильтры «только с иностранными IP» и
+  «только с новыми странами».
 
 ## Архитектура
 
@@ -271,6 +272,10 @@ tgadmin_user_traffic_today_bytes{user="alice"}
 tgadmin_user_risk_level{user="alice"}
 tgadmin_user_foreign_ips_current{user="alice"}
 tgadmin_user_countries_current{user="alice"}
+tgadmin_user_foreign_ips_24h{user="alice"}
+tgadmin_user_countries_24h{user="alice"}
+tgadmin_user_countries_7d{user="alice"}
+tgadmin_user_new_countries_24h{user="alice"}
 tgadmin_geoip_loaded
 tgadmin_geoip_build_timestamp_seconds
 tgadmin_collector_up
@@ -334,10 +339,17 @@ DB (mmdb). Подходят бесплатные DB-IP Lite: регистрац�
 Если файлов нет, приложение работает как раньше: история IP и трафик
 собираются, страна и оператор просто не показываются.
 
-Метрики: `tgadmin_geoip_loaded`, `tgadmin_user_foreign_ips_current`,
-`tgadmin_user_countries_current`. Приватные адреса (`10.0.0.0/8`,
-`192.168.0.0/16` и подобные) помечаются как «локальный» и не считаются
-иностранными.
+Метрики: `tgadmin_geoip_loaded`, `tgadmin_geoip_build_timestamp_seconds`,
+`tgadmin_user_foreign_ips_current`, `tgadmin_user_countries_current`,
+`tgadmin_user_foreign_ips_24h`, `tgadmin_user_countries_24h`,
+`tgadmin_user_countries_7d`, `tgadmin_user_new_countries_24h`. Приватные
+адреса (`10.0.0.0/8`, `192.168.0.0/16` и подобные) помечаются как
+«локальный» и не считаются иностранными.
+
+«Новая страна» — иностранная страна, которой не было за последние 30 дней.
+В первый сутки наблюдения за клиентом новые страны не считаются, иначе все
+адреса выглядели бы новыми. Новая страна повышает риск клиента до
+«внимание» и попадает в метрику для алерта.
 
 Обновление баз: раз в месяц запускайте `hack/update-geoip.sh` и
 перезапускайте контейнер — базы читаются при старте. Пример cron:

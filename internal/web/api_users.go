@@ -59,6 +59,10 @@ type apiUser struct {
 	IPHistory          []apiIP  `json:"ipHistory,omitempty"`
 	Link               string   `json:"link,omitempty"`
 	ForeignIPsCurrent  int64    `json:"foreignIpsCurrent"`
+	ForeignIPs24h      int64    `json:"foreignIps24h"`
+	Countries24h       int64    `json:"countries24h"`
+	Countries7d        int64    `json:"countries7d"`
+	NewCountries24h    int64    `json:"newCountries24h"`
 	Countries          []string `json:"countries,omitempty"`
 	CountryCodes       []string `json:"countryCodes,omitempty"`
 }
@@ -97,6 +101,10 @@ func (s *Server) apiUserView(r *http.Request, u telemt.User) apiUser {
 		out.New24h = stats.New24h
 		out.MaxToday = stats.MaxToday
 		out.TrafficToday = stats.TrafficToday
+		out.ForeignIPs24h = stats.Foreign24h
+		out.Countries24h = stats.Countries24h
+		out.Countries7d = stats.Countries7d
+		out.NewCountries24h = stats.NewCountries24h
 		out.Risk = s.risk(int64(len(u.ActiveUniqueIPList)), stats)
 	}
 	return out
@@ -124,7 +132,8 @@ func (s *Server) risk(current int64, stats store.UserIPStats) int {
 	switch {
 	case current > int64(s.cfg.RiskIPsHigh):
 		return 2
-	case current > int64(s.cfg.RiskIPsWarn) || stats.Distinct7d > int64(s.cfg.RiskDistinct7d):
+	case current > int64(s.cfg.RiskIPsWarn) || stats.Distinct7d > int64(s.cfg.RiskDistinct7d),
+		stats.NewCountries24h > 0:
 		return 1
 	default:
 		return 0

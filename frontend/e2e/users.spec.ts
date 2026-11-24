@@ -20,3 +20,12 @@ test('фильтр «только с иностранными IP»', async ({ pa
   await expect(page.getByRole('link', { name: 'chernyh', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'main', exact: true })).toBeHidden();
 });
+
+test('фильтр «только с новыми странами»', async ({ page }) => {
+  await mockApi(page);
+  await login(page);
+
+  await page.getByText('только с новыми странами').click();
+  await expect(page.getByRole('link', { name: 'chernyh', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'main', exact: true })).toBeHidden();
+});

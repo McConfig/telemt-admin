@@ -28,6 +28,13 @@ type Snapshot struct {
 	Risk         int
 	// ForeignCurrent — сколько активных адресов из других стран.
 	ForeignCurrent int64
+	// Foreign24h — иностранные адреса за текущие сутки.
+	Foreign24h int64
+	// Countries24h и Countries7d — число разных стран.
+	Countries24h int64
+	Countries7d  int64
+	// NewCountries24h — иностранные страны, которых раньше не было.
+	NewCountries24h int64
 	// Countries — уникальные страны среди активных адресов, по алфавиту.
 	Countries []string
 	// CountryCodes — коды ISO тех же стран.
@@ -107,6 +114,8 @@ func (c *Collector) collect(ctx context.Context) {
 			Distinct24h: stats.Distinct24h, Distinct7d: stats.Distinct7d,
 			New24h: stats.New24h, MaxToday: stats.MaxToday,
 			TrafficTotal: u.TotalOctets, TrafficToday: stats.TrafficToday,
+			Foreign24h: stats.Foreign24h, Countries24h: stats.Countries24h,
+			Countries7d: stats.Countries7d, NewCountries24h: stats.NewCountries24h,
 		}
 		snap.Risk = c.risk(snap)
 		for _, info := range geo {
@@ -197,7 +206,7 @@ func (c *Collector) risk(s Snapshot) int {
 	switch {
 	case s.Current > c.high:
 		return 2
-	case s.Current > c.warn || s.Distinct7d > c.distinct7d:
+	case s.Current > c.warn || s.Distinct7d > c.distinct7d || s.NewCountries24h > 0:
 		return 1
 	default:
 		return 0
@@ -254,6 +263,10 @@ func (c *Collector) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	writeMetric("tgadmin_user_risk_level", "0 норма, 1 предупреждение, 2 высокий риск", "gauge")
 	writeMetric("tgadmin_user_foreign_ips_current", "Активные адреса пользователя из других стран", "gauge")
 	writeMetric("tgadmin_user_countries_current", "Стран среди активных адресов пользователя", "gauge")
+	writeMetric("tgadmin_user_foreign_ips_24h", "Иностранные адреса пользователя за сутки", "gauge")
+	writeMetric("tgadmin_user_countries_24h", "Стран у адресов пользователя за сутки", "gauge")
+	writeMetric("tgadmin_user_countries_7d", "Стран у адресов пользователя за 7 дней", "gauge")
+	writeMetric("tgadmin_user_new_countries_24h", "Новые иностранные страны за сутки", "gauge")
 	for _, name := range names {
 		s := snap[name]
 		label := escape(name)
@@ -267,6 +280,10 @@ func (c *Collector) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 		_, _ = fmt.Fprintf(w, "tgadmin_user_risk_level{user=%q} %d\n", label, s.Risk)
 		_, _ = fmt.Fprintf(w, "tgadmin_user_foreign_ips_current{user=%q} %d\n", label, s.ForeignCurrent)
 		_, _ = fmt.Fprintf(w, "tgadmin_user_countries_current{user=%q} %d\n", label, len(s.Countries))
+		_, _ = fmt.Fprintf(w, "tgadmin_user_foreign_ips_24h{user=%q} %d\n", label, s.Foreign24h)
+		_, _ = fmt.Fprintf(w, "tgadmin_user_countries_24h{user=%q} %d\n", label, s.Countries24h)
+		_, _ = fmt.Fprintf(w, "tgadmin_user_countries_7d{user=%q} %d\n", label, s.Countries7d)
+		_, _ = fmt.Fprintf(w, "tgadmin_user_new_countries_24h{user=%q} %d\n", label, s.NewCountries24h)
 	}
 	writeMetric("tgadmin_geoip_loaded", "Загружены базы GeoIP", "gauge")
 	geoLoaded := 0

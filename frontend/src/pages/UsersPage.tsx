@@ -14,6 +14,7 @@ export default function UsersPage({ me }: { me: Me }) {
   const [query, setQuery] = useState('');
   const [onlyRisk, setOnlyRisk] = useState(false);
   const [onlyForeign, setOnlyForeign] = useState(false);
+  const [onlyNewCountry, setOnlyNewCountry] = useState(false);
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const isMobile = useMedia('(max-width: 760px)');
@@ -40,12 +41,13 @@ export default function UsersPage({ me }: { me: Me }) {
       if (q && !u.username.toLowerCase().includes(q)) return false;
       if (onlyRisk && u.risk === 0) return false;
       if (onlyForeign && u.foreignIpsCurrent === 0) return false;
+      if (onlyNewCountry && u.newCountries24h === 0) return false;
       return true;
     });
-  }, [users, query, onlyRisk, onlyForeign]);
+  }, [users, query, onlyRisk, onlyForeign, onlyNewCountry]);
   useEffect(() => {
     setPage(1);
-  }, [query, onlyRisk, onlyForeign]);
+  }, [query, onlyRisk, onlyForeign, onlyNewCountry]);
   const pageSize = 20;
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const shown = useMemo(
@@ -84,6 +86,18 @@ export default function UsersPage({ me }: { me: Me }) {
           </span>
         );
       },
+    },
+    {
+      id: 'newcountry',
+      header: 'Новые страны',
+      cell: ({ row }) =>
+        row.original.newCountries24h > 0 ? (
+          <Label theme="warning" size="s">
+            {row.original.newCountries24h}
+          </Label>
+        ) : (
+          '—'
+        ),
     },
     {
       id: 'foreign',
@@ -157,6 +171,14 @@ export default function UsersPage({ me }: { me: Me }) {
           />{' '}
           только с иностранными IP
         </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={onlyNewCountry}
+            onChange={(e) => setOnlyNewCountry(e.target.checked)}
+          />{' '}
+          только с новыми странами
+        </label>
       </div>
       {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
       <Card view="filled" style={{ padding: 8 }}>
@@ -186,6 +208,9 @@ export default function UsersPage({ me }: { me: Me }) {
                     Страны: {u.countries!.join(', ')}
                     {u.foreignIpsCurrent > 0 ? ` · иностранных IP: ${u.foreignIpsCurrent}` : ''}
                   </div>
+                )}
+                {u.newCountries24h > 0 && (
+                  <div className="muted">Новых стран за сутки: {u.newCountries24h}</div>
                 )}
                 <div className="muted">Трафик: {formatBytes(u.totalOctets)}</div>
                 <div className="muted">

@@ -10,13 +10,16 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func seenKey(user string) string     { return "iphist:seen:" + user }
-func firstKey(user string) string    { return "iphist:first:" + user }
-func ipKey(user, ip string) string   { return "iphist:ip:" + user + ":" + ip }
-func dayKey(user, day string) string { return "iphist:day:" + user + ":" + day }
-func maxKey(user, day string) string { return "iphist:max:" + user + ":" + day }
-func trafficKey(user string) string  { return "iphist:traffic:" + user }
-func geoKey(user string) string      { return "iphist:geo:" + user }
+func seenKey(user string) string         { return "iphist:seen:" + user }
+func firstKey(user string) string        { return "iphist:first:" + user }
+func ipKey(user, ip string) string       { return "iphist:ip:" + user + ":" + ip }
+func dayKey(user, day string) string     { return "iphist:day:" + user + ":" + day }
+func maxKey(user, day string) string     { return "iphist:max:" + user + ":" + day }
+func trafficKey(user string) string      { return "iphist:traffic:" + user }
+func geoKey(user string) string          { return "iphist:geo:" + user }
+func countryKey(user, day string) string { return "iphist:country:" + user + ":" + day }
+func foreignKey(user, day string) string { return "iphist:foreign:" + user + ":" + day }
+func countryFirstKey(user string) string { return "iphist:countryfirst:" + user }
 
 // IPStat — один адрес в истории пользователя.
 type IPStat struct {
@@ -94,6 +97,13 @@ type UserIPStats struct {
 	New24h       int64
 	MaxToday     int64
 	TrafficToday uint64
+	// Foreign24h — иностранные адреса за текущие сутки.
+	Foreign24h int64
+	// Countries24h и Countries7d — сколько разных стран у адресов.
+	Countries24h int64
+	Countries7d  int64
+	// NewCountries24h — иностранные страны, которых не было раньше.
+	NewCountries24h int64
 }
 
 // RecordIPObservation сохраняет срез активных адресов и суммарный трафик.
@@ -129,6 +139,18 @@ func (s *Store) RecordIPObservation(ctx context.Context, user string, ips []stri
 			}
 			if len(fields) > 0 {
 				pipe.HSet(ctx, key, fields)
+			}
+		}
+		if g, ok := geo[ip]; ok && g.Country != "" && !g.Internal {
+			pipe.SAdd(ctx, countryKey(user, day), g.Country)
+			pipe.Expire(ctx, countryKey(user, day), s.retention)
+			if g.Country != "RU" {
+				pipe.SAdd(ctx, foreignKey(user, day), ip)
+				pipe.Expire(ctx, foreignKey(user, day), s.retention)
+				pipe.ZAddArgs(ctx, countryFirstKey(user), redis.ZAddArgs{
+					NX: true, Members: []redis.Z{{Score: ts, Member: g.Country}},
+				})
+				pipe.Expire(ctx, countryFirstKey(user), s.retention)
 			}
 		}
 		pipe.Expire(ctx, key, s.retention)
@@ -221,6 +243,37 @@ func (s *Store) UserIPStats(ctx context.Context, user string, now time.Time) (Us
 	if m["day"] == day {
 		out.TrafficToday, _ = strconv.ParseUint(m["day_bytes"], 10, 64)
 	}
+	out.Foreign24h, err = s.rdb.SCard(ctx, foreignKey(user, day)).Result()
+	if err != nil {
+		return out, err
+	}
+	out.Countries24h, err = s.rdb.SCard(ctx, countryKey(user, day)).Result()
+	if err != nil {
+		return out, err
+	}
+	week := make([]string, 0, 7)
+	for i := 0; i < 7; i++ {
+		week = append(week, countryKey(user, now.AddDate(0, 0, -i).Format("2006-01-02")))
+	}
+	countries, err := s.rdb.SUnion(ctx, week...).Result()
+	if err != nil {
+		return out, err
+	}
+	out.Countries7d = int64(len(countries))
+
+	// Новые страны считаем только у клиентов, которые уже наблюдаются больше
+	// суток: иначе в первый день всё будет «новым».
+	first, err := s.rdb.ZRangeWithScores(ctx, firstKey(user), 0, 0).Result()
+	if err != nil {
+		return out, err
+	}
+	if len(first) > 0 && int64(first[0].Score) <= now.Add(-24*time.Hour).Unix() {
+		out.NewCountries24h, err = s.rdb.ZCount(ctx, countryFirstKey(user),
+			strconv.FormatInt(now.Add(-24*time.Hour).Unix(), 10), "+inf").Result()
+		if err != nil {
+			return out, err
+		}
+	}
 	return out, nil
 }
 
@@ -283,11 +336,13 @@ func (s *Store) SetIPGeo(ctx context.Context, user, ip string, g IPGeo) error {
 
 // DeleteIPHistory удаляет историю адресов и трафика пользователя.
 func (s *Store) DeleteIPHistory(ctx context.Context, user string) error {
-	keys := []string{seenKey(user), firstKey(user), trafficKey(user), geoKey(user)}
+	keys := []string{seenKey(user), firstKey(user), trafficKey(user), geoKey(user), countryFirstKey(user)}
 	for _, pattern := range []string{
 		"iphist:ip:" + user + ":*",
 		"iphist:day:" + user + ":*",
 		"iphist:max:" + user + ":*",
+		"iphist:country:" + user + ":*",
+		"iphist:foreign:" + user + ":*",
 	} {
 		iter := s.rdb.Scan(ctx, 0, pattern, 200).Iterator()
 		for iter.Next(ctx) {

@@ -58,6 +58,10 @@ export interface ProxyUser {
   ipHistory?: IPHistoryItem[];
   link?: string;
   foreignIpsCurrent: number;
+  foreignIps24h: number;
+  countries24h: number;
+  countries7d: number;
+  newCountries24h: number;
   countries?: string[];
   countryCodes?: string[];
 }

@@ -124,6 +124,11 @@ export default function UserPage({ me }: { me: Me }) {
             {user.risk === 2 ? 'высокий риск' : 'внимание'}
           </Label>
         )}
+        {user.newCountries24h > 0 && (
+          <Label theme="warning" size="s">
+            новая страна
+          </Label>
+        )}
         {isAdmin && (
           <>
             <div style={{ flex: 1 }} />
@@ -186,6 +191,9 @@ export default function UserPage({ me }: { me: Me }) {
               label="Иностранных IP"
               value={user.foreignIpsCurrent}
             />
+            <Stat label="Иностранных за сутки" value={user.foreignIps24h} />
+            <Stat label="Стран за 7 дней" value={user.countries7d} />
+            <Stat label="Новых стран" value={user.newCountries24h} />
             <Stat label="Трафик всего" value={formatBytes(user.totalOctets)} />
             <Stat label="Трафик за сутки" value={formatBytes(user.trafficToday)} />
           </div>
@@ -195,6 +203,12 @@ export default function UserPage({ me }: { me: Me }) {
           </Text>
           {(user.countries?.length ?? 0) > 0 && (
             <Text className="muted">Страны сейчас: {user.countries!.join(', ')}</Text>
+          )}
+          {user.newCountries24h > 0 && (
+            <Text className="muted">
+              За сутки появилась новая страна: проверьте устройства и при необходимости
+              перевыпустите секрет.
+            </Text>
           )}
           {user.note && <Text className="muted">Заметка: {user.note}</Text>}
         </div>
