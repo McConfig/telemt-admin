@@ -95,6 +95,14 @@ export async function mockApi(
 ): Promise<{ limitBodies: unknown[] }> {
   let loggedIn = false;
   const limitBodies: unknown[] = [];
+  // Свежая копия на каждый тест: создание, переименование и удаление
+  // не должны протекать в соседние тесты.
+  const userList = users.map((u) => ({
+    ...u,
+    ipHistory: [...u.ipHistory],
+    trustedCountries: [...u.trustedCountries],
+    trustedIps: [...u.trustedIps],
+  }));
 
   const json = (route: Route, body: unknown, status = 200) =>
     route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -129,11 +137,36 @@ export async function mockApi(
       return json(route, { error: { code: 'unauthorized', message: 'требуется вход' } }, 401);
     }
     if (path === '/api/users' && method === 'GET') {
-      return json(route, users);
+      return json(route, userList);
+    }
+    if (path === '/api/users' && method === 'POST') {
+      const body = route.request().postDataJSON() as { name: string };
+      const created = {
+        ...main,
+        username: body.name,
+        enabled: true,
+        activeIps: [],
+        activeUniqueIps: 0,
+        currentConnections: 0,
+        totalOctets: 0,
+        ips24h: 0,
+        ips7d: 0,
+        new24h: 0,
+        maxToday: 0,
+        trafficToday: 0,
+        risk: 0,
+        countries: [],
+        countryCodes: [],
+        ipHistory: [],
+        trustedCountries: [],
+        trustedIps: [],
+      };
+      userList.push(created);
+      return json(route, created);
     }
     const userMatch = path.match(/^\/api\/users\/([^/]+)$/);
     if (userMatch && method === 'GET') {
-      const found = users.find((u) => u.username === decodeURIComponent(userMatch[1]));
+      const found = userList.find((u) => u.username === decodeURIComponent(userMatch[1]));
       if (!found) {
         return json(route, { error: { code: 'not_found', message: 'нет пользователя' } }, 404);
       }
@@ -151,7 +184,24 @@ export async function mockApi(
     }
     if (userMatch && method === 'PATCH') {
       limitBodies.push(route.request().postDataJSON());
-      return json(route, users.find((u) => u.username === userMatch[1]) ?? { ok: true });
+      return json(route, userList.find((u) => u.username === userMatch[1]) ?? { ok: true });
+    }
+    if (userMatch && method === 'DELETE') {
+      const index = userList.findIndex((u) => u.username === userMatch[1]);
+      if (index >= 0) userList.splice(index, 1);
+      return route.fulfill({ status: 204, body: '' });
+    }
+    const renameMatch = path.match(/^\/api\/users\/([^/]+)\/rename$/);
+    if (renameMatch && method === 'POST') {
+      const body = route.request().postDataJSON() as { newName: string };
+      const found = userList.find((u) => u.username === renameMatch[1]);
+      if (found) found.username = body.newName;
+      return json(route, { username: body.newName });
+    }
+    const rotateMatch = path.match(/^\/api\/users\/([^/]+)\/rotate$/);
+    if (rotateMatch && method === 'POST') {
+      const found = userList.find((u) => u.username === rotateMatch[1]);
+      return json(route, found ?? { ok: true });
     }
     if (path === '/api/account/totp') {
       return json(route, { available: true, enabled: false, recoveryLeft: 0 });

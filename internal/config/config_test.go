@@ -77,3 +77,19 @@ func TestLoadRejectsBadCIDR(t *testing.T) {
 		t.Fatal("ожидал ошибку для неверного CIDR")
 	}
 }
+
+func TestAllows(t *testing.T) {
+	cfg := &Config{AllowedCIDRs: []netip.Prefix{
+		netip.MustParsePrefix("10.0.0.0/8"),
+		netip.MustParsePrefix("192.0.2.0/24"),
+	}}
+	if !cfg.Allows(netip.MustParseAddr("10.1.2.3")) {
+		t.Fatal("адрес из 10/8 должен быть разрешён")
+	}
+	if !cfg.Allows(netip.MustParseAddr("192.0.2.10")) {
+		t.Fatal("адрес из 192.0.2/24 должен быть разрешён")
+	}
+	if cfg.Allows(netip.MustParseAddr("8.8.8.8")) {
+		t.Fatal("внешний адрес не должен быть разрешён")
+	}
+}

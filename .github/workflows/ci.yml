@@ -29,6 +29,11 @@ jobs:
       - run: npm run build
         working-directory: frontend
       - run: go test -coverprofile=coverage.out ./...
+      - name: Проверить покрытие не ниже 80%
+        run: |
+          total=$(go tool cover -func=coverage.out | tail -1 | awk '{print $3}' | tr -d '%')
+          echo "покрытие: ${total}%"
+          awk -v t="$total" 'BEGIN { if (t < 80.0) { print "покрытие ниже 80%"; exit 1 } }'
       - run: go vet ./...
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:

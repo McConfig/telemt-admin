@@ -4,11 +4,11 @@
 [![codeql](https://github.com/McConfig/telemt-admin/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/McConfig/telemt-admin/actions/workflows/codeql.yml)
 [![release](https://img.shields.io/github/v/release/McConfig/telemt-admin)](https://github.com/McConfig/telemt-admin/releases)
 [![coverage](https://coveralls.io/repos/github/McConfig/telemt-admin/badge.svg?branch=main)](https://coveralls.io/github/McConfig/telemt-admin?branch=main)
-[![Go Report Card](https://goreportcard.com/badge/github.com/McConfig/telemt-admin)](https://goreportcard.com/report/github.com/McConfig/telemt-admin)
+[![golangci-lint](https://img.shields.io/badge/lint-golangci--lint-blue)](.golangci.yml)
 [![license](https://img.shields.io/github/license/McConfig/telemt-admin)](LICENSE)
 [![go](https://img.shields.io/github/go-mod/go-version/McConfig/telemt-admin)](go.mod)
 
-[История изменений](CHANGELOG.md) · [Политика безопасности](SECURITY.md)
+[История изменений](CHANGELOG.md) · [Политика безопасности](SECURITY.md) · [API](docs/API.md)
 
 Веб-интерфейс для управления пользователями [telemt](https://github.com/telemt/telemt) —
 MTProto-прокси для Telegram. Работает через официальный
@@ -243,6 +243,9 @@ docker compose run --rm tgadmin user totp-reset alice
 способ входа, если администратор потерял телефон и резервные коды.
 
 ## Обновление
+
+Порядок обновления, отката и совместимость схемы Valkey — в
+[docs/UPGRADE.md](docs/UPGRADE.md).
 
 ```bash
 cd deploy
@@ -480,10 +483,14 @@ AOF лежит в том же томе `valkey_data`; для полного бэ
 
 ```bash
 cd frontend && npm ci && npm run build && cd ..
-go test ./...
+go test -coverprofile=coverage.out ./...
+go tool cover -func=coverage.out | tail -1
 go vet ./...
 go build ./cmd/tgadmin
 ```
+
+CI требует не меньше 80% покрытия Go-кода (`go tool cover`). Текущее
+покрытие и отчёт по файлам — в бейдже Coveralls.
 
 Фронтенд собирается в `internal/web/dist` и встраивается в бинарь. Для
 разработки: `cd frontend && npm run dev` (проксирует `/api` на
