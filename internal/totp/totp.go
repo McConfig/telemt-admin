@@ -60,6 +60,7 @@ func Code(secret string, at time.Time) (string, error) {
 func codeForCounter(key []byte, counter uint64) string {
 	var buf [8]byte
 	binary.BigEndian.PutUint64(buf[:], counter)
+	// #nosec G505 -- SHA-1 обязателен по RFC 6238 и используется только в HMAC.
 	mac := hmac.New(sha1.New, key)
 	mac.Write(buf[:])
 	sum := mac.Sum(nil)
