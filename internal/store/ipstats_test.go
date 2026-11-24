@@ -151,3 +151,31 @@ func TestGeoCounters(t *testing.T) {
 		t.Fatalf("DE уже была, новых быть не должно: %+v", stats)
 	}
 }
+
+func TestTrustedSetGet(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newTestStore(t)
+	if err := st.SetTrusted(ctx, "alice", Trusted{
+		Countries: []string{"TR", "GE"},
+		IPs:       []string{"192.0.2.50"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	trusted, err := st.GetTrusted(ctx, "alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(trusted.Countries) != 2 || trusted.Countries[0] != "GE" || trusted.Countries[1] != "TR" {
+		t.Fatalf("страны: %+v", trusted)
+	}
+	if len(trusted.IPs) != 1 || trusted.IPs[0] != "192.0.2.50" {
+		t.Fatalf("адреса: %+v", trusted)
+	}
+	if err := st.SetTrusted(ctx, "alice", Trusted{}); err != nil {
+		t.Fatal(err)
+	}
+	trusted, _ = st.GetTrusted(ctx, "alice")
+	if len(trusted.Countries) != 0 || len(trusted.IPs) != 0 {
+		t.Fatalf("очистка: %+v", trusted)
+	}
+}

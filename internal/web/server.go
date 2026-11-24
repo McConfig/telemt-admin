@@ -3,6 +3,7 @@ package web
 import (
 	"embed"
 	"fmt"
+	"github.com/McConfig/telemt-admin/internal/collector"
 	"io/fs"
 	"net/http"
 	"net/url"
@@ -25,6 +26,12 @@ type Server struct {
 	router chi.Router
 	assets http.Handler
 	now    func() time.Time
+	status func() collector.Status
+}
+
+// SetCollectorStatus подключает источник состояния сборщика.
+func (s *Server) SetCollectorStatus(fn func() collector.Status) {
+	s.status = fn
 }
 
 // New собирает сервер и маршруты.
@@ -70,7 +77,11 @@ func New(cfg *config.Config, st *store.Store, tc *telemt.Client, metrics http.Ha
 				r.Post("/users/{name}/reset-quota", s.apiResetQuota)
 				r.Get("/users/{name}/history.csv", s.apiHistoryCSV)
 				r.Get("/users/{name}/traffic", s.apiUserTraffic)
+				r.Get("/users/{name}/timeline", s.apiUserTimeline)
+				r.Get("/summary", s.apiSummary)
 				r.Delete("/users/{name}/history", s.apiDeleteHistory)
+				r.Get("/users/{name}/trusted", s.apiGetTrusted)
+				r.Put("/users/{name}/trusted", s.apiSetTrusted)
 				r.Get("/users/{name}/note", s.apiGetNote)
 				r.Put("/users/{name}/note", s.apiSetNote)
 				r.Get("/admins", s.apiAdmins)

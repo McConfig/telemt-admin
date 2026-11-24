@@ -63,6 +63,8 @@ type apiUser struct {
 	Countries24h       int64    `json:"countries24h"`
 	Countries7d        int64    `json:"countries7d"`
 	NewCountries24h    int64    `json:"newCountries24h"`
+	TrustedCountries   []string `json:"trustedCountries"`
+	TrustedIPs         []string `json:"trustedIps"`
 	Countries          []string `json:"countries,omitempty"`
 	CountryCodes       []string `json:"countryCodes,omitempty"`
 }
@@ -94,8 +96,34 @@ func (s *Server) apiUserView(r *http.Request, u telemt.User) apiUser {
 		out.Countries = geo.Countries
 		out.CountryCodes = geo.CountryCodes
 	}
+	trusted, err := s.store.GetTrusted(r.Context(), u.Username)
+	if err == nil {
+		out.TrustedCountries = trusted.Countries
+		out.TrustedIPs = trusted.IPs
+	}
 	stats, err := s.store.UserIPStats(r.Context(), u.Username, time.Now().UTC())
 	if err == nil {
+		trustedCountries := map[string]bool{}
+		for _, code := range trusted.Countries {
+			trustedCountries[code] = true
+		}
+		newCountries := int64(0)
+		for _, code := range stats.NewCountryCodes {
+			if !trustedCountries[code] {
+				newCountries++
+			}
+		}
+		stats.NewCountries24h = newCountries
+		trustedIPs := map[string]bool{}
+		for _, ip := range trusted.IPs {
+			trustedIPs[ip] = true
+		}
+		current := int64(len(u.ActiveUniqueIPList))
+		for _, ip := range u.ActiveUniqueIPList {
+			if trustedIPs[ip] {
+				current--
+			}
+		}
 		out.Ips24h = stats.Distinct24h
 		out.Ips7d = stats.Distinct7d
 		out.New24h = stats.New24h
@@ -105,7 +133,7 @@ func (s *Server) apiUserView(r *http.Request, u telemt.User) apiUser {
 		out.Countries24h = stats.Countries24h
 		out.Countries7d = stats.Countries7d
 		out.NewCountries24h = stats.NewCountries24h
-		out.Risk = s.risk(int64(len(u.ActiveUniqueIPList)), stats)
+		out.Risk = s.risk(current, stats)
 	}
 	return out
 }

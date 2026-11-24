@@ -35,6 +35,8 @@ type Snapshot struct {
 	Countries7d  int64
 	// NewCountries24h — иностранные страны, которых раньше не было.
 	NewCountries24h int64
+	// TrustedActive — сколько активных адресов помечено доверенными.
+	TrustedActive int64
 	// Countries — уникальные страны среди активных адресов, по алфавиту.
 	Countries []string
 	// CountryCodes — коды ISO тех же стран.
@@ -108,6 +110,24 @@ func (c *Collector) collect(ctx context.Context) {
 			slog.Warn("агрегаты IP", "user", u.Username, "err", err)
 			continue
 		}
+		trusted, err := c.st.GetTrusted(ctx, u.Username)
+		if err != nil {
+			slog.Warn("доверенные адреса", "user", u.Username, "err", err)
+		}
+		trustedCountries := map[string]bool{}
+		for _, code := range trusted.Countries {
+			trustedCountries[code] = true
+		}
+		trustedIPs := map[string]bool{}
+		for _, ip := range trusted.IPs {
+			trustedIPs[ip] = true
+		}
+		newCountries := int64(0)
+		for _, code := range stats.NewCountryCodes {
+			if !trustedCountries[code] {
+				newCountries++
+			}
+		}
 		seenCountry := map[string]string{}
 		snap := Snapshot{
 			User: u.Username, Current: int64(len(ips)),
@@ -115,7 +135,12 @@ func (c *Collector) collect(ctx context.Context) {
 			New24h: stats.New24h, MaxToday: stats.MaxToday,
 			TrafficTotal: u.TotalOctets, TrafficToday: stats.TrafficToday,
 			Foreign24h: stats.Foreign24h, Countries24h: stats.Countries24h,
-			Countries7d: stats.Countries7d, NewCountries24h: stats.NewCountries24h,
+			Countries7d: stats.Countries7d, NewCountries24h: newCountries,
+		}
+		for _, ip := range ips {
+			if trustedIPs[ip] {
+				snap.TrustedActive++
+			}
 		}
 		snap.Risk = c.risk(snap)
 		for _, info := range geo {
@@ -203,14 +228,38 @@ func (c *Collector) lookupIPs(ips []string) map[string]store.IPGeo {
 }
 
 func (c *Collector) risk(s Snapshot) int {
+	current := s.Current - s.TrustedActive
 	switch {
-	case s.Current > c.high:
+	case current > c.high:
 		return 2
-	case s.Current > c.warn || s.Distinct7d > c.distinct7d || s.NewCountries24h > 0:
+	case current > c.warn || s.Distinct7d > c.distinct7d || s.NewCountries24h > 0:
 		return 1
 	default:
 		return 0
 	}
+}
+
+// Status — состояние сборщика для страницы со сводкой.
+type Status struct {
+	Up          bool
+	LastSuccess time.Time
+	LastError   string
+	GeoIPLoaded bool
+	GeoIPBuilt  uint64
+}
+
+// Status возвращает текущее состояние сборщика.
+func (c *Collector) Status() Status {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	out := Status{
+		Up: c.last == nil && !c.lastOK.IsZero(), LastSuccess: c.lastOK,
+		GeoIPLoaded: c.geo.Enabled(), GeoIPBuilt: c.geo.BuildEpoch(),
+	}
+	if c.last != nil {
+		out.LastError = c.last.Error()
+	}
+	return out
 }
 
 // Snapshot возвращает копию последнего среза.

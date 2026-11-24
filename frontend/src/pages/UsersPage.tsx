@@ -3,12 +3,15 @@ import { Link } from 'react-router-dom';
 import { Alert, Button, Card, Dialog, Label, Loader, Text, TextInput } from '@gravity-ui/uikit';
 import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
-import { api, ApiError, type Me, type ProxyUser } from '../api';
+import { api, ApiError, type Me, type ProxyUser, type Summary } from '../api';
 import { formatBytes } from '../format';
 import { useMedia } from '../useMedia';
 
 export default function UsersPage({ me }: { me: Me }) {
   const [users, setUsers] = useState<ProxyUser[]>([]);
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
@@ -23,7 +26,12 @@ export default function UsersPage({ me }: { me: Me }) {
     setLoading(true);
     setError('');
     try {
-      setUsers(await api.users());
+      const [list, total] = await Promise.all([
+        api.users(),
+        api.summary().catch(() => null),
+      ]);
+      setUsers(list);
+      setSummary(total);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'не удалось загрузить список');
     } finally {
@@ -55,7 +63,75 @@ export default function UsersPage({ me }: { me: Me }) {
     [filtered, page],
   );
 
+  const isAdmin = me.user.role === 'admin';
+  const shownNames = shown.map((u) => u.username);
+  const allShownSelected =
+    shownNames.length > 0 && shownNames.every((name) => selected.has(name));
+
+  const toggleOne = (name: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+  const toggleAll = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allShownSelected) shownNames.forEach((name) => next.delete(name));
+      else shownNames.forEach((name) => next.add(name));
+      return next;
+    });
+  };
+  const bulk = async (action: (name: string) => Promise<unknown>) => {
+    setBulkBusy(true);
+    setError('');
+    try {
+      for (const name of selected) await action(name);
+      setSelected(new Set());
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'массовое действие не выполнено');
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+  const exportLinks = () => {
+    const rows = users
+      .filter((u) => selected.has(u.username))
+      .map((u) => `${u.username},"${(u.link ?? '').replace(/"/g, '""')}"`);
+    const blob = new Blob([`username,link\n${rows.join('\n')}\n`], {
+      type: 'text/csv;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'telemt-links.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const columns = useMemo<ColumnDef<ProxyUser>[]>(() => [
+    {
+      id: 'select',
+      header: () => (
+        <input
+          type="checkbox"
+          aria-label="Выбрать всех"
+          checked={allShownSelected}
+          onChange={toggleAll}
+        />
+      ),
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          aria-label={`Выбрать ${row.original.username}`}
+          checked={selected.has(row.original.username)}
+          onChange={() => toggleOne(row.original.username)}
+        />
+      ),
+    },
     {
       id: 'username',
       header: 'Имя',
@@ -139,7 +215,7 @@ export default function UsersPage({ me }: { me: Me }) {
         </Link>
       ),
     },
-  ], []);
+  ], [allShownSelected, selected, shownNames.join(',')]);
 
   const table = useTable({ columns, data: shown });
 
@@ -157,6 +233,43 @@ export default function UsersPage({ me }: { me: Me }) {
           Обновить
         </Button>
       </div>
+      {summary && (
+        <>
+          <div className="stat-grid">
+            <SummaryTile label="Клиентов" value={summary.users} />
+            <SummaryTile label="Включено" value={summary.enabled} />
+            <SummaryTile
+              label="Подозрительных"
+              value={summary.riskWarn + summary.riskHigh}
+              tone={summary.riskHigh > 0 ? 'danger' : summary.riskWarn > 0 ? 'warning' : undefined}
+            />
+            <SummaryTile label="Иностранных за сутки" value={summary.foreignCurrent} />
+            <SummaryTile
+              label="Новых стран"
+              value={summary.newCountries}
+              tone={summary.newCountries > 0 ? 'warning' : undefined}
+            />
+            <SummaryTile label="Трафик за сутки" value={formatBytes(summary.trafficToday)} />
+          </div>
+          <Text className="muted">
+            Сборщик:{' '}
+            {summary.collector.up
+              ? `работает, последний сбор ${summary.collector.lastSuccess ? new Date(summary.collector.lastSuccess).toLocaleTimeString('ru-RU') : '—'}`
+              : 'не отвечает'}
+            {' · '}
+            GeoIP:{' '}
+            {summary.geoip.loaded && summary.geoip.built
+              ? `базы от ${new Date(summary.geoip.built).toLocaleDateString('ru-RU')}`
+              : 'не загружены'}
+          </Text>
+          {!summary.collector.up && (
+            <Alert
+              theme="danger"
+              message="Сборщик статистики не отвечает: история IP и трафик не пополняются. Проверьте контейнер tgadmin и Control API telemt."
+            />
+          )}
+        </>
+      )}
       <div className="row">
         <TextInput placeholder="Поиск по имени" value={query} onUpdate={setQuery} />
         <label>
@@ -180,6 +293,33 @@ export default function UsersPage({ me }: { me: Me }) {
           только с новыми странами
         </label>
       </div>
+      {selected.size > 0 && (
+        <div className="row bulk-bar">
+          <Text>Выбрано: {selected.size}</Text>
+          <Button
+            view="outlined-danger"
+            loading={bulkBusy}
+            onClick={() => void bulk((name) => api.disable(name))}
+          >
+            Отключить
+          </Button>
+          <Button
+            view="outlined"
+            loading={bulkBusy}
+            onClick={() => void bulk((name) => api.enable(name))}
+          >
+            Включить
+          </Button>
+          {isAdmin && (
+            <Button view="outlined" onClick={exportLinks}>
+              Ссылки CSV
+            </Button>
+          )}
+          <Button view="flat" onClick={() => setSelected(new Set())}>
+            Снять выбор
+          </Button>
+        </div>
+      )}
       {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
       <Card view="filled" style={{ padding: 8 }}>
         {loading ? (
@@ -190,6 +330,12 @@ export default function UsersPage({ me }: { me: Me }) {
             {shown.map((u) => (
               <div className="user-card" key={u.username}>
                 <div className="row">
+                  <input
+                    type="checkbox"
+                    aria-label={`Выбрать ${u.username}`}
+                    checked={selected.has(u.username)}
+                    onChange={() => toggleOne(u.username)}
+                  />
                   <Link to={`/users/${encodeURIComponent(u.username)}`}>{u.username}</Link>
                   <Label theme={u.enabled ? 'success' : 'danger'} size="s">
                     {u.enabled ? 'включён' : 'заблокирован'}
@@ -248,6 +394,23 @@ export default function UsersPage({ me }: { me: Me }) {
           void load();
         }}
       />
+    </div>
+  );
+}
+
+function SummaryTile({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  tone?: 'warning' | 'danger';
+}) {
+  return (
+    <div className="stat-tile">
+      <span className="stat-label">{label}</span>
+      <span className={`stat-value${tone ? ` stat-value-${tone}` : ''}`}>{value}</span>
     </div>
   );
 }

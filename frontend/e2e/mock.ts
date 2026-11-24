@@ -40,6 +40,8 @@ const main = {
   newCountries24h: 0,
   countries: ['Россия'],
   countryCodes: ['RU'],
+  trustedCountries: [],
+  trustedIps: [],
   ipHistory: [
     {
       ip: '10.0.2.15',
@@ -76,6 +78,8 @@ const chernyh = {
   newCountries24h: 1,
   countries: ['Нидерланды'],
   countryCodes: ['NL'],
+  trustedCountries: [],
+  trustedIps: [],
   ipHistory: [],
 };
 
@@ -140,6 +144,31 @@ export async function mockApi(page: Page): Promise<{ limitBodies: unknown[] }> {
     if (userMatch && method === 'PATCH') {
       limitBodies.push(route.request().postDataJSON());
       return json(route, users.find((u) => u.username === userMatch[1]) ?? { ok: true });
+    }
+    if (/\/api\/users\/[^/]+\/trusted$/.test(path)) {
+      if (method === 'PUT') {
+        return json(route, route.request().postDataJSON());
+      }
+      return json(route, { countries: [], ips: [] });
+    }
+    if (path === '/api/summary') {
+      return json(route, {
+        users: 2,
+        enabled: 1,
+        riskHigh: 1,
+        riskWarn: 0,
+        foreignCurrent: 1,
+        newCountries: 1,
+        trafficToday: 217_000,
+        collector: { up: true, lastSuccess: now() },
+        geoip: { loaded: true, built: now() },
+      });
+    }
+    if (/\/api\/users\/[^/]+\/timeline$/.test(path)) {
+      return json(route, [
+        { day: '2026-11-23', newIps: 1, newCountries: [{ code: 'NL', name: 'Нидерланды' }], maxIps: 2, bytes: 3145728 },
+        { day: '2026-11-24', newIps: 1, maxIps: 2, bytes: 2097152 },
+      ]);
     }
     if (path === '/api/admins') {
       return json(route, [
