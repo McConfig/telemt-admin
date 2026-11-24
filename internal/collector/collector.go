@@ -44,10 +44,11 @@ type Collector struct {
 	high       int64
 	distinct7d int64
 
-	mu     sync.RWMutex
-	snap   map[string]Snapshot
-	lastOK time.Time
-	last   error
+	mu           sync.RWMutex
+	snap         map[string]Snapshot
+	lastOK       time.Time
+	last         error
+	lastBackfill time.Time
 }
 
 // New создаёт сборщик.
@@ -134,7 +135,48 @@ func (c *Collector) collect(ctx context.Context) {
 	c.snap = next
 	c.lastOK = time.Now().UTC()
 	c.last = nil
+	needBackfill := c.lastBackfill.IsZero() || time.Since(c.lastBackfill) > time.Hour
+	if needBackfill {
+		c.lastBackfill = time.Now()
+	}
 	c.mu.Unlock()
+
+	if needBackfill {
+		c.backfillGeo(ctx)
+	}
+}
+
+// backfillGeo дописывает страну и оператора к адресам, которые попали в
+// историю до подключения баз GeoIP. Запускается при старте и раз в час.
+func (c *Collector) backfillGeo(ctx context.Context) {
+	if !c.geo.Enabled() {
+		return
+	}
+	users, err := c.tc.ListUsers(ctx)
+	if err != nil {
+		return
+	}
+	for _, u := range users {
+		history, err := c.st.IPHistory(ctx, u.Username)
+		if err != nil {
+			continue
+		}
+		for _, item := range history {
+			if item.Country != "" || item.Internal {
+				continue
+			}
+			info := c.geo.Lookup(item.IP)
+			if info.Empty() {
+				continue
+			}
+			if err := c.st.SetIPGeo(ctx, u.Username, item.IP, store.IPGeo{
+				Country: info.CountryCode, CountryName: info.CountryName,
+				ASN: info.ASN, ASNOrg: info.ASNOrg, Internal: info.Internal,
+			}); err != nil {
+				slog.Warn("дозапись GeoIP", "user", u.Username, "ip", item.IP, "err", err)
+			}
+		}
+	}
 }
 
 // lookupIPs обогащает адреса сведениями GeoIP. Без баз возвращает пустые

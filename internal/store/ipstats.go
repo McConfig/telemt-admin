@@ -258,6 +258,29 @@ func (s *Store) IPHistory(ctx context.Context, user string) ([]IPStat, error) {
 	return out, nil
 }
 
+// SetIPGeo дописывает сведения GeoIP к уже сохранённому адресу.
+func (s *Store) SetIPGeo(ctx context.Context, user, ip string, g IPGeo) error {
+	key := ipKey(user, ip)
+	fields := map[string]any{}
+	if g.Country != "" {
+		fields["country"] = g.Country
+		fields["country_name"] = g.CountryName
+	}
+	if g.ASN != 0 {
+		fields["asn"] = g.ASN
+	}
+	if g.ASNOrg != "" {
+		fields["asn_org"] = g.ASNOrg
+	}
+	if g.Internal {
+		fields["internal"] = "1"
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	return s.rdb.HSet(ctx, key, fields).Err()
+}
+
 // DeleteIPHistory удаляет историю адресов и трафика пользователя.
 func (s *Store) DeleteIPHistory(ctx context.Context, user string) error {
 	keys := []string{seenKey(user), firstKey(user), trafficKey(user), geoKey(user)}
