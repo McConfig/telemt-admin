@@ -282,8 +282,9 @@ func (s *Store) UserIPStats(ctx context.Context, user string, now time.Time) (Us
 		return out, err
 	}
 	if len(first) > 0 && int64(first[0].Score) <= now.Add(-24*time.Hour).Unix() {
-		codes, err := s.rdb.ZRangeByScore(ctx, countryFirstKey(user), &redis.ZRangeBy{
-			Min: strconv.FormatInt(now.Add(-24*time.Hour).Unix(), 10), Max: "+inf",
+		codes, err := s.rdb.ZRangeArgs(ctx, redis.ZRangeArgs{
+			Key: countryFirstKey(user), Start: strconv.FormatInt(now.Add(-24*time.Hour).Unix(), 10),
+			Stop: "+inf", ByScore: true,
 		}).Result()
 		if err != nil {
 			return out, err
