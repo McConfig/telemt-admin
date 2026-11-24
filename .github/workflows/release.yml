@@ -91,3 +91,30 @@ jobs:
         with:
           image: ${{ steps.image.outputs.name }}:${{ github.ref_name }}
           artifact-name: sbom.spdx.json
+
+  release:
+    needs: merge
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sbom.spdx.json
+          path: .
+      - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
+        with:
+          generate_release_notes: true
+          body: |
+            Образ: `ghcr.io/mcconfig/telemt-admin:${{ github.ref_name }}` (linux/amd64, linux/arm64).
+
+            Проверка подписи:
+
+            ```bash
+            cosign verify ghcr.io/mcconfig/telemt-admin:${{ github.ref_name }} \
+              --certificate-identity-regexp 'https://github.com/McConfig/telemt-admin/.*' \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com
+            ```
+
+            SBOM приложен к релизу файлом `sbom.spdx.json`.
+          files: sbom.spdx.json

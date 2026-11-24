@@ -8,6 +8,8 @@
 [![license](https://img.shields.io/github/license/McConfig/telemt-admin)](LICENSE)
 [![go](https://img.shields.io/github/go-mod/go-version/McConfig/telemt-admin)](go.mod)
 
+[История изменений](CHANGELOG.md) · [Политика безопасности](SECURITY.md)
+
 Веб-интерфейс для управления пользователями [telemt](https://github.com/telemt/telemt) —
 MTProto-прокси для Telegram. Работает через официальный
 [Control API](https://github.com/telemt/telemt/blob/main/docs/Architecture/API/API.md)
@@ -248,8 +250,9 @@ docker compose pull
 docker compose up -d
 ```
 
-Перед обновлением сделайте бэкап Valkey (см. ниже). Схема данных
-совместима: ключи `auth:*` и `audit:events` не меняются между версиями 0.x.
+Перед обновлением сделайте бэкап Valkey (см. ниже) и прочитайте
+[CHANGELOG.md](CHANGELOG.md). Схема данных совместима: ключи `auth:*` и
+`audit:events` не меняются между версиями 0.x.
 
 ## Пользователи админки
 
@@ -447,6 +450,9 @@ AOF лежит в том же томе `valkey_data`; для полного бэ
 `/data` целиком при остановленных контейнерах.
 
 ## Безопасность
+
+Как сообщить об уязвимости и какие версии поддерживаются — в
+[SECURITY.md](SECURITY.md).
 
 - пароли только в виде Argon2id-хэшей, минимум 12 символов;
 - cookie `HttpOnly`, `Secure`, `SameSite=Lax`;
