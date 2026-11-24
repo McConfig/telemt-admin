@@ -14,10 +14,10 @@ func TestMutationsAndReady(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls = append(calls, r.Method+" "+r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
-		switch {
-		case r.URL.Path == "/v1/capabilities":
+		switch r.URL.Path {
+		case "/v1/capabilities":
 			_, _ = w.Write([]byte(`{"ok":true,"data":{"version":"test"}}`))
-		case r.URL.Path == "/v1/users":
+		case "/v1/users":
 			_, _ = w.Write([]byte(`{"ok":true,"data":{"user":{"username":"alice","enabled":true}}}`))
 		default:
 			w.WriteHeader(http.StatusNoContent)
