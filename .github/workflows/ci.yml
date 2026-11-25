@@ -24,7 +24,7 @@ jobs:
         working-directory: frontend
       - run: npm run typecheck
         working-directory: frontend
-      - run: npm test
+      - run: npm run coverage
         working-directory: frontend
       - run: npm run build
         working-directory: frontend
@@ -47,6 +47,12 @@ jobs:
           name: coverage
           path: coverage.out
           retention-days: 1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: github.event_name == 'push'
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/coverage-summary.json
+          retention-days: 1
 
   coverage-badge:
     if: github.event_name == 'push'
@@ -58,12 +64,20 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: coverage
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: frontend-coverage
+          path: frontend
       - name: Опубликовать coverage.json в ветку badges
         run: |
           total=$(awk 'NR > 1 { stmts += $2; if ($3 > 0) covered += $2 } END { printf "%.1f", 100 * covered / stmts }' coverage.out)
           color=red
           awk -v t="$total" 'BEGIN { if (t >= 80) exit 0; exit 1 }' && color=brightgreen
           printf '{"schemaVersion":1,"label":"coverage","message":"%s%%","color":"%s"}\n' "$total" "$color" > coverage.json
+          frontend=$(python3 -c "import json; print('%.1f' % json.load(open('frontend/coverage-summary.json'))['total']['lines']['pct'])")
+          fcolor=red
+          awk -v t="$frontend" 'BEGIN { if (t >= 60) exit 0; exit 1 }' && fcolor=brightgreen
+          printf '{"schemaVersion":1,"label":"frontend coverage","message":"%s%%","color":"%s"}\n' "$frontend" "$fcolor" > frontend-coverage.json
           mv coverage.out /tmp/coverage.out
           git init -q
           git config user.name "github-actions[bot]"
@@ -71,8 +85,8 @@ jobs:
           git checkout -q --orphan badges
           git rm -rf . >/dev/null 2>&1 || true
           cp /tmp/coverage.out .
-          git add coverage.json
-          git commit -q -m "coverage: ${total}%"
+          git add coverage.json frontend-coverage.json
+          git commit -q -m "coverage: ${total}% backend, ${frontend}% frontend"
           git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:badges
 
   security:

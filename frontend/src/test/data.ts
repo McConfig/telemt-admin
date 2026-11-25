@@ -1,0 +1,80 @@
+import type { Me, ProxyUser, Summary } from '../api';
+
+export const me: Me = {
+  user: { name: 'admin', role: 'admin' },
+  csrf: 'csrf',
+};
+
+export const proxyUser: ProxyUser = {
+  username: 'main',
+  enabled: true,
+  inRuntime: true,
+  currentConnections: 9,
+  activeUniqueIps: 2,
+  activeIps: ['10.0.2.15', '5.129.63.108'],
+  totalOctets: 102238449,
+  ips24h: 2,
+  ips7d: 2,
+  new24h: 2,
+  maxToday: 2,
+  risk: 0,
+  trafficToday: 216932,
+  lastSeen: new Date().toISOString(),
+  maxUniqueIps: null,
+  maxTcpConns: null,
+  dataQuotaBytes: null,
+  quotaPeriod: null,
+  rateLimitUpBps: null,
+  rateLimitDownBps: null,
+  expiration: null,
+  sourceDeny: [],
+  note: 'тестовый клиент',
+  link: 'tg://proxy?server=example.com&port=8443&secret=ee00112233445566778899aabbccddeeff',
+  foreignIpsCurrent: 0,
+  foreignIps24h: 0,
+  countries24h: 1,
+  countries7d: 1,
+  newCountries24h: 0,
+  countries: ['Россия'],
+  countryCodes: ['RU'],
+  operators: ['Novotelecom Ltd'],
+  trustedCountries: [],
+  trustedIps: [],
+  ipHistory: [
+    {
+      ip: '5.129.63.108',
+      firstSeen: new Date(Date.now() - 3600_000).toISOString(),
+      lastSeen: new Date().toISOString(),
+      count: 30,
+      country: 'RU',
+      countryName: 'Россия',
+      asn: 31200,
+      asnOrg: 'Novotelecom Ltd',
+    },
+  ],
+};
+
+export const secondUser: ProxyUser = {
+  ...proxyUser,
+  username: 'chernyh',
+  enabled: false,
+  risk: 2,
+  foreignIpsCurrent: 1,
+  countries: ['Нидерланды'],
+  countryCodes: ['NL'],
+  operators: ['LeaseWeb'],
+  newCountries24h: 1,
+  ipHistory: [],
+};
+
+export const summary: Summary = {
+  users: 2,
+  enabled: 1,
+  riskHigh: 1,
+  riskWarn: 0,
+  foreignCurrent: 1,
+  newCountries: 1,
+  trafficToday: 217000,
+  collector: { up: true, lastSuccess: new Date().toISOString() },
+  geoip: { loaded: true, built: new Date().toISOString() },
+};
