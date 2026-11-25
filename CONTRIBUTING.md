@@ -21,6 +21,7 @@ Thanks for your interest in TeleMT Admin.
    ```bash
    go test ./...
    go vet ./...
+   go test -tags demo ./deploy/demo/... ./hack/gen-demo-geoip
    cd frontend && npm ci && npm run typecheck && npm run coverage
    cd frontend && npm run e2e
    ```

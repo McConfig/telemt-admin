@@ -6,6 +6,27 @@ Web interface for managing [telemt](https://github.com/telemt/telemt)
 MTProto proxy users. It talks to the official Control API and never stores
 proxy secrets.
 
+## Demo
+
+A self-contained demo runs the real `tgadmin` against a fake telemt Control
+API. No proxy, domain or real secret is needed: eight clients, eight days of
+history, countries, audit and limits are generated locally.
+
+```bash
+cd deploy/demo
+cp .env.example .env
+docker compose up -d --build
+docker compose --profile seed run --rm seed
+```
+
+Open <http://localhost:8090> and sign in as `demo` with password
+`demo-admin-password`. See [deploy/demo/README.md](deploy/demo/README.md) for
+details, screenshots and cleanup.
+
+| Clients | Client card |
+|---|---|
+| ![Client list](docs/screenshots/clients.png) | ![Client card](docs/screenshots/client.png) |
+
 ## Features
 
 - list proxy clients with connections, active IPs and traffic;
@@ -43,6 +64,7 @@ your networks.
 - [Dependencies](docs/DEPENDENCIES.md)
 - [Achievements](docs/ACHIEVEMENTS.md)
 - [Security assurance case](docs/ASSURANCE.md)
+- [Demo stack](deploy/demo/README.md)
 - [Changelog](CHANGELOG.md)
 
 ## Security
