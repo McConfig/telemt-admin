@@ -9,6 +9,20 @@ function isDirty(field: SettingField, value: unknown): boolean {
   return String(value ?? '') !== String(field.value ?? '');
 }
 
+const tabs = [
+  { id: 'risk', label: 'Риск', sections: ['risk'] },
+  { id: 'collect', label: 'Сбор и данные', sections: ['collect'] },
+  { id: 'links', label: 'Ссылки', sections: ['links'] },
+  { id: 'templates', label: 'Шаблоны', sections: [] },
+  { id: 'security', label: 'Безопасность', sections: ['security', 'interface', 'logging', 'notifications'] },
+  { id: 'backups', label: 'Бэкапы', sections: ['backups'] },
+  { id: 'system', label: 'Система', sections: [] },
+  { id: 'infrastructure', label: 'Инфраструктура', sections: ['infrastructure'] },
+  { id: 'history', label: 'История', sections: [] },
+] as const;
+
+type TabID = (typeof tabs)[number]['id'];
+
 function valueText(field: SettingField, value: unknown): string {
   if (value === undefined || value === null || value === '') return '—';
   if (field.kind === 'bool') return value ? 'да' : 'нет';
@@ -17,6 +31,7 @@ function valueText(field: SettingField, value: unknown): string {
 
 export default function SettingsPage() {
   const [catalog, setCatalog] = useState<SettingsCatalog | null>(null);
+  const [tab, setTab] = useState<TabID>('risk');
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const [reset, setReset] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +90,18 @@ export default function SettingsPage() {
     : [];
   const resetOnly = reset.filter((key) => !dirty.some((field) => field.key === key));
   const changesCount = dirty.filter((field) => !reset.includes(field.key)).length + resetOnly.length;
+
+  const activeTab = tabs.find((item) => item.id === tab) ?? tabs[0];
+  const dirtyKeys = new Set([...dirty.map((field) => field.key), ...resetOnly]);
+  const tabHasChanges = (id: TabID) => {
+    const item = tabs.find((entry) => entry.id === id);
+    if (!item || !catalog) return false;
+    return item.sections.some((sectionID) =>
+      catalog.sections
+        .find((section) => section.id === sectionID)
+        ?.settings.some((field) => dirtyKeys.has(field.key)),
+    );
+  };
 
   const save = async () => {
     if (!catalog) return;
@@ -229,25 +256,42 @@ export default function SettingsPage() {
       )}
       {saved && <Text color="positive">сохранено</Text>}
 
-      {catalog.sections.map((section) => (
-        <div className="stack" key={section.id}>
-          <Card view="filled" style={{ padding: 16 }}>
+      <div className="tabs">
+        {tabs.map((item) => (
+          <Button
+            key={item.id}
+            view={tab === item.id ? 'action' : 'flat'}
+            onClick={() => setTab(item.id)}
+          >
+            {item.label}
+            {tabHasChanges(item.id) ? ' ·' : ''}
+          </Button>
+        ))}
+      </div>
+
+      {activeTab.sections.map((sectionID) => {
+        const section = catalog.sections.find((item) => item.id === sectionID);
+        if (!section) return null;
+        return (
+          <Card view="filled" style={{ padding: 16 }} key={section.id}>
             <div className="stack">
               <Text variant="header-1">{section.title}</Text>
               <Text className="muted">{section.description}</Text>
               <div className="form-grid">{section.settings.map(renderField)}</div>
+              {section.id === 'collect' && (
+                <Text className="muted">
+                  Интервал применяется со следующего цикла. Увеличение retention не возвращает
+                  данные, которые уже удалены по старому сроку.
+                </Text>
+              )}
             </div>
           </Card>
-          {section.id === 'links' && <TemplatesPanel />}
-          {section.id === 'backups' && <BackupsPanel />}
-          {section.id === 'infrastructure' && (
-            <>
-              <SystemPanel />
-              <HistoryPanel />
-            </>
-          )}
-        </div>
-      ))}
+        );
+      })}
+      {tab === 'templates' && <TemplatesPanel />}
+      {tab === 'backups' && <BackupsPanel />}
+      {tab === 'system' && <SystemPanel />}
+      {tab === 'history' && <HistoryPanel />}
 
       <div className="settings-save">
         <Text className="muted">

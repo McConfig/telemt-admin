@@ -97,8 +97,11 @@ describe('SettingsPage', () => {
     renderSettings();
     expect(await screen.findByText('Настройки')).toBeInTheDocument();
     expect(screen.getByText('задан')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Безопасность' }));
     expect(screen.getByText('1.4.0')).toBeInTheDocument();
     expect(screen.getByDisplayValue('10')).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Риск' }));
 
     const warn = screen.getByPlaceholderText('по умолчанию: 3');
     await userEvent.clear(warn);

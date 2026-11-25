@@ -77,19 +77,44 @@ func New(st *store.Store, tc *telemt.Client, geo *geoip.Resolver, interval time.
 	}
 }
 
-// Run собирает данные до отмены контекста.
+// Run собирает данные до отмены контекста. Интервал перечитывается не
+// реже раза в 10 секунд, поэтому изменение на странице «Настройки»
+// применяется без перезапуска.
 func (c *Collector) Run(ctx context.Context) {
 	c.collect(ctx)
-	ticker := time.NewTicker(c.interval)
-	defer ticker.Stop()
+	last := time.Now()
 	for {
+		interval := c.currentInterval(ctx)
+		wait := interval - time.Since(last)
+		if wait <= 0 {
+			wait = time.Millisecond
+		}
+		if interval > 10*time.Second && wait > 10*time.Second {
+			wait = 10 * time.Second
+		}
+		timer := time.NewTimer(wait)
 		select {
 		case <-ctx.Done():
+			timer.Stop()
 			return
-		case <-ticker.C:
+		case <-timer.C:
+		}
+		if time.Since(last) >= interval {
 			c.collect(ctx)
+			last = time.Now()
 		}
 	}
+}
+
+func (c *Collector) currentInterval(ctx context.Context) time.Duration {
+	interval := c.interval
+	if c.svc != nil {
+		interval = c.svc.CollectInterval(ctx)
+	}
+	if interval <= 0 {
+		interval = time.Minute
+	}
+	return interval
 }
 
 // SetSettings подключает источник глобальных настроек. Значения
