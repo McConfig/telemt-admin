@@ -2,17 +2,19 @@ name: codeql
 on:
   push:
     branches: [main]
+  pull_request:
   schedule:
     - cron: "0 4 * * 1"
 
-permissions:
-  security-events: write
-  actions: read
-  contents: read
+permissions: {}
 
 jobs:
   analyze:
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
     strategy:
       fail-fast: false
       matrix:
