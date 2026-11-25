@@ -98,7 +98,7 @@ func seedCoverageData(t *testing.T, s *Server) {
 		t.Fatal(err)
 	}
 	_ = s.store.SetNote(context.Background(), "main", "телефон")
-	_ = s.store.SaveGeoStats(context.Background(), "main", 1, []string{"NL"}, []string{"Нидерланды"})
+	_ = s.store.SaveGeoStats(context.Background(), "main", 1, []string{"NL"}, []string{"Нидерланды"}, []string{"LeaseWeb"})
 	_ = s.store.SetTrusted(context.Background(), "main", store.Trusted{Countries: []string{"NL"}, IPs: []string{"192.0.2.10"}})
 }
 

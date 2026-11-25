@@ -18,6 +18,7 @@ export default function UsersPage({ me }: { me: Me }) {
   const [onlyRisk, setOnlyRisk] = useState(false);
   const [onlyForeign, setOnlyForeign] = useState(false);
   const [onlyNewCountry, setOnlyNewCountry] = useState(false);
+  const [sort, setSort] = useState('name');
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const isMobile = useMedia('(max-width: 760px)');
@@ -45,17 +46,41 @@ export default function UsersPage({ me }: { me: Me }) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return users.filter((u) => {
-      if (q && !u.username.toLowerCase().includes(q)) return false;
+    const list = users.filter((u) => {
+      if (q) {
+        const haystack = [
+          u.username,
+          ...(u.countries ?? []),
+          ...(u.countryCodes ?? []),
+          ...(u.operators ?? []),
+        ]
+          .join(' ')
+          .toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
       if (onlyRisk && u.risk === 0) return false;
       if (onlyForeign && u.foreignIpsCurrent === 0) return false;
       if (onlyNewCountry && u.newCountries24h === 0) return false;
       return true;
     });
-  }, [users, query, onlyRisk, onlyForeign, onlyNewCountry]);
+    return list.sort((a, b) => {
+      switch (sort) {
+        case 'traffic':
+          return b.totalOctets - a.totalOctets;
+        case 'ips':
+          return b.activeUniqueIps - a.activeUniqueIps;
+        case 'risk':
+          return b.risk - a.risk || b.foreignIpsCurrent - a.foreignIpsCurrent;
+        case 'last':
+          return (b.lastSeen ?? '').localeCompare(a.lastSeen ?? '');
+        default:
+          return a.username.localeCompare(b.username);
+      }
+    });
+  }, [users, query, onlyRisk, onlyForeign, onlyNewCountry, sort]);
   useEffect(() => {
     setPage(1);
-  }, [query, onlyRisk, onlyForeign, onlyNewCountry]);
+  }, [query, onlyRisk, onlyForeign, onlyNewCountry, sort]);
   const pageSize = 20;
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const shown = useMemo(
@@ -271,7 +296,18 @@ export default function UsersPage({ me }: { me: Me }) {
         </>
       )}
       <div className="row">
-        <TextInput placeholder="Поиск по имени" value={query} onUpdate={setQuery} />
+        <TextInput
+          placeholder="Поиск по имени, стране, оператору"
+          value={query}
+          onUpdate={setQuery}
+        />
+        <select className="select" value={sort} onChange={(e) => setSort(e.target.value)}>
+          <option value="name">по имени</option>
+          <option value="traffic">по трафику</option>
+          <option value="ips">по активным IP</option>
+          <option value="risk">по риску</option>
+          <option value="last">по активности</option>
+        </select>
         <label>
           <input type="checkbox" checked={onlyRisk} onChange={(e) => setOnlyRisk(e.target.checked)} /> только
           подозрительные

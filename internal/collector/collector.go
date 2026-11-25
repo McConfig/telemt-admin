@@ -129,6 +129,7 @@ func (c *Collector) collect(ctx context.Context) {
 			}
 		}
 		seenCountry := map[string]string{}
+		seenOperator := map[string]bool{}
 		snap := Snapshot{
 			User: u.Username, Current: int64(len(ips)),
 			Distinct24h: stats.Distinct24h, Distinct7d: stats.Distinct7d,
@@ -153,6 +154,9 @@ func (c *Collector) collect(ctx context.Context) {
 			if info.Country != "" {
 				seenCountry[info.Country] = info.CountryName
 			}
+			if info.ASNOrg != "" {
+				seenOperator[info.ASNOrg] = true
+			}
 		}
 		for code, name := range seenCountry {
 			snap.CountryCodes = append(snap.CountryCodes, code)
@@ -160,7 +164,12 @@ func (c *Collector) collect(ctx context.Context) {
 		}
 		sort.Strings(snap.CountryCodes)
 		sort.Strings(snap.Countries)
-		if err := c.st.SaveGeoStats(ctx, u.Username, snap.ForeignCurrent, snap.CountryCodes, snap.Countries); err != nil {
+		operators := make([]string, 0, len(seenOperator))
+		for name := range seenOperator {
+			operators = append(operators, name)
+		}
+		sort.Strings(operators)
+		if err := c.st.SaveGeoStats(ctx, u.Username, snap.ForeignCurrent, snap.CountryCodes, snap.Countries, operators); err != nil {
 			slog.Warn("запись GeoIP-агрегатов", "user", u.Username, "err", err)
 		}
 		next[u.Username] = snap

@@ -67,6 +67,7 @@ type apiUser struct {
 	TrustedIPs         []string `json:"trustedIps"`
 	Countries          []string `json:"countries,omitempty"`
 	CountryCodes       []string `json:"countryCodes,omitempty"`
+	Operators          []string `json:"operators,omitempty"`
 }
 
 func (s *Server) apiUserView(r *http.Request, u telemt.User) apiUser {
@@ -95,6 +96,7 @@ func (s *Server) apiUserView(r *http.Request, u telemt.User) apiUser {
 		out.ForeignIPsCurrent = geo.ForeignCurrent
 		out.Countries = geo.Countries
 		out.CountryCodes = geo.CountryCodes
+		out.Operators = geo.Operators
 	}
 	trusted, err := s.store.GetTrusted(r.Context(), u.Username)
 	if err == nil {

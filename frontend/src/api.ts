@@ -80,6 +80,7 @@ export interface ProxyUser {
   newCountries24h: number;
   countries?: string[];
   countryCodes?: string[];
+  operators?: string[];
   trustedCountries: string[];
   trustedIps: string[];
 }
