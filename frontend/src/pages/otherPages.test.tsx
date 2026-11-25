@@ -1,6 +1,6 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import AccountPage from './AccountPage';
 import AdminsPage from './AdminsPage';
 import AuditPage from './AuditPage';

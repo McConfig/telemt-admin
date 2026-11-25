@@ -51,7 +51,7 @@ describe('UserPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Лимиты' }));
     expect(screen.getByText('Квота трафика')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Аудит', exact: true }));
+    await userEvent.click(screen.getByRole('button', { name: 'Аудит' }));
     expect(await screen.findByText('Аудит клиента')).toBeInTheDocument();
   });
 
