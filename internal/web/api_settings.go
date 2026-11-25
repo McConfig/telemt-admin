@@ -271,6 +271,25 @@ func (s *Server) apiSystem(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+func (s *Server) apiWebhookTest(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdminAPI(w, r) {
+		return
+	}
+	if s.notifier == nil {
+		writeError(w, http.StatusServiceUnavailable, "webhook_unavailable", "вебхуки не подключены")
+		return
+	}
+	status, err := s.notifier.SendNow(r.Context(), "test", map[string]any{
+		"message": "проверка вебхука TeleMT Admin",
+	})
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "webhook_error", err.Error())
+		return
+	}
+	s.audit(r, "settings.webhook.test", "webhook", "ok")
+	writeJSON(w, http.StatusOK, map[string]any{"sent": true, "status": status})
+}
+
 func (s *Server) apiSettingsHistory(w http.ResponseWriter, r *http.Request) {
 	if !s.requireAdminAPI(w, r) {
 		return

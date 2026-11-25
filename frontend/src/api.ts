@@ -481,6 +481,8 @@ export const api = {
   backups: () => request<BackupStatus>('GET', '/api/settings/backups'),
   backupSnapshot: () =>
     request<{ started: boolean }>('POST', '/api/settings/backups/snapshot'),
+  webhookTest: () =>
+    request<{ sent: boolean; status: number }>('POST', '/api/settings/webhook/test'),
   system: () => request<SettingsSystem>('GET', '/api/settings/system'),
   settingsHistory: () => request<SettingsHistoryItem[]>('GET', '/api/settings/history'),
   setRisk: (name: string, body: RiskThresholds) =>

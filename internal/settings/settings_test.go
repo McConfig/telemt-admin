@@ -6,6 +6,8 @@ import (
 	"errors"
 	"net/netip"
 	"net/url"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -36,7 +38,9 @@ func testService(t *testing.T) (*Service, *store.Store) {
 		AllowedCIDRs: []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")},
 		GeoIPCity:    "/opt/geoip/city.mmdb", GeoIPASN: "/opt/geoip/asn.mmdb",
 		ValkeyURL: "redis://valkey:6379/0", TelemtURL: "http://telemt:9091",
-		TOTPKey: []byte("0123456789abcdef0123456789abcdef"),
+		TOTPKey:        []byte("0123456789abcdef0123456789abcdef"),
+		BackupSchedule: "04:30", BackupKeepDays: 14, BackupRestoreTest: true,
+		BackupConfig: filepath.Join(t.TempDir(), "backup.json"),
 	}
 	svc := New(cfg, st)
 	if err := svc.Load(context.Background()); err != nil {
@@ -75,8 +79,11 @@ func TestCatalogStatusesAndSecrets(t *testing.T) {
 	if statuses["security.require_2fa"] != Active {
 		t.Fatalf("security.require_2fa: %s", statuses["security.require_2fa"])
 	}
-	if statuses["notifications.webhook_url"] != Planned {
+	if statuses["notifications.webhook_url"] != Active {
 		t.Fatalf("notifications.webhook_url: %s", statuses["notifications.webhook_url"])
+	}
+	if statuses["backup.offsite"] != Planned {
+		t.Fatalf("backup.offsite: %s", statuses["backup.offsite"])
 	}
 	if statuses["network.allowed_cidrs"] != Readonly {
 		t.Fatalf("network.allowed_cidrs: %s", statuses["network.allowed_cidrs"])
@@ -290,4 +297,60 @@ func TestRequire2FAState(t *testing.T) {
 	if _, ok, _ := st.Require2FASince(ctx); ok {
 		t.Fatal("отметка включения должна быть удалена")
 	}
+}
+
+func TestWebhookAndBackupSettings(t *testing.T) {
+	svc, _ := testService(t)
+	ctx := context.Background()
+	if _, _, err := svc.Save(ctx, 0, map[string]json.RawMessage{
+		"notifications.webhook_url":    raw("https://example.com/hook"),
+		"notifications.webhook_secret": raw("topsecret"),
+		"notifications.events":         raw("user.create,user.delete"),
+		"backup.schedule":              raw("05:15"),
+		"backup.keep_days":             raw(30),
+		"backup.restore_test":          raw(false),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+	url, secret, events, enabled := svc.Webhook(ctx)
+	if !enabled || url != "https://example.com/hook" || secret != "topsecret" {
+		t.Fatalf("webhook: %s %s %v", url, secret, events)
+	}
+	if len(events) != 2 || events[0] != "user.create" || events[1] != "user.delete" {
+		t.Fatalf("events: %v", events)
+	}
+	schedule, keep, restore := svc.BackupPolicy(ctx)
+	if schedule != "05:15" || keep != 30 || restore {
+		t.Fatalf("backup: %s %d %v", schedule, keep, restore)
+	}
+	rawFile, err := os.ReadFile(svc.cfg.BackupConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var written backupPolicyFile
+	if err := json.Unmarshal(rawFile, &written); err != nil {
+		t.Fatal(err)
+	}
+	if written.Schedule != "05:15" || written.KeepDays != 30 || written.RestoreTest {
+		t.Fatalf("файл: %+v", written)
+	}
+
+	cat := svc.Catalog(ctx)
+	secretField := settingsFieldByKey(t, cat, "notifications.webhook_secret")
+	if secretField.Value != nil || !secretField.SecretSet || secretField.Source != "settings" {
+		t.Fatalf("секрет в каталоге: %+v", secretField)
+	}
+}
+
+func settingsFieldByKey(t *testing.T, cat Catalog, key string) Field {
+	t.Helper()
+	for _, section := range cat.Sections {
+		for _, field := range section.Settings {
+			if field.Key == key {
+				return field
+			}
+		}
+	}
+	t.Fatalf("поле %s не найдено", key)
+	return Field{}
 }

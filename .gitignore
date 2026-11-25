@@ -25,3 +25,5 @@ frontend/test-results/
 coverage.out
 
 frontend/coverage/
+
+/deploy/backup-config/

@@ -161,6 +161,12 @@ func (s *Server) audit(r *http.Request, action, target, result string) {
 	_ = s.store.Audit(r.Context(), store.AuditEvent{
 		Actor: actor, Action: action, Target: target, Result: result, IP: addr.String(),
 	})
+	if s.notifier != nil {
+		s.notifier.Emit(r.Context(), action, map[string]any{
+			"actor": actor, "target": target, "result": result,
+			"ip": addr.String(), "at": time.Now().UTC().Format(time.RFC3339),
+		})
+	}
 }
 
 func decodeJSON(r *http.Request, v any) error {

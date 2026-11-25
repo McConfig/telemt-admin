@@ -33,8 +33,18 @@
 `TGADMIN_TOTP_PENDING_TTL=5m`, `TGADMIN_TOTP_MAX_ATTEMPTS=5`,
 `TGADMIN_AUDIT_MAX_EVENTS=10000`, `TGADMIN_PASSWORD_MIN_LENGTH=12`,
 `TGADMIN_DEFAULT_CHART_DAYS=30`, `TGADMIN_LOG_LEVEL=info`,
-`TGADMIN_REQUIRE_2FA=false`, `TGADMIN_REQUIRE_2FA_GRACE_DAYS=7`. Их можно
-переопределить на странице «Настройки»; поведение по умолчанию не меняется.
+`TGADMIN_REQUIRE_2FA=false`, `TGADMIN_REQUIRE_2FA_GRACE_DAYS=7`,
+`TGADMIN_WEBHOOK_URL`, `TGADMIN_WEBHOOK_SECRET`, `TGADMIN_WEBHOOK_EVENTS`,
+`TGADMIN_BACKUP_SCHEDULE=04:30`, `TGADMIN_BACKUP_KEEP_DAYS=14`,
+`TGADMIN_BACKUP_RESTORE_TEST=true`, `TGADMIN_BACKUP_CONFIG` и
+`TGADMIN_BACKUP_STATUS`. Их можно переопределить на странице «Настройки»;
+поведение по умолчанию не меняется.
+
+Для расписания бэкапов смонтируйте каталог `backup-config` в контейнер и
+задайте `TGADMIN_BACKUP_CONFIG` и `TGADMIN_BACKUP_STATUS`. Приложение
+пишет JSON, хостовый скрипт читает его и запускается каждые 5 минут.
+Если каталог не смонтирован, настройки сохраняются в Valkey, но хостовый
+скрипт их не увидит.
 
 При включении обязательной 2FA фиксируется момент включения в
 `security:require_2fa_since`. Администраторы без 2FA видят предупреждение с

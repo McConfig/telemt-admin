@@ -7,7 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
+	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -113,7 +117,11 @@ type ValidationError struct {
 
 func (e *ValidationError) Error() string { return e.Message }
 
-var countryRe = regexp.MustCompile(`^[A-Z]{2}$`)
+var (
+	countryRe  = regexp.MustCompile(`^[A-Z]{2}$`)
+	eventRe    = regexp.MustCompile(`^[a-z0-9._:-]+$`)
+	scheduleRe = regexp.MustCompile(`^([01][0-9]|2[0-3]):[0-5][05]$`)
+)
 
 var sectionDefs = []Section{
 	{ID: "risk", Title: "Риск", Description: "Глобальные пороги и домашняя страна"},
@@ -223,8 +231,18 @@ func (s *Service) catalogLocked() Catalog {
 			}
 			if d.Secret {
 				field.Value = nil
-				field.SecretSet = secretPresent(d.Default)
-				field.Source = "env"
+				if d.Status == Active {
+					if raw, ok := s.override[d.Key]; ok && raw != "" {
+						field.SecretSet = true
+						field.Source = "settings"
+					} else {
+						field.SecretSet = secretPresent(d.Default)
+						field.Source = "env"
+					}
+				} else {
+					field.SecretSet = secretPresent(d.Default)
+					field.Source = "env"
+				}
 			}
 			section.Settings = append(section.Settings, field)
 		}
@@ -392,6 +410,11 @@ func (s *Service) Save(
 			}
 		} else {
 			_ = s.st.ClearRequire2FASince(ctx)
+		}
+	}
+	if touched("backup.schedule") || touched("backup.keep_days") || touched("backup.restore_test") {
+		if err := s.writeBackupConfig(ctx); err != nil {
+			slog.Warn("конфиг бэкапов не записан", "err", err)
 		}
 	}
 
@@ -604,6 +627,31 @@ func (s *Service) Require2FA(ctx context.Context) (bool, time.Time, int) {
 	return true, deadline, left
 }
 
+// Webhook возвращает настройки доставки событий.
+func (s *Service) Webhook(ctx context.Context) (url, secret string, events []string, enabled bool) {
+	s.ensure(ctx)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	url = s.stringValue("notifications.webhook_url")
+	secret = s.stringValue("notifications.webhook_secret")
+	raw := s.stringValue("notifications.events")
+	for _, item := range strings.FieldsFunc(raw, func(r rune) bool { return r == ',' || r == ' ' }) {
+		item = strings.TrimSpace(item)
+		if item != "" {
+			events = append(events, item)
+		}
+	}
+	return url, secret, events, url != ""
+}
+
+// BackupPolicy возвращает расписание и параметры снимков.
+func (s *Service) BackupPolicy(ctx context.Context) (schedule string, keepDays int, restoreTest bool) {
+	s.ensure(ctx)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.stringValue("backup.schedule"), s.intValue("backup.keep_days"), s.boolValue("backup.restore_test")
+}
+
 // IsActive сообщает, можно ли менять ключ.
 func (s *Service) IsActive(key string) bool {
 	d, ok := s.by[key]
@@ -763,12 +811,36 @@ func (s *Service) build() {
 		add(Definition{Key: key, Section: section, Title: title, Description: desc,
 			Kind: kind, Status: Planned, PlannedRelease: release, Default: def})
 	}
-	planned("notifications.webhook_url", "notifications", "URL вебхука", "Доставка событий во внешнюю систему", KindString, "1.5.0", "")
-	planned("notifications.webhook_secret", "notifications", "Секрет вебхука", "HMAC-подпись запросов", KindString, "1.5.0", "")
-	planned("notifications.events", "notifications", "События", "Какие события отправлять", KindString, "1.5.0", "")
-	planned("backup.schedule", "backups", "Расписание", "Сейчас 04:30 на хосте", KindString, "1.5.0", "04:30")
-	planned("backup.keep_days", "backups", "Срок хранения снимков", "Сейчас 14 дней на хосте", KindInt, "1.5.0", 14)
-	planned("backup.restore_test", "backups", "Проверка восстановления", "Сейчас включена на хосте", KindBool, "1.5.0", true)
+	add(Definition{
+		Key: "notifications.webhook_url", Section: "notifications", Title: "URL вебхука",
+		Description: "Куда отправлять события; пусто — выключено", Kind: KindString,
+		Status: Active, Default: cfg.WebhookURL,
+	})
+	add(Definition{
+		Key: "notifications.webhook_secret", Section: "notifications", Title: "Секрет вебхука",
+		Description: "HMAC-SHA256 для заголовка X-TeleMT-Signature", Kind: KindString,
+		Status: Active, Secret: true, Default: cfg.WebhookSecret,
+	})
+	add(Definition{
+		Key: "notifications.events", Section: "notifications", Title: "События",
+		Description: "Список событий через запятую; имена совпадают с аудитом", Kind: KindString,
+		Status: Active, Default: cfg.WebhookEvents,
+	})
+	add(Definition{
+		Key: "backup.schedule", Section: "backups", Title: "Расписание",
+		Description: "Время ежедневного снимка, ЧЧ:ММ", Kind: KindString,
+		Status: Active, Default: cfg.BackupSchedule,
+	})
+	add(Definition{
+		Key: "backup.keep_days", Section: "backups", Title: "Срок хранения снимков",
+		Description: "Сколько дней хранить снимки", Kind: KindInt,
+		Status: Active, Default: cfg.BackupKeepDays, Min: intp(1), Max: intp(365),
+	})
+	add(Definition{
+		Key: "backup.restore_test", Section: "backups", Title: "Проверка восстановления",
+		Description: "Поднимать временный Valkey и проверять DBSIZE", Kind: KindBool,
+		Status: Active, Default: cfg.BackupRestoreTest,
+	})
 	planned("backup.offsite", "backups", "Копия вне хоста", "Копии вне хоста пока нет", KindBool, "1.6.0", false)
 
 	readonly := func(key, section, title, desc string, kind Kind, value any) {
@@ -865,10 +937,30 @@ func parseRaw(d Definition, raw json.RawMessage) (string, any, error) {
 			return "", nil, errors.New("нужна строка")
 		}
 		s = strings.TrimSpace(s)
-		if d.Key == "risk.home_country" {
+		switch d.Key {
+		case "risk.home_country":
 			s = strings.ToUpper(s)
 			if !countryRe.MatchString(s) {
 				return "", nil, errors.New("нужен код страны из двух букв")
+			}
+		case "notifications.webhook_url":
+			if s != "" {
+				u, err := url.Parse(s)
+				if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+					return "", nil, errors.New("нужен http(s) URL")
+				}
+			}
+		case "notifications.events":
+			if s != "" {
+				for _, item := range strings.FieldsFunc(s, func(r rune) bool { return r == ',' || r == ' ' }) {
+					if !eventRe.MatchString(item) {
+						return "", nil, fmt.Errorf("некорректное событие: %s", item)
+					}
+				}
+			}
+		case "backup.schedule":
+			if !scheduleRe.MatchString(s) {
+				return "", nil, errors.New("время в формате ЧЧ:ММ")
 			}
 		}
 		return s, s, nil
@@ -910,4 +1002,31 @@ func canonicalValue(d Definition, value any) (string, bool) {
 		return "", false
 	}
 	return canonicalString(d, value), true
+}
+
+type backupPolicyFile struct {
+	Schedule    string `json:"schedule"`
+	KeepDays    int    `json:"keepDays"`
+	RestoreTest bool   `json:"restoreTest"`
+}
+
+func (s *Service) writeBackupConfig(ctx context.Context) error {
+	if s.cfg.BackupConfig == "" {
+		return nil
+	}
+	schedule, keepDays, restoreTest := s.BackupPolicy(ctx)
+	data, err := json.Marshal(backupPolicyFile{Schedule: schedule, KeepDays: keepDays, RestoreTest: restoreTest})
+	if err != nil {
+		return err
+	}
+	// Каталог общий с хостовым скриптом бэкапов: владелец — пользователь
+	// контейнера, группа — mcconfig. Секретов в файле нет.
+	if err := os.MkdirAll(filepath.Dir(s.cfg.BackupConfig), 0o770); err != nil { // #nosec G301 -- общий каталог с хостом.
+		return err
+	}
+	tmp := s.cfg.BackupConfig + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o640); err != nil { // #nosec G306 -- конфиг без секретов, читает хост.
+		return err
+	}
+	return os.Rename(tmp, s.cfg.BackupConfig)
 }

@@ -244,6 +244,7 @@ observations, new, trusted`.
 | PUT | `/api/settings/templates/{name}` | заменить шаблон |
 | DELETE | `/api/settings/templates/{name}` | удалить шаблон |
 | PUT | `/api/settings/templates/default` | `{"name":"..."}` |
+| POST | `/api/settings/webhook/test` | отправить тестовое событие |
 | GET | `/api/settings/backups` | статус Valkey и хоста |
 | POST | `/api/settings/backups/snapshot` | запустить `BGSAVE` |
 | GET | `/api/settings/system` | версия, uptime, сборщик, GeoIP, Valkey |
@@ -314,6 +315,29 @@ observations, new, trusted`.
 `POST /api/settings/backups/snapshot` запускает `BGSAVE` и возвращает
 `202`. Копирование, сжатие, ротация и тест восстановления остаются на
 хосте.
+
+Настройки `backup.schedule`, `backup.keep_days` и `backup.restore_test`
+при сохранении атомарно пишутся в файл `TGADMIN_BACKUP_CONFIG`:
+
+```json
+{"schedule":"04:30","keepDays":14,"restoreTest":true}
+```
+
+Хостовый скрипт читает файл и выполняет снимок по расписанию. После успеха
+он пишет `TGADMIN_BACKUP_STATUS`, который показывается в панели «Бэкапы».
+
+### Вебхуки
+
+`POST /api/settings/webhook/test` отправляет событие `test` по настроенному
+URL и возвращает `{"sent":true,"status":204}`. Ошибка доставки — `502`.
+События аудита отправляются с заголовками `X-TeleMT-Event`,
+`X-TeleMT-Delivery`, `X-TeleMT-Timestamp` и `X-TeleMT-Signature`.
+Подпись — HMAC-SHA256 от `<timestamp>.<body>`.
+
+Активные настройки: `notifications.webhook_url`,
+`notifications.webhook_secret`, `notifications.events`. Секрет никогда не
+возвращается в каталоге, только `secretSet`. `*` в списке событий включает
+все.
 
 ## Пользователи UI
 

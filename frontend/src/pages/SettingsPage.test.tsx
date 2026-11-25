@@ -69,18 +69,47 @@ const catalog = {
       ],
     },
     {
+      id: 'notifications',
+      title: 'Уведомления',
+      description: 'Вебхуки',
+      settings: [
+        {
+          key: 'notifications.webhook_url',
+          title: 'URL вебхука',
+          description: 'Куда отправлять события',
+          kind: 'string',
+          status: 'active',
+          value: '',
+          default: '',
+          source: 'env',
+        },
+        {
+          key: 'notifications.webhook_secret',
+          title: 'Секрет вебхука',
+          description: 'HMAC-подпись',
+          kind: 'string',
+          status: 'active',
+          secret: true,
+          secretSet: false,
+          value: null,
+          default: null,
+          source: 'env',
+        },
+      ],
+    },
+    {
       id: 'security',
       title: 'Безопасность',
       description: 'Входы',
       settings: [
         {
-          key: 'notifications.webhook_url',
-          title: 'URL вебхука',
-          description: 'Доставка событий',
-          kind: 'string',
+          key: 'backup.offsite',
+          title: 'Копия вне хоста',
+          description: 'Копии вне хоста пока нет',
+          kind: 'bool',
           status: 'planned',
-          plannedRelease: '1.5.0',
-          default: '',
+          plannedRelease: '1.6.0',
+          default: false,
         },
       ],
     },
@@ -88,7 +117,10 @@ const catalog = {
 };
 
 function renderSettings() {
-  stubFetch({ '/api/settings': catalog });
+  stubFetch({
+    '/api/settings': catalog,
+    '/api/settings/webhook/test': { sent: true, status: 204 },
+  });
   renderUI(<SettingsPage />);
 }
 
@@ -99,8 +131,8 @@ describe('SettingsPage', () => {
     expect(screen.getByText('задан')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Безопасность' }));
-    expect(screen.getByText('1.5.0')).toBeInTheDocument();
-    expect(screen.getByText('Доставка событий')).toBeInTheDocument();
+    expect(screen.getByText('1.6.0')).toBeInTheDocument();
+    expect(screen.getByText('Копии вне хоста пока нет')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Риск' }));
 
     const warn = screen.getByPlaceholderText('по умолчанию: 3');
@@ -119,6 +151,15 @@ describe('SettingsPage', () => {
       version: 0,
       values: { 'risk.warn_ips': 4 },
     });
+  });
+
+  it('проверяет вебхук и показывает секрет как заданный/пустой', async () => {
+    renderSettings();
+    await screen.findByText('Настройки');
+    await userEvent.click(screen.getByRole('button', { name: 'Безопасность' }));
+    expect(screen.getByPlaceholderText('не задан')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Проверить вебхук' }));
+    expect(await screen.findByText('Отправлено, статус 204')).toBeInTheDocument();
   });
 
   it('сбрасывает изменённое поле к значению по умолчанию', async () => {

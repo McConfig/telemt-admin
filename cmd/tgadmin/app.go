@@ -14,6 +14,7 @@ import (
 	"github.com/McConfig/telemt-admin/internal/store"
 	"github.com/McConfig/telemt-admin/internal/telemt"
 	"github.com/McConfig/telemt-admin/internal/web"
+	"github.com/McConfig/telemt-admin/internal/webhook"
 )
 
 // newHandler собирает рабочее приложение: Valkey, клиент telemt, HTTP-слой.
@@ -48,6 +49,8 @@ func newHandler(ctx context.Context, cfg *config.Config) (http.Handler, func() e
 		int64(cfg.RiskIPsWarn), int64(cfg.RiskIPsHigh), int64(cfg.RiskDistinct7d))
 	col.SetSettings(svc)
 	go col.Run(ctx)
+	notifier := webhook.New(svc)
+	go notifier.Run(ctx)
 	metrics := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		col.ServeHTTP(w, r)
 		web.WriteHTTPMetrics(w)
@@ -58,5 +61,6 @@ func newHandler(ctx context.Context, cfg *config.Config) (http.Handler, func() e
 	}
 	handler := web.New(cfg, st, tc, metrics)
 	handler.SetCollectorStatus(col.Status)
+	handler.SetNotifier(notifier)
 	return handler.Handler(), closeFn, nil
 }

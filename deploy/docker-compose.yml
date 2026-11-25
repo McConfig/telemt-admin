@@ -25,7 +25,9 @@ services:
     restart: unless-stopped
     env_file: .env
     depends_on: [valkey, telemt]
-    volumes: ["./geoip:/opt/geoip:ro"]
+    volumes:
+      - ./geoip:/opt/geoip:ro
+      - ./backup-config:/opt/telemt-admin/backup
     ports: ["8090:8090"]
     read_only: true
     tmpfs: ["/tmp"]
