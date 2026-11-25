@@ -18,7 +18,7 @@ export default function UsersPage({ me }: { me: Me }) {
   const [onlyRisk, setOnlyRisk] = useState(false);
   const [onlyForeign, setOnlyForeign] = useState(false);
   const [onlyNewCountry, setOnlyNewCountry] = useState(false);
-  const [sort, setSort] = useState('name');
+  const [sorting, setSorting] = useState<{ id: string; desc: boolean }[]>([]);
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const isMobile = useMedia('(max-width: 760px)');
@@ -63,30 +63,55 @@ export default function UsersPage({ me }: { me: Me }) {
       if (onlyNewCountry && u.newCountries24h === 0) return false;
       return true;
     });
-    return list.sort((a, b) => {
-      switch (sort) {
-        case 'traffic':
-          return b.totalOctets - a.totalOctets;
-        case 'ips':
-          return b.activeUniqueIps - a.activeUniqueIps;
-        case 'risk':
-          return b.risk - a.risk || b.foreignIpsCurrent - a.foreignIpsCurrent;
-        case 'last':
-          return (b.lastSeen ?? '').localeCompare(a.lastSeen ?? '');
-        default:
-          return a.username.localeCompare(b.username);
+    if (sorting.length === 0) return list;
+    return [...list].sort((a, b) => {
+      for (const rule of sorting) {
+        const cmp = compareUsers(a, b, rule.id);
+        if (cmp !== 0) return rule.desc ? -cmp : cmp;
       }
+      return 0;
     });
-  }, [users, query, onlyRisk, onlyForeign, onlyNewCountry, sort]);
+  }, [users, query, onlyRisk, onlyForeign, onlyNewCountry, sorting]);
   useEffect(() => {
     setPage(1);
-  }, [query, onlyRisk, onlyForeign, onlyNewCountry, sort]);
+  }, [query, onlyRisk, onlyForeign, onlyNewCountry, sorting]);
   const pageSize = 20;
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const shown = useMemo(
     () => filtered.slice((page - 1) * pageSize, page * pageSize),
     [filtered, page],
   );
+
+  const toggleSort = (id: string) => {
+    setSorting((prev) => {
+      const index = prev.findIndex((item) => item.id === id);
+      if (index === -1) return [...prev, { id, desc: false }];
+      if (!prev[index].desc) {
+        return prev.map((item, i) => (i === index ? { ...item, desc: true } : item));
+      }
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+  const sortHeader = (id: string, label: string) => {
+    const index = sorting.findIndex((item) => item.id === id);
+    const active = index !== -1;
+    return (
+      <button
+        type="button"
+        className={`th-sort${active ? ' th-sort-active' : ''}`}
+        onClick={() => toggleSort(id)}
+        title="Сортировать: по возрастанию, по убыванию, выключить"
+      >
+        <span>{label}</span>
+        {active && (
+          <span className="th-sort-mark">
+            {sorting[index].desc ? '↓' : '↑'}
+            {sorting.length > 1 ? index + 1 : ''}
+          </span>
+        )}
+      </button>
+    );
+  };
 
   const isAdmin = me.user.role === 'admin';
   const shownNames = shown.map((u) => u.username);
@@ -159,7 +184,7 @@ export default function UsersPage({ me }: { me: Me }) {
     },
     {
       id: 'username',
-      header: 'Имя',
+      header: () => sortHeader('username', 'Имя'),
       cell: ({ row }) => (
         <Link to={`/users/${encodeURIComponent(row.original.username)}`}>{row.original.username}</Link>
       ),
@@ -173,10 +198,10 @@ export default function UsersPage({ me }: { me: Me }) {
         </Label>
       ),
     },
-    { id: 'ips', header: 'Активные IP', cell: ({ row }) => row.original.activeUniqueIps },
+    { id: 'ips', header: () => sortHeader('ips', 'Активные IP'), cell: ({ row }) => row.original.activeUniqueIps },
     {
       id: 'countries',
-      header: 'Страны',
+      header: () => sortHeader('countries', 'Страны'),
       cell: ({ row }) => {
         const countries = row.original.countries ?? [];
         if (countries.length === 0) return '—';
@@ -190,7 +215,7 @@ export default function UsersPage({ me }: { me: Me }) {
     },
     {
       id: 'newcountry',
-      header: 'Новые страны',
+      header: () => sortHeader('newcountry', 'Новые страны'),
       cell: ({ row }) =>
         row.original.newCountries24h > 0 ? (
           <Label theme="warning" size="s">
@@ -202,17 +227,17 @@ export default function UsersPage({ me }: { me: Me }) {
     },
     {
       id: 'foreign',
-      header: 'Иностранные',
+      header: () => sortHeader('foreign', 'Иностранные'),
       cell: ({ row }) => {
         const n = row.original.foreignIpsCurrent;
         if (!n) return <Label theme="success" size="s">нет</Label>;
         return <Label theme="warning" size="s">{n}</Label>;
       },
     },
-    { id: 'ips24h', header: 'IP за 24ч', cell: ({ row }) => row.original.ips24h },
+    { id: 'ips24h', header: () => sortHeader('ips24h', 'IP за 24ч'), cell: ({ row }) => row.original.ips24h },
     {
       id: 'risk',
-      header: 'Риск',
+      header: () => sortHeader('risk', 'Риск'),
       cell: ({ row }) => {
         const risk = row.original.risk;
         if (risk === 0) return <Label theme="success" size="s">нет</Label>;
@@ -223,11 +248,11 @@ export default function UsersPage({ me }: { me: Me }) {
         );
       },
     },
-    { id: 'conns', header: 'Соединения', cell: ({ row }) => row.original.currentConnections },
-    { id: 'traffic', header: 'Трафик', cell: ({ row }) => formatBytes(row.original.totalOctets) },
+    { id: 'conns', header: () => sortHeader('conns', 'Соединения'), cell: ({ row }) => row.original.currentConnections },
+    { id: 'traffic', header: () => sortHeader('traffic', 'Трафик'), cell: ({ row }) => formatBytes(row.original.totalOctets) },
     {
       id: 'last',
-      header: 'Последняя активность',
+      header: () => sortHeader('last', 'Последняя активность'),
       cell: ({ row }) =>
         row.original.lastSeen ? new Date(row.original.lastSeen).toLocaleString('ru-RU') : '—',
     },
@@ -240,7 +265,7 @@ export default function UsersPage({ me }: { me: Me }) {
         </Link>
       ),
     },
-  ], [allShownSelected, selected, shownNames.join(',')]);
+  ], [allShownSelected, selected, shownNames.join(','), sorting]);
 
   const table = useTable({ columns, data: shown });
 
@@ -301,13 +326,22 @@ export default function UsersPage({ me }: { me: Me }) {
           value={query}
           onUpdate={setQuery}
         />
-        <select className="select" value={sort} onChange={(e) => setSort(e.target.value)}>
-          <option value="name">по имени</option>
-          <option value="traffic">по трафику</option>
-          <option value="ips">по активным IP</option>
-          <option value="risk">по риску</option>
-          <option value="last">по активности</option>
-        </select>
+        {isMobile && (
+          <select
+            className="select"
+            value={sorting[0]?.id ?? ''}
+            onChange={(e) =>
+              setSorting(e.target.value ? [{ id: e.target.value, desc: false }] : [])
+            }
+          >
+            <option value="">без сортировки</option>
+            <option value="username">по имени</option>
+            <option value="ips">по активным IP</option>
+            <option value="traffic">по трафику</option>
+            <option value="risk">по риску</option>
+            <option value="last">по активности</option>
+          </select>
+        )}
         <label>
           <input type="checkbox" checked={onlyRisk} onChange={(e) => setOnlyRisk(e.target.checked)} /> только
           подозрительные
@@ -432,6 +466,31 @@ export default function UsersPage({ me }: { me: Me }) {
       />
     </div>
   );
+}
+
+function compareUsers(a: ProxyUser, b: ProxyUser, id: string): number {
+  switch (id) {
+    case 'ips':
+      return a.activeUniqueIps - b.activeUniqueIps;
+    case 'ips24h':
+      return a.ips24h - b.ips24h;
+    case 'risk':
+      return a.risk - b.risk;
+    case 'conns':
+      return a.currentConnections - b.currentConnections;
+    case 'traffic':
+      return a.totalOctets - b.totalOctets;
+    case 'foreign':
+      return a.foreignIpsCurrent - b.foreignIpsCurrent;
+    case 'newcountry':
+      return a.newCountries24h - b.newCountries24h;
+    case 'countries':
+      return (a.countries ?? []).join(', ').localeCompare((b.countries ?? []).join(', '));
+    case 'last':
+      return (a.lastSeen ?? '').localeCompare(b.lastSeen ?? '');
+    default:
+      return a.username.localeCompare(b.username);
+  }
 }
 
 function SummaryTile({

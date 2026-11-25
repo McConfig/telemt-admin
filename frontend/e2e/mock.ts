@@ -71,6 +71,7 @@ const chernyh = {
   activeUniqueIps: 1,
   currentConnections: 3,
   risk: 2,
+  totalOctets: 50000000,
   ips24h: 6,
   foreignIpsCurrent: 1,
   foreignIps24h: 2,
