@@ -302,15 +302,21 @@ func TestRequire2FAState(t *testing.T) {
 func TestWebhookAndBackupSettings(t *testing.T) {
 	svc, _ := testService(t)
 	ctx := context.Background()
-	if _, _, err := svc.Save(ctx, 0, map[string]json.RawMessage{
+	_, changes, err := svc.Save(ctx, 0, map[string]json.RawMessage{
 		"notifications.webhook_url":    raw("https://example.com/hook"),
 		"notifications.webhook_secret": raw("topsecret"),
 		"notifications.events":         raw("user.create,user.delete"),
 		"backup.schedule":              raw("05:15"),
 		"backup.keep_days":             raw(30),
 		"backup.restore_test":          raw(false),
-	}, nil); err != nil {
+	}, nil)
+	if err != nil {
 		t.Fatal(err)
+	}
+	for _, change := range changes {
+		if change.Key == "notifications.webhook_secret" && (change.Old != "***" || change.New != "***") {
+			t.Fatalf("секрет попал в аудит: %+v", change)
+		}
 	}
 	url, secret, events, enabled := svc.Webhook(ctx)
 	if !enabled || url != "https://example.com/hook" || secret != "topsecret" {
