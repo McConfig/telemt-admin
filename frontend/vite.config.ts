@@ -13,6 +13,16 @@ export default defineConfig({
   },
   test: {
     // e2e запускает Playwright, Vitest не должен подхватывать эти файлы.
+    environment: 'jsdom',
+    server: { deps: { inline: [/@gravity-ui\//] } },
+    setupFiles: ['./src/test/setup.ts'],
     exclude: ['node_modules/**', 'dist/**', 'e2e/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary', 'lcov'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/main.tsx', 'src/test/**'],
+      thresholds: { statements: 60, lines: 60, functions: 45, branches: 40 },
+    },
   },
 });
