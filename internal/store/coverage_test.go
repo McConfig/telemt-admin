@@ -94,7 +94,7 @@ func TestNotesAndIPStatsCoverage(t *testing.T) {
 	if _, ok, err := st.GeoStats(ctx, "alice"); err != nil || ok {
 		t.Fatalf("GeoStats до сохранения: %v %v", ok, err)
 	}
-	if err := st.SaveGeoStats(ctx, "alice", 2, []string{"NL", "TR"}, []string{"Нидерланды", "Турция"}); err != nil {
+	if err := st.SaveGeoStats(ctx, "alice", 2, []string{"NL", "TR"}, []string{"Нидерланды", "Турция"}, []string{"LeaseWeb", "Turk Telekom"}); err != nil {
 		t.Fatal(err)
 	}
 	stats, _, _ := st.GeoStats(ctx, "alice")

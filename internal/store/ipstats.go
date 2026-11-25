@@ -53,10 +53,11 @@ type GeoStats struct {
 	ForeignCurrent int64
 	CountryCodes   []string
 	Countries      []string
+	Operators      []string
 }
 
 // SaveGeoStats сохраняет агрегаты GeoIP для карточки и списка клиентов.
-func (s *Store) SaveGeoStats(ctx context.Context, user string, foreign int64, codes, names []string) error {
+func (s *Store) SaveGeoStats(ctx context.Context, user string, foreign int64, codes, names, operators []string) error {
 	codesJSON, err := json.Marshal(codes)
 	if err != nil {
 		return err
@@ -65,8 +66,13 @@ func (s *Store) SaveGeoStats(ctx context.Context, user string, foreign int64, co
 	if err != nil {
 		return err
 	}
+	operatorsJSON, err := json.Marshal(operators)
+	if err != nil {
+		return err
+	}
 	if err := s.rdb.HSet(ctx, geoKey(user), map[string]any{
 		"foreign": foreign, "codes": string(codesJSON), "names": string(namesJSON),
+		"operators": string(operatorsJSON),
 	}).Err(); err != nil {
 		return err
 	}
@@ -88,6 +94,7 @@ func (s *Store) GeoStats(ctx context.Context, user string) (GeoStats, bool, erro
 	}
 	_ = json.Unmarshal([]byte(m["codes"]), &out.CountryCodes)
 	_ = json.Unmarshal([]byte(m["names"]), &out.Countries)
+	_ = json.Unmarshal([]byte(m["operators"]), &out.Operators)
 	return out, true, nil
 }
 

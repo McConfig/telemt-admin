@@ -23,6 +23,15 @@ test('фильтр «только с иностранными IP»', async ({ pa
   await expect(page.getByRole('link', { name: 'main', exact: true })).toBeHidden();
 });
 
+test('поиск по оператору', async ({ page }) => {
+  await mockApi(page);
+  await login(page);
+
+  await page.getByPlaceholder('Поиск по имени, стране, оператору').fill('LeaseWeb');
+  await expect(page.getByRole('link', { name: 'chernyh', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'main', exact: true })).toBeHidden();
+});
+
 test('массовое отключение выбранных клиентов', async ({ page }) => {
   await mockApi(page);
   await login(page);

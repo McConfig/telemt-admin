@@ -121,7 +121,7 @@ func TestAPIUserStatsAndHistory(t *testing.T) {
 		[]string{"192.0.2.10", "192.0.2.11"}, geo, 3000, time.Now().UTC()); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.store.SaveGeoStats(context.Background(), "main", 1, []string{"NL"}, []string{"Нидерланды"}); err != nil {
+	if err := s.store.SaveGeoStats(context.Background(), "main", 1, []string{"NL"}, []string{"Нидерланды"}, []string{"LeaseWeb"}); err != nil {
 		t.Fatal(err)
 	}
 	tok, _ := seedSession(t, s, store.RoleAdmin)

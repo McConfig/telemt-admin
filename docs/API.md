@@ -116,6 +116,7 @@
   "countries24h":1,
   "countries7d":1,
   "newCountries24h":0,
+  "operators":["LeaseWeb"],
   "trustedCountries":[],
   "trustedIps":[]
 }

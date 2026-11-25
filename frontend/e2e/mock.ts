@@ -40,6 +40,7 @@ const main = {
   newCountries24h: 0,
   countries: ['Россия'],
   countryCodes: ['RU'],
+  operators: ['Novotelecom Ltd'],
   trustedCountries: [],
   trustedIps: [],
   ipHistory: [
@@ -78,6 +79,7 @@ const chernyh = {
   newCountries24h: 1,
   countries: ['Нидерланды'],
   countryCodes: ['NL'],
+  operators: ['LeaseWeb'],
   trustedCountries: [],
   trustedIps: [],
   ipHistory: [],
