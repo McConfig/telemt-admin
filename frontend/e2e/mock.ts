@@ -67,6 +67,7 @@ const main = {
 const chernyh = {
   ...main,
   username: 'chernyh',
+  enabled: false,
   activeIps: ['203.0.113.7'],
   activeUniqueIps: 1,
   currentConnections: 3,

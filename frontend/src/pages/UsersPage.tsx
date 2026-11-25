@@ -191,7 +191,7 @@ export default function UsersPage({ me }: { me: Me }) {
     },
     {
       id: 'status',
-      header: 'Статус',
+      header: () => sortHeader('status', 'Статус'),
       cell: ({ row }) => (
         <Label theme={row.original.enabled ? 'success' : 'danger'} size="s">
           {row.original.enabled ? 'включён' : 'заблокирован'}
@@ -470,6 +470,9 @@ export default function UsersPage({ me }: { me: Me }) {
 
 function compareUsers(a: ProxyUser, b: ProxyUser, id: string): number {
   switch (id) {
+    case 'status':
+      if (a.enabled === b.enabled) return 0;
+      return a.enabled ? -1 : 1;
     case 'ips':
       return a.activeUniqueIps - b.activeUniqueIps;
     case 'ips24h':
