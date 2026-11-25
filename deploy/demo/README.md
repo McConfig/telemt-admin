@@ -118,10 +118,10 @@
 
 ## Смена версии tgadmin
 
-По умолчанию используется `v1.3.0`. Другая версия:
+По умолчанию используется `v1.3.1`. Другая версия:
 
 ```bash
-TGADMIN_VERSION=v1.3.0 docker compose up -d tgadmin
+TGADMIN_VERSION=v1.3.1 docker compose up -d tgadmin
 ```
 
 ## Скриншоты
