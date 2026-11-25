@@ -13,6 +13,8 @@
 
 [История изменений](CHANGELOG.md) · [Политика безопасности](SECURITY.md) · [API](docs/API.md)
 
+[English summary](README.en.md) · [Участие](CONTRIBUTING.md) · [Кодекс поведения](CODE_OF_CONDUCT.md) · [Управление](GOVERNANCE.md)
+
 Веб-интерфейс для управления пользователями [telemt](https://github.com/telemt/telemt) —
 MTProto-прокси для Telegram. Работает через официальный
 [Control API](https://github.com/telemt/telemt/blob/main/docs/Architecture/API/API.md)
@@ -45,6 +47,19 @@ MTProto-прокси для Telegram. Работает через официал
 - GeoIP: страна и оператор (ASN) каждого адреса, история стран за сутки и
   неделю, метка «новая страна», фильтры «только с иностранными IP» и
   «только с новыми странами».
+
+## Документация проекта
+
+- [Архитектура](docs/ARCHITECTURE.md) — компоненты, границы доверия, поток данных.
+- [API](docs/API.md) — эндпоинты, роли, ошибки.
+- [Обновление](docs/UPGRADE.md) — совместимость и откат.
+- [Стандарты кода](docs/CODING_STANDARDS.md).
+- [Зависимости](docs/DEPENDENCIES.md).
+- [Планы](docs/ROADMAP.md).
+- [Достижения](docs/ACHIEVEMENTS.md).
+- [Assurance case](docs/ASSURANCE.md).
+- [Участие](CONTRIBUTING.md) и [кодекс поведения](CODE_OF_CONDUCT.md).
+- [Управление проектом](GOVERNANCE.md).
 
 ## Архитектура
 
