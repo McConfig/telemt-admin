@@ -9,6 +9,7 @@ import (
 	"github.com/McConfig/telemt-admin/internal/collector"
 	"github.com/McConfig/telemt-admin/internal/config"
 	"github.com/McConfig/telemt-admin/internal/geoip"
+	"github.com/McConfig/telemt-admin/internal/logging"
 	"github.com/McConfig/telemt-admin/internal/settings"
 	"github.com/McConfig/telemt-admin/internal/store"
 	"github.com/McConfig/telemt-admin/internal/telemt"
@@ -27,6 +28,10 @@ func newHandler(ctx context.Context, cfg *config.Config) (http.Handler, func() e
 	}
 	st.SetRetention(svc.Retention(ctx))
 	st.SetHomeCountry(svc.HomeCountry(ctx))
+	maxFailures, loginWindow := svc.LoginPolicy(ctx)
+	st.SetLoginPolicy(maxFailures, loginWindow)
+	st.SetAuditMax(svc.AuditMaxEvents(ctx))
+	_ = logging.Set(svc.LogLevel(ctx))
 	tc := telemt.New(cfg.TelemtURL, cfg.TelemtToken, 15*time.Second)
 	geo, err := geoip.Open(cfg.GeoIPCity, cfg.GeoIPASN)
 	if err != nil {

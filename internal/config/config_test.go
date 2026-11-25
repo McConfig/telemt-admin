@@ -106,3 +106,30 @@ func TestHomeCountry(t *testing.T) {
 		t.Fatal("ожидалась ошибка для RUS")
 	}
 }
+
+func TestSecurityDefaults(t *testing.T) {
+	cfg, err := Load(env(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.LoginMaxFailures != 10 || cfg.PasswordMinLength != 12 || cfg.DefaultChartDays != 30 {
+		t.Fatalf("значения по умолчанию: %+v", cfg)
+	}
+	if cfg.LogLevel != "info" || cfg.LoginWindow.Minutes() != 15 || cfg.TOTPPendingTTL.Minutes() != 5 {
+		t.Fatalf("безопасность: %+v", cfg)
+	}
+	cfg, err = Load(env(map[string]string{
+		"TGADMIN_LOGIN_MAX_FAILURES":  "4",
+		"TGADMIN_PASSWORD_MIN_LENGTH": "16",
+		"TGADMIN_LOG_LEVEL":           "debug",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.LoginMaxFailures != 4 || cfg.PasswordMinLength != 16 || cfg.LogLevel != "debug" {
+		t.Fatalf("переопределения: %+v", cfg)
+	}
+	if _, err := Load(env(map[string]string{"TGADMIN_LOG_LEVEL": "verbose"})); err == nil {
+		t.Fatal("ожидалась ошибка уровня логов")
+	}
+}

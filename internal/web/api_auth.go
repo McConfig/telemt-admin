@@ -38,10 +38,11 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, m)
 }
 
-func (s *Server) apiMeta(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{
-		"version": version.Version,
-		"repo":    "https://github.com/McConfig/telemt-admin",
+func (s *Server) apiMeta(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"version":          version.Version,
+		"repo":             "https://github.com/McConfig/telemt-admin",
+		"defaultChartDays": s.settings.DefaultChartDays(r.Context()),
 	})
 }
 
@@ -64,7 +65,7 @@ func (s *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !allowed {
-		writeError(w, http.StatusTooManyRequests, "too_many_attempts", "слишком много попыток, попробуйте через 15 минут")
+		writeError(w, http.StatusTooManyRequests, "too_many_attempts", "слишком много попыток, попробуйте позже")
 		return
 	}
 	u, err := s.store.GetUser(r.Context(), username)
@@ -84,7 +85,8 @@ func (s *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusServiceUnavailable, "totp_unavailable", "2FA включена, но на сервере не задан TGADMIN_TOTP_KEY")
 			return
 		}
-		pending, err := s.store.CreatePendingTOTP(r.Context(), username, addr.String(), r.UserAgent(), pendingTOTPTTL)
+		pendingTTL := s.settings.TOTPPendingTTL(r.Context())
+		pending, err := s.store.CreatePendingTOTP(r.Context(), username, addr.String(), r.UserAgent(), pendingTTL)
 		if err != nil {
 			s.serverErrorJSON(w, r, err)
 			return
@@ -93,7 +95,7 @@ func (s *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 		_ = s.store.Audit(r.Context(), store.AuditEvent{
 			Actor: username, Action: "login.totp.required", Target: username, Result: "ok", IP: addr.String(),
 		})
-		s.setCookie(w, pending, pendingTOTPTTL)
+		s.setCookie(w, pending, pendingTTL)
 		writeJSON(w, http.StatusOK, map[string]any{"totpRequired": true})
 		return
 	}

@@ -13,27 +13,35 @@ import (
 
 // Config — настройки сервиса из переменных окружения.
 type Config struct {
-	Listen          string
-	AllowedCIDRs    []netip.Prefix
-	TrustedProxies  []netip.Prefix
-	BaseURL         *url.URL
-	SessionTTL      time.Duration
-	ValkeyURL       string
-	ValkeyPassword  string
-	TelemtURL       string
-	TelemtToken     string
-	LinkMode        string
-	CookieSecure    bool
-	CollectInterval time.Duration
-	RiskIPsWarn     int
-	RiskIPsHigh     int
-	RiskDistinct7d  int
-	HomeCountry     string
-	Retention       time.Duration
-	GeoIPCity       string
-	GeoIPASN        string
-	BackupStatus    string
-	TOTPKey         []byte
+	Listen            string
+	AllowedCIDRs      []netip.Prefix
+	TrustedProxies    []netip.Prefix
+	BaseURL           *url.URL
+	SessionTTL        time.Duration
+	ValkeyURL         string
+	ValkeyPassword    string
+	TelemtURL         string
+	TelemtToken       string
+	LinkMode          string
+	CookieSecure      bool
+	CollectInterval   time.Duration
+	RiskIPsWarn       int
+	RiskIPsHigh       int
+	RiskDistinct7d    int
+	HomeCountry       string
+	Retention         time.Duration
+	LoginMaxFailures  int
+	LoginWindow       time.Duration
+	TOTPPendingTTL    time.Duration
+	TOTPMaxAttempts   int
+	AuditMaxEvents    int64
+	PasswordMinLength int
+	DefaultChartDays  int
+	LogLevel          string
+	GeoIPCity         string
+	GeoIPASN          string
+	BackupStatus      string
+	TOTPKey           []byte
 }
 
 // Load читает конфигурацию. getenv передаётся для тестируемости.
@@ -64,6 +72,42 @@ func Load(getenv func(string) string) (*Config, error) {
 		return nil, fmt.Errorf("TGADMIN_HOME_COUNTRY %q: нужен код ISO из двух букв", cfg.HomeCountry)
 	}
 	cfg.BackupStatus = get("TGADMIN_BACKUP_STATUS", "")
+	cfg.LoginMaxFailures = getInt(get("TGADMIN_LOGIN_MAX_FAILURES", "10"), 10)
+	cfg.TOTPMaxAttempts = getInt(get("TGADMIN_TOTP_MAX_ATTEMPTS", "5"), 5)
+	cfg.AuditMaxEvents = int64(getInt(get("TGADMIN_AUDIT_MAX_EVENTS", "10000"), 10000))
+	cfg.PasswordMinLength = getInt(get("TGADMIN_PASSWORD_MIN_LENGTH", "12"), 12)
+	cfg.DefaultChartDays = getInt(get("TGADMIN_DEFAULT_CHART_DAYS", "30"), 30)
+	cfg.LogLevel = strings.ToLower(get("TGADMIN_LOG_LEVEL", "info"))
+	switch cfg.LogLevel {
+	case "debug", "info", "warn", "error":
+	default:
+		return nil, fmt.Errorf("TGADMIN_LOG_LEVEL %q: debug, info, warn или error", cfg.LogLevel)
+	}
+	if cfg.LoginMaxFailures < 1 || cfg.LoginMaxFailures > 1000 {
+		return nil, fmt.Errorf("TGADMIN_LOGIN_MAX_FAILURES: от 1 до 1000")
+	}
+	if cfg.TOTPMaxAttempts < 1 || cfg.TOTPMaxAttempts > 20 {
+		return nil, fmt.Errorf("TGADMIN_TOTP_MAX_ATTEMPTS: от 1 до 20")
+	}
+	if cfg.AuditMaxEvents < 100 || cfg.AuditMaxEvents > 1_000_000 {
+		return nil, fmt.Errorf("TGADMIN_AUDIT_MAX_EVENTS: от 100 до 1000000")
+	}
+	if cfg.PasswordMinLength < 8 || cfg.PasswordMinLength > 128 {
+		return nil, fmt.Errorf("TGADMIN_PASSWORD_MIN_LENGTH: от 8 до 128")
+	}
+	if cfg.DefaultChartDays < 7 || cfg.DefaultChartDays > 90 {
+		return nil, fmt.Errorf("TGADMIN_DEFAULT_CHART_DAYS: от 7 до 90")
+	}
+	loginWindow, err := time.ParseDuration(get("TGADMIN_LOGIN_WINDOW", "15m"))
+	if err != nil {
+		return nil, fmt.Errorf("TGADMIN_LOGIN_WINDOW: %w", err)
+	}
+	cfg.LoginWindow = loginWindow
+	totpTTL, err := time.ParseDuration(get("TGADMIN_TOTP_PENDING_TTL", "5m"))
+	if err != nil {
+		return nil, fmt.Errorf("TGADMIN_TOTP_PENDING_TTL: %w", err)
+	}
+	cfg.TOTPPendingTTL = totpTTL
 	collect, err := time.ParseDuration(get("TGADMIN_COLLECT_INTERVAL", "60s"))
 	if err != nil {
 		return nil, fmt.Errorf("TGADMIN_COLLECT_INTERVAL: %w", err)

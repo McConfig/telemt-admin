@@ -2,14 +2,8 @@ package store
 
 import (
 	"context"
-	"time"
 
 	"github.com/redis/go-redis/v9"
-)
-
-const (
-	maxLoginFailures = 10
-	loginFailWindow  = 15 * time.Minute
 )
 
 func failKey(kind, value string) string { return "auth:fail:" + kind + ":" + value }
@@ -24,7 +18,8 @@ func (s *Store) LoginAllowed(ctx context.Context, ip, user string) (bool, error)
 		if err != nil {
 			return false, err
 		}
-		if n >= maxLoginFailures {
+		max, _ := s.LoginPolicy()
+		if n >= max {
 			return false, nil
 		}
 	}
@@ -39,7 +34,8 @@ func (s *Store) RecordLoginFailure(ctx context.Context, ip, user string) error {
 			return err
 		}
 		if n == 1 {
-			if err := s.rdb.Expire(ctx, k, loginFailWindow).Err(); err != nil {
+			_, window := s.LoginPolicy()
+			if err := s.rdb.Expire(ctx, k, window).Err(); err != nil {
 				return err
 			}
 		}

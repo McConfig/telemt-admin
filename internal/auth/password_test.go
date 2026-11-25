@@ -51,3 +51,15 @@ func TestVerifyErrors(t *testing.T) {
 		t.Errorf("длинный пароль: %v", err)
 	}
 }
+
+func TestCheckPolicyCustomLength(t *testing.T) {
+	if err := CheckPolicy("123456789012", 16); err == nil {
+		t.Fatal("ожидалась ошибка для 12 символов при минимуме 16")
+	}
+	if err := CheckPolicy("1234567890123456", 16); err != nil {
+		t.Fatalf("16 символов: %v", err)
+	}
+	if err := CheckPolicy("123456789012"); err != nil {
+		t.Fatalf("минимум по умолчанию: %v", err)
+	}
+}

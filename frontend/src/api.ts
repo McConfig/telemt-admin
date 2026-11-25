@@ -3,6 +3,7 @@ export type Role = 'admin' | 'viewer';
 export interface Meta {
   version: string;
   repo: string;
+  defaultChartDays?: number;
 }
 
 export interface Me {

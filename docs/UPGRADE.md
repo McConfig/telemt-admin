@@ -27,6 +27,13 @@
 
 В 1.3.0 появились переменные `TGADMIN_HOME_COUNTRY` (по умолчанию `RU`) и
 необязательная `TGADMIN_BACKUP_STATUS` с путём к JSON статуса бэкапов хоста.
+
+В 1.4.0 добавлены переменные со значениями по умолчанию:
+`TGADMIN_LOGIN_MAX_FAILURES=10`, `TGADMIN_LOGIN_WINDOW=15m`,
+`TGADMIN_TOTP_PENDING_TTL=5m`, `TGADMIN_TOTP_MAX_ATTEMPTS=5`,
+`TGADMIN_AUDIT_MAX_EVENTS=10000`, `TGADMIN_PASSWORD_MIN_LENGTH=12`,
+`TGADMIN_DEFAULT_CHART_DAYS=30`, `TGADMIN_LOG_LEVEL=info`. Их можно
+переопределить на странице «Настройки»; поведение по умолчанию не меняется.
 Формат файла:
 
 ```json

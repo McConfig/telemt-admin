@@ -18,9 +18,12 @@ var (
 
 // Store — обёртка над Valkey.
 type Store struct {
-	rdb       *redis.Client
-	retention atomic.Int64 // окно истории в наносекундах
-	home      atomic.Value // string, домашняя страна для истории
+	rdb         *redis.Client
+	retention   atomic.Int64 // окно истории в наносекундах
+	loginMax    atomic.Int64
+	loginWindow atomic.Int64
+	auditMax    atomic.Int64
+	home        atomic.Value // string, домашняя страна для истории
 }
 
 // Open подключается к Valkey по URL.
@@ -39,6 +42,9 @@ func Open(ctx context.Context, rawURL, password string) (*Store, error) {
 	}
 	st := &Store{rdb: rdb}
 	st.retention.Store(int64(30 * 24 * time.Hour))
+	st.loginMax.Store(10)
+	st.loginWindow.Store(int64(15 * time.Minute))
+	st.auditMax.Store(10000)
 	st.home.Store("RU")
 	return st, nil
 }
@@ -70,6 +76,33 @@ func (s *Store) SetRetention(d time.Duration) {
 // Retention возвращает текущее окно истории.
 func (s *Store) Retention() time.Duration {
 	return time.Duration(s.retention.Load())
+}
+
+// SetLoginPolicy задаёт лимит и окно неудачных входов.
+func (s *Store) SetLoginPolicy(max int, window time.Duration) {
+	if max > 0 {
+		s.loginMax.Store(int64(max))
+	}
+	if window > 0 {
+		s.loginWindow.Store(int64(window))
+	}
+}
+
+// LoginPolicy возвращает лимит и окно неудачных входов.
+func (s *Store) LoginPolicy() (int, time.Duration) {
+	return int(s.loginMax.Load()), time.Duration(s.loginWindow.Load())
+}
+
+// SetAuditMax задаёт размер потока аудита.
+func (s *Store) SetAuditMax(max int64) {
+	if max > 0 {
+		s.auditMax.Store(max)
+	}
+}
+
+// AuditMax возвращает размер потока аудита.
+func (s *Store) AuditMax() int64 {
+	return s.auditMax.Load()
 }
 
 func (s *Store) Close() error { return s.rdb.Close() }

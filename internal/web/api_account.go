@@ -208,7 +208,7 @@ func (s *Server) apiChangePassword(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "forbidden", "текущий пароль неверен")
 		return
 	}
-	if err := auth.CheckPolicy(in.New); err != nil {
+	if err := auth.CheckPolicy(in.New, s.settings.PasswordMinLength(r.Context())); err != nil {
 		writeError(w, http.StatusBadRequest, "policy", err.Error())
 		return
 	}

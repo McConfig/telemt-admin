@@ -74,13 +74,13 @@ const catalog = {
       description: 'Входы',
       settings: [
         {
-          key: 'login.max_failures',
-          title: 'Неудачных входов',
-          description: 'Будет в 1.3.0',
-          kind: 'int',
+          key: 'security.require_2fa',
+          title: 'Обязательный 2FA',
+          description: 'Политика для всех администраторов',
+          kind: 'bool',
           status: 'planned',
-          plannedRelease: '1.4.0',
-          default: 10,
+          plannedRelease: '1.5.0',
+          default: false,
         },
       ],
     },
@@ -99,8 +99,8 @@ describe('SettingsPage', () => {
     expect(screen.getByText('задан')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Безопасность' }));
-    expect(screen.getByText('1.4.0')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('10')).toBeDisabled();
+    expect(screen.getByText('1.5.0')).toBeInTheDocument();
+    expect(screen.getByText('Политика для всех администраторов')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Риск' }));
 
     const warn = screen.getByPlaceholderText('по умолчанию: 3');

@@ -73,7 +73,7 @@ func (s *Server) apiCreateAdmin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", "роль: admin или viewer")
 		return
 	}
-	password, err := passwordOrDefault(in.Password)
+	password, err := passwordOrDefault(in.Password, s.settings.PasswordMinLength(r.Context()))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
 		return
@@ -177,7 +177,7 @@ func (s *Server) apiResetAdminPassword(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", "неверный JSON")
 		return
 	}
-	password, err := passwordOrDefault(in.Password)
+	password, err := passwordOrDefault(in.Password, s.settings.PasswordMinLength(r.Context()))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
 		return
@@ -263,7 +263,7 @@ func (s *Server) rdbSetRole(r *http.Request, name string, role store.Role) error
 	return s.store.SetRole(r.Context(), name, role)
 }
 
-func passwordOrDefault(raw string) (string, error) {
+func passwordOrDefault(raw string, min int) (string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		buf := make([]byte, 12)
@@ -272,7 +272,7 @@ func passwordOrDefault(raw string) (string, error) {
 		}
 		return base64.RawURLEncoding.EncodeToString(buf), nil
 	}
-	if err := auth.CheckPolicy(raw); err != nil {
+	if err := auth.CheckPolicy(raw, min); err != nil {
 		return "", err
 	}
 	return raw, nil
