@@ -36,6 +36,8 @@ export const proxyUser: ProxyUser = {
   countries7d: 1,
   newCountries24h: 0,
   countries: ['Россия'],
+  riskThresholds: { warnIps: null, highIps: null, distinct7d: null, newCountries: null },
+  riskDefaults: { warnIps: 3, highIps: 5, distinct7d: 15, newCountries: true },
   countryCodes: ['RU'],
   operators: ['Novotelecom Ltd'],
   trustedCountries: [],

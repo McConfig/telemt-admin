@@ -83,6 +83,22 @@ export interface ProxyUser {
   operators?: string[];
   trustedCountries: string[];
   trustedIps: string[];
+  riskThresholds?: RiskThresholds;
+  riskDefaults?: RiskDefaults;
+}
+
+export interface RiskThresholds {
+  warnIps: number | null;
+  highIps: number | null;
+  distinct7d: number | null;
+  newCountries: boolean | null;
+}
+
+export interface RiskDefaults {
+  warnIps: number;
+  highIps: number;
+  distinct7d: number;
+  newCountries: boolean;
 }
 
 export interface Trusted {
@@ -260,6 +276,12 @@ export const api = {
     request<Trusted>('GET', `/api/users/${encodeURIComponent(name)}/trusted`),
   setTrusted: (name: string, body: Trusted) =>
     request<Trusted>('PUT', `/api/users/${encodeURIComponent(name)}/trusted`, body),
+  setRisk: (name: string, body: RiskThresholds) =>
+    request<{ riskThresholds: RiskThresholds; riskDefaults: RiskDefaults }>(
+      'PUT',
+      `/api/users/${encodeURIComponent(name)}/risk`,
+      body,
+    ),
   userTimeline: (name: string, days = 14) =>
     request<TimelineDay[]>(
       'GET',

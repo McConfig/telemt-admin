@@ -143,7 +143,11 @@ func (c *Collector) collect(ctx context.Context) {
 				snap.TrustedActive++
 			}
 		}
-		snap.Risk = c.risk(snap)
+		riskCfg, _, err := c.st.GetRisk(ctx, u.Username)
+		if err != nil {
+			slog.Warn("пороги риска", "user", u.Username, "err", err)
+		}
+		snap.Risk = c.risk(snap, riskCfg)
 		for _, info := range geo {
 			if info.Internal {
 				continue
@@ -236,12 +240,25 @@ func (c *Collector) lookupIPs(ips []string) map[string]store.IPGeo {
 	return out
 }
 
-func (c *Collector) risk(s Snapshot) int {
+func (c *Collector) risk(s Snapshot, cfg store.Risk) int {
+	warn, high, distinct, newCountries := c.warn, c.high, c.distinct7d, true
+	if cfg.WarnIPs != nil {
+		warn = int64(*cfg.WarnIPs)
+	}
+	if cfg.HighIPs != nil {
+		high = int64(*cfg.HighIPs)
+	}
+	if cfg.Distinct7d != nil {
+		distinct = int64(*cfg.Distinct7d)
+	}
+	if cfg.NewCountries != nil {
+		newCountries = *cfg.NewCountries
+	}
 	current := s.Current - s.TrustedActive
 	switch {
-	case current > c.high:
+	case current > high:
 		return 2
-	case current > c.warn || s.Distinct7d > c.distinct7d || s.NewCountries24h > 0:
+	case current > warn || s.Distinct7d > distinct, newCountries && s.NewCountries24h > 0:
 		return 1
 	default:
 		return 0

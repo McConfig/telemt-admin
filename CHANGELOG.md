@@ -7,6 +7,8 @@
 
 ### Добавлено
 
+- пороги риска на клиента: `PUT /api/users/{name}/risk`, ключ
+  `risk:user:*`, блок «Пороги риска» в карточке, аудит `user.risk`;
 - демо-стенд `deploy/demo`: фейковый Control API telemt, Valkey, seed
   истории за 8 дней, генератор демо-GeoIP и скриншоты Playwright;
 - workflow `sign-releases.yml` для подписи уже опубликованных релизов:

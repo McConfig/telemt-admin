@@ -33,41 +33,43 @@ type apiIP struct {
 }
 
 type apiUser struct {
-	Username           string   `json:"username"`
-	Enabled            bool     `json:"enabled"`
-	InRuntime          bool     `json:"inRuntime"`
-	CurrentConnections uint64   `json:"currentConnections"`
-	ActiveUniqueIPs    uint64   `json:"activeUniqueIps"`
-	ActiveIPs          []string `json:"activeIps"`
-	TotalOctets        uint64   `json:"totalOctets"`
-	MaxUniqueIPs       *uint64  `json:"maxUniqueIps"`
-	MaxTCPConns        *uint64  `json:"maxTcpConns"`
-	DataQuotaBytes     *uint64  `json:"dataQuotaBytes"`
-	QuotaPeriod        *string  `json:"quotaPeriod"`
-	RateLimitUpBps     *uint64  `json:"rateLimitUpBps"`
-	RateLimitDownBps   *uint64  `json:"rateLimitDownBps"`
-	ExpirationRFC3339  *string  `json:"expiration"`
-	SourceDeny         []string `json:"sourceDeny"`
-	Note               string   `json:"note,omitempty"`
-	Ips24h             int64    `json:"ips24h"`
-	Ips7d              int64    `json:"ips7d"`
-	New24h             int64    `json:"new24h"`
-	MaxToday           int64    `json:"maxToday"`
-	TrafficToday       uint64   `json:"trafficToday"`
-	Risk               int      `json:"risk"`
-	LastSeen           string   `json:"lastSeen,omitempty"`
-	IPHistory          []apiIP  `json:"ipHistory,omitempty"`
-	Link               string   `json:"link,omitempty"`
-	ForeignIPsCurrent  int64    `json:"foreignIpsCurrent"`
-	ForeignIPs24h      int64    `json:"foreignIps24h"`
-	Countries24h       int64    `json:"countries24h"`
-	Countries7d        int64    `json:"countries7d"`
-	NewCountries24h    int64    `json:"newCountries24h"`
-	TrustedCountries   []string `json:"trustedCountries"`
-	TrustedIPs         []string `json:"trustedIps"`
-	Countries          []string `json:"countries,omitempty"`
-	CountryCodes       []string `json:"countryCodes,omitempty"`
-	Operators          []string `json:"operators,omitempty"`
+	Username           string          `json:"username"`
+	Enabled            bool            `json:"enabled"`
+	InRuntime          bool            `json:"inRuntime"`
+	CurrentConnections uint64          `json:"currentConnections"`
+	ActiveUniqueIPs    uint64          `json:"activeUniqueIps"`
+	ActiveIPs          []string        `json:"activeIps"`
+	TotalOctets        uint64          `json:"totalOctets"`
+	MaxUniqueIPs       *uint64         `json:"maxUniqueIps"`
+	MaxTCPConns        *uint64         `json:"maxTcpConns"`
+	DataQuotaBytes     *uint64         `json:"dataQuotaBytes"`
+	QuotaPeriod        *string         `json:"quotaPeriod"`
+	RateLimitUpBps     *uint64         `json:"rateLimitUpBps"`
+	RateLimitDownBps   *uint64         `json:"rateLimitDownBps"`
+	ExpirationRFC3339  *string         `json:"expiration"`
+	SourceDeny         []string        `json:"sourceDeny"`
+	Note               string          `json:"note,omitempty"`
+	Ips24h             int64           `json:"ips24h"`
+	Ips7d              int64           `json:"ips7d"`
+	New24h             int64           `json:"new24h"`
+	MaxToday           int64           `json:"maxToday"`
+	TrafficToday       uint64          `json:"trafficToday"`
+	Risk               int             `json:"risk"`
+	LastSeen           string          `json:"lastSeen,omitempty"`
+	IPHistory          []apiIP         `json:"ipHistory,omitempty"`
+	Link               string          `json:"link,omitempty"`
+	ForeignIPsCurrent  int64           `json:"foreignIpsCurrent"`
+	ForeignIPs24h      int64           `json:"foreignIps24h"`
+	Countries24h       int64           `json:"countries24h"`
+	Countries7d        int64           `json:"countries7d"`
+	NewCountries24h    int64           `json:"newCountries24h"`
+	TrustedCountries   []string        `json:"trustedCountries"`
+	TrustedIPs         []string        `json:"trustedIps"`
+	RiskThresholds     apiRisk         `json:"riskThresholds"`
+	RiskDefaults       apiRiskDefaults `json:"riskDefaults"`
+	Countries          []string        `json:"countries,omitempty"`
+	CountryCodes       []string        `json:"countryCodes,omitempty"`
+	Operators          []string        `json:"operators,omitempty"`
 }
 
 func (s *Server) apiUserView(r *http.Request, u telemt.User) apiUser {
@@ -103,6 +105,13 @@ func (s *Server) apiUserView(r *http.Request, u telemt.User) apiUser {
 		out.TrustedCountries = trusted.Countries
 		out.TrustedIPs = trusted.IPs
 	}
+	riskCfg, _, err := s.store.GetRisk(r.Context(), u.Username)
+	if err != nil {
+		riskCfg = store.Risk{}
+	}
+	warn, high, distinct, newCountries := s.riskValues(riskCfg)
+	out.RiskThresholds = riskOverrides(riskCfg)
+	out.RiskDefaults = riskDefaults(warn, high, distinct, newCountries)
 	stats, err := s.store.UserIPStats(r.Context(), u.Username, time.Now().UTC())
 	if err == nil {
 		trustedCountries := map[string]bool{}
@@ -135,7 +144,7 @@ func (s *Server) apiUserView(r *http.Request, u telemt.User) apiUser {
 		out.Countries24h = stats.Countries24h
 		out.Countries7d = stats.Countries7d
 		out.NewCountries24h = stats.NewCountries24h
-		out.Risk = s.risk(current, stats)
+		out.Risk = s.risk(current, stats, riskCfg)
 	}
 	return out
 }
@@ -158,12 +167,13 @@ func (s *Server) apiIPHistory(r *http.Request, name string) []apiIP {
 	return out
 }
 
-func (s *Server) risk(current int64, stats store.UserIPStats) int {
+func (s *Server) risk(current int64, stats store.UserIPStats, cfg store.Risk) int {
+	warn, high, distinct, newCountries := s.riskValues(cfg)
 	switch {
-	case current > int64(s.cfg.RiskIPsHigh):
+	case current > int64(high):
 		return 2
-	case current > int64(s.cfg.RiskIPsWarn) || stats.Distinct7d > int64(s.cfg.RiskDistinct7d),
-		stats.NewCountries24h > 0:
+	case current > int64(warn) || stats.Distinct7d > int64(distinct),
+		newCountries && stats.NewCountries24h > 0:
 		return 1
 	default:
 		return 0

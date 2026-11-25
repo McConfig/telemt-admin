@@ -43,6 +43,8 @@ const main = {
   operators: ['Novotelecom Ltd'],
   trustedCountries: [],
   trustedIps: [],
+  riskThresholds: { warnIps: null, highIps: null, distinct7d: null, newCountries: null },
+  riskDefaults: { warnIps: 3, highIps: 5, distinct7d: 15, newCountries: true },
   ipHistory: [
     {
       ip: '10.0.2.15',
