@@ -23,6 +23,33 @@ test('фильтр «только с иностранными IP»', async ({ pa
   await expect(page.getByRole('link', { name: 'main', exact: true })).toBeHidden();
 });
 
+test('сортировка по заголовкам: возрастание, убывание, сброс', async ({ page }) => {
+  await mockApi(page);
+  await login(page);
+
+  const firstRow = () => page.locator('tbody tr').first().innerText();
+
+  await page.getByRole('button', { name: /Трафик/ }).click();
+  await expect.poll(firstRow).toContain('chernyh');
+
+  await page.getByRole('button', { name: /Трафик/ }).click();
+  await expect.poll(firstRow).toContain('main');
+
+  await page.getByRole('button', { name: /Трафик/ }).click();
+  await expect.poll(firstRow).toContain('main');
+  await expect(page.locator('.th-sort-active')).toHaveCount(0);
+});
+
+test('несколько сортировок одновременно', async ({ page }) => {
+  await mockApi(page);
+  await login(page);
+
+  await page.getByRole('button', { name: /Риск/ }).click();
+  await page.getByRole('button', { name: /Имя/ }).click();
+  await expect(page.locator('.th-sort-active')).toHaveCount(2);
+  await expect(page.locator('.th-sort-mark')).toHaveCount(2);
+});
+
 test('поиск по оператору', async ({ page }) => {
   await mockApi(page);
   await login(page);

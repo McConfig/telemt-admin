@@ -50,6 +50,10 @@ table a:hover, .user-card a:hover { text-decoration: underline; text-underline-o
 .totp-setup { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
 .totp-setup img { border-radius: 8px; background: #fff; }
 .recovery-codes { margin: 0; padding: 12px; border-radius: 8px; background: var(--g-color-base-generic); font-family: monospace; font-size: 14px; line-height: 1.6; }
+.th-sort { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.th-sort:hover { color: var(--g-color-text-brand); }
+.th-sort-active { color: var(--g-color-text-brand); }
+.th-sort-mark { font-size: 11px; }
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .timeline { display: flex; flex-direction: column; gap: 8px; }
 .timeline-row { display: flex; gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--g-color-line-generic); }
