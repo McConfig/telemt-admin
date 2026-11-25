@@ -29,6 +29,8 @@ import {
   type IPHistoryItem,
   type Me,
   type ProxyUser,
+  type RiskIP,
+  type RiskReport,
   type TimelineDay,
   type TrafficDay,
 } from '../api';
@@ -66,7 +68,7 @@ export default function UserPage({ me }: { me: Me }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [traffic, setTraffic] = useState<TrafficDay[]>([]);
   const [timeline, setTimeline] = useState<TimelineDay[]>([]);
-  const [tab, setTab] = useState<'overview' | 'devices' | 'limits' | 'audit'>('overview');
+  const [tab, setTab] = useState<'overview' | 'devices' | 'risk' | 'limits' | 'audit'>('overview');
   const [auditItems, setAuditItems] = useState<AuditItem[]>([]);
   const [trustedCountries, setTrustedCountries] = useState('');
   const [trustedIps, setTrustedIps] = useState('');
@@ -76,6 +78,10 @@ export default function UserPage({ me }: { me: Me }) {
   const [riskDistinct, setRiskDistinct] = useState('');
   const [riskNewMode, setRiskNewMode] = useState<'inherit' | 'yes' | 'no'>('inherit');
   const [riskSaved, setRiskSaved] = useState(false);
+  const [riskReport, setRiskReport] = useState<RiskReport | null>(null);
+  const [riskDays, setRiskDays] = useState(7);
+  const [riskLoading, setRiskLoading] = useState(false);
+  const [riskDay, setRiskDay] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -125,12 +131,49 @@ export default function UserPage({ me }: { me: Me }) {
   }, [load]);
 
   useEffect(() => {
+    if (tab !== 'risk' || me.user.role !== 'admin') return;
+    let cancelled = false;
+    setRiskLoading(true);
+    api
+      .riskReport(name, riskDays)
+      .then((data) => {
+        if (cancelled) return;
+        setRiskReport(data);
+        setRiskDay((prev) =>
+          data.days.some((day) => day.day === prev) ? prev : (data.days[0]?.day ?? ''),
+        );
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof ApiError ? err.message : 'не удалось загрузить отчёт');
+      })
+      .finally(() => {
+        if (!cancelled) setRiskLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, name, riskDays, me.user.role]);
+
+  useEffect(() => {
     if (tab !== 'audit' || me.user.role !== 'admin') return;
     api
       .audit({ target: name, limit: 50 })
       .then(setAuditItems)
       .catch(() => setAuditItems([]));
   }, [tab, name, me.user.role]);
+
+  const trustRisk = (payload: { ip?: string; country?: string }) => {
+    if (!user) return;
+    void run(async () => {
+      const current = await api.trusted(user.username);
+      const countries = Array.from(
+        new Set([...current.countries, ...(payload.country ? [payload.country] : [])]),
+      );
+      const ips = Array.from(new Set([...current.ips, ...(payload.ip ? [payload.ip] : [])]));
+      await api.setTrusted(user.username, { countries, ips });
+      setRiskReport(await api.riskReport(user.username, riskDays));
+    });
+  };
 
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
@@ -159,6 +202,8 @@ export default function UserPage({ me }: { me: Me }) {
     );
   }
   const isAdmin = me.user.role === 'admin';
+  const selectedRiskDay =
+    riskReport?.days.find((day) => day.day === riskDay) ?? riskReport?.days[0];
 
   return (
     <div className="stack">
@@ -174,6 +219,11 @@ export default function UserPage({ me }: { me: Me }) {
           <Label theme={user.risk === 2 ? 'danger' : 'warning'} size="s">
             {user.risk === 2 ? 'высокий риск' : 'внимание'}
           </Label>
+        )}
+        {isAdmin && user.risk > 0 && (
+          <Button view="flat" onClick={() => setTab('risk')}>
+            Отчёт по риску
+          </Button>
         )}
         {user.newCountries24h > 0 && (
           <Label theme="warning" size="s">
@@ -237,6 +287,9 @@ export default function UserPage({ me }: { me: Me }) {
         </Button>
         {isAdmin && (
           <>
+            <Button view={tab === 'risk' ? 'action' : 'flat'} onClick={() => setTab('risk')}>
+              Риск
+            </Button>
             <Button view={tab === 'limits' ? 'action' : 'flat'} onClick={() => setTab('limits')}>
               Лимиты
             </Button>
@@ -464,6 +517,132 @@ export default function UserPage({ me }: { me: Me }) {
             </Card>
           )}
         </>
+      )}
+
+      {tab === 'risk' && isAdmin && (
+        <Card view="filled" style={{ padding: 16 }}>
+          <div className="stack">
+            <div className="card-head">
+              <Text variant="header-1">Отчёт по риску</Text>
+              <div style={{ flex: 1 }} />
+              <a href={api.riskCSVUrl(user.username, riskDays)} download={`risk-${user.username}.csv`}>
+                Экспорт CSV
+              </a>
+            </div>
+
+            {riskLoading && <Loader size="m" />}
+            {!riskLoading && !riskReport && <Text className="muted">Нет данных</Text>}
+
+            {riskReport && (
+              <>
+                {riskReport.reasons.length === 0 ? (
+                  <Alert theme="success" message="Риск в пределах действующих порогов." />
+                ) : (
+                  riskReport.reasons.map((reason) => (
+                    <Alert
+                      key={reason.code}
+                      theme={reason.severity === 2 ? 'danger' : 'warning'}
+                      title={reason.severity === 2 ? 'Высокий риск' : 'Предупреждение'}
+                      message={reason.message}
+                    />
+                  ))
+                )}
+
+                <Text className="muted">
+                  Пороги {riskReport.custom ? 'свои' : 'глобальные'}: предупреждение{' '}
+                  {riskReport.thresholds.warnIps}, высокий {riskReport.thresholds.highIps}, адресов за
+                  7 дней {riskReport.thresholds.distinct7d}, новые страны{' '}
+                  {riskReport.thresholds.newCountries ? 'учитываются' : 'не учитываются'}.
+                </Text>
+                {(riskReport.current.countries?.length ?? 0) > 0 && (
+                  <Text className="muted">
+                    Страны сейчас:{' '}
+                    {riskReport.current.countries?.map((country) => country.name || country.code).join(', ')}
+                  </Text>
+                )}
+
+                <div className="stat-grid">
+                  <Stat label="Активных адресов" value={riskReport.current.current} />
+                  <Stat label="Доверенных" value={riskReport.current.trustedActive} />
+                  <Stat label="Адресов за 24 часа" value={riskReport.current.distinct24h} />
+                  <Stat label="Адресов за 7 дней" value={riskReport.current.distinct7d} />
+                  <Stat label="Пик за сутки" value={riskReport.current.maxToday} />
+                  <Stat label="Новых за сутки" value={riskReport.current.newIps24h} />
+                  <Stat label="Новых стран" value={riskReport.current.newCountries} />
+                  <Stat label="Иностранных за сутки" value={riskReport.current.foreignIps24h} />
+                </div>
+                <Text className="muted">
+                  По данным прокси: один адрес может скрывать несколько устройств за NAT, а одно
+                  устройство может менять адрес.
+                </Text>
+
+                <div className="row">
+                  <label className="field field-inline">
+                    <span>Период</span>
+                    <select
+                      value={riskDays}
+                      onChange={(event) => setRiskDays(Number(event.target.value))}
+                    >
+                      <option value={7}>7 дней</option>
+                      <option value={30}>30 дней</option>
+                    </select>
+                  </label>
+                  <div style={{ flex: 1 }} />
+                  <Button view="outlined" onClick={() => setRotateOpen(true)}>
+                    Перевыпустить секрет
+                  </Button>
+                </div>
+
+                {riskReport.days.length === 0 ? (
+                  <Text className="muted">Истории адресов пока нет.</Text>
+                ) : (
+                  <>
+                    <Text variant="subheader-1">Дни</Text>
+                    <div className="risk-days">
+                      {riskReport.days.map((day) => (
+                        <button
+                          key={day.day}
+                          type="button"
+                          className="risk-day"
+                          aria-pressed={riskDay === day.day}
+                          onClick={() => setRiskDay(day.day)}
+                        >
+                          <Text variant="subheader-1">{formatRiskDay(day.day)}</Text>
+                          <span className="muted">
+                            {day.distinct} адресов · пик {day.max}
+                          </span>
+                          <span className="muted">
+                            +{day.newIps} новых · {formatBytes(day.traffic)}
+                          </span>
+                          {(day.newCountries?.length ?? 0) > 0 && (
+                            <span className="muted">
+                              новые страны: {day.newCountries?.map((country) => country.code).join(', ')}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+
+                    {selectedRiskDay && (
+                      <div className="stack">
+                        <Text variant="subheader-1">{formatRiskDay(selectedRiskDay.day)}</Text>
+                        {selectedRiskDay.ips.length === 0 ? (
+                          <Text className="muted">За этот день адресов нет.</Text>
+                        ) : (
+                          <RiskDayTable
+                            items={selectedRiskDay.ips}
+                            onTrustIP={(ip) => trustRisk({ ip })}
+                            onTrustCountry={(code) => trustRisk({ country: code })}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        </Card>
       )}
 
       {tab === 'limits' && isAdmin && (
@@ -846,6 +1025,107 @@ function TrafficChart({ items }: { items: TrafficDay[] }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function formatRiskDay(day: string): string {
+  return new Date(`${day}T00:00:00Z`).toLocaleDateString('ru-RU');
+}
+
+function RiskDayTable({
+  items,
+  onTrustIP,
+  onTrustCountry,
+}: {
+  items: RiskIP[];
+  onTrustIP: (ip: string) => void;
+  onTrustCountry: (code: string) => void;
+}) {
+  const columns = useMemo<ColumnDef<RiskIP>[]>(
+    () => [
+      { id: 'ip', header: 'IP', cell: ({ row }) => row.original.ip },
+      {
+        id: 'country',
+        header: 'Страна',
+        cell: ({ row }) => {
+          if (row.original.internal) return 'локальный';
+          const name = row.original.countryName ?? row.original.country ?? '—';
+          return row.original.country && row.original.countryName
+            ? `${name} ${row.original.country}`
+            : name;
+        },
+      },
+      {
+        id: 'asn',
+        header: 'Оператор',
+        cell: ({ row }) =>
+          row.original.asnOrg ?? (row.original.asn ? `AS${row.original.asn}` : '—'),
+      },
+      {
+        id: 'dayFirst',
+        header: 'Первый раз за день',
+        cell: ({ row }) => (row.original.dayFirst ? formatTime(row.original.dayFirst) : '—'),
+      },
+      {
+        id: 'dayLast',
+        header: 'Последний раз за день',
+        cell: ({ row }) => (row.original.dayLast ? formatTime(row.original.dayLast) : '—'),
+      },
+      { id: 'count', header: 'Наблюдений', cell: ({ row }) => row.original.count },
+      {
+        id: 'new',
+        header: 'Новый',
+        cell: ({ row }) =>
+          row.original.new ? (
+            <Label theme="warning" size="s">
+              новый
+            </Label>
+          ) : (
+            '—'
+          ),
+      },
+      {
+        id: 'trusted',
+        header: 'Доверенный',
+        cell: ({ row }) =>
+          row.original.trusted ? (
+            <Label theme="success" size="s">
+              да
+            </Label>
+          ) : (
+            '—'
+          ),
+      },
+      {
+        id: 'actions',
+        header: '',
+        cell: ({ row }) => (
+          <div className="row">
+            {!row.original.trusted && (
+              <Button view="outlined" size="s" onClick={() => onTrustIP(row.original.ip)}>
+                Доверять IP
+              </Button>
+            )}
+            {row.original.country && !row.original.trusted && (
+              <Button
+                view="flat"
+                size="s"
+                onClick={() => onTrustCountry(row.original.country ?? '')}
+              >
+                Доверять {row.original.country}
+              </Button>
+            )}
+          </div>
+        ),
+      },
+    ],
+    [onTrustIP, onTrustCountry],
+  );
+  const table = useTable({ columns, data: items });
+  return (
+    <div className="table-scroll">
+      <Table table={table} />
     </div>
   );
 }

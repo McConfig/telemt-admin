@@ -91,6 +91,59 @@ const chernyh = {
 
 export const users = [main, chernyh];
 
+const riskDay = new Date().toISOString().slice(0, 10);
+const riskReport = {
+  user: 'chernyh',
+  level: 2,
+  custom: false,
+  thresholds: { warnIps: 3, highIps: 5, distinct7d: 15, newCountries: true },
+  current: {
+    activeIps: 1,
+    trustedActive: 0,
+    current: 1,
+    distinct24h: 6,
+    distinct7d: 8,
+    maxToday: 1,
+    newIps24h: 2,
+    newCountries: 1,
+    foreignIps24h: 1,
+    countries: [{ code: 'NL', name: 'Нидерланды' }],
+  },
+  reasons: [
+    {
+      code: 'new_country',
+      severity: 1,
+      value: 1,
+      countries: ['NL'],
+      message: 'Новые страны за сутки: NL',
+    },
+  ],
+  days: [
+    {
+      day: riskDay,
+      distinct: 1,
+      max: 1,
+      newIps: 1,
+      newCountries: [{ code: 'NL', name: 'Нидерланды' }],
+      traffic: 50000000,
+      ips: [
+        {
+          ip: '203.0.113.7',
+          country: 'NL',
+          countryName: 'Нидерланды',
+          asn: 60781,
+          asnOrg: 'LeaseWeb',
+          dayFirst: new Date().toISOString(),
+          dayLast: new Date().toISOString(),
+          count: 12,
+          new: true,
+          trusted: false,
+        },
+      ],
+    },
+  ],
+};
+
 /**
  * Подменяет все запросы к /api. Возвращает журнал тел PATCH-запросов
  * к лимитам, чтобы тест мог проверить отправленные значения.
@@ -187,6 +240,9 @@ export async function mockApi(
     }
     if (/\/api\/users\/[^/]+\/qr\.png$/.test(path)) {
       return route.fulfill({ status: 200, contentType: 'image/png', body: png });
+    }
+    if (/\/api\/users\/[^/]+\/risk-report$/.test(path)) {
+      return json(route, riskReport);
     }
     if (userMatch && method === 'PATCH') {
       limitBodies.push(route.request().postDataJSON());

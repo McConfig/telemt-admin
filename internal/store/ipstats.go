@@ -10,17 +10,19 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func seenKey(user string) string         { return "iphist:seen:" + user }
-func firstKey(user string) string        { return "iphist:first:" + user }
-func ipKey(user, ip string) string       { return "iphist:ip:" + user + ":" + ip }
-func dayKey(user, day string) string     { return "iphist:day:" + user + ":" + day }
-func maxKey(user, day string) string     { return "iphist:max:" + user + ":" + day }
-func trafficKey(user string) string      { return "iphist:traffic:" + user }
-func trafficDaysKey(user string) string  { return "iphist:trafficdays:" + user }
-func geoKey(user string) string          { return "iphist:geo:" + user }
-func countryKey(user, day string) string { return "iphist:country:" + user + ":" + day }
-func foreignKey(user, day string) string { return "iphist:foreign:" + user + ":" + day }
-func countryFirstKey(user string) string { return "iphist:countryfirst:" + user }
+func seenKey(user string) string          { return "iphist:seen:" + user }
+func firstKey(user string) string         { return "iphist:first:" + user }
+func ipKey(user, ip string) string        { return "iphist:ip:" + user + ":" + ip }
+func dayKey(user, day string) string      { return "iphist:day:" + user + ":" + day }
+func dayFirstKey(user, day string) string { return "iphist:dayfirst:" + user + ":" + day }
+func dayLastKey(user, day string) string  { return "iphist:daylast:" + user + ":" + day }
+func maxKey(user, day string) string      { return "iphist:max:" + user + ":" + day }
+func trafficKey(user string) string       { return "iphist:traffic:" + user }
+func trafficDaysKey(user string) string   { return "iphist:trafficdays:" + user }
+func geoKey(user string) string           { return "iphist:geo:" + user }
+func countryKey(user, day string) string  { return "iphist:country:" + user + ":" + day }
+func foreignKey(user, day string) string  { return "iphist:foreign:" + user + ":" + day }
+func countryFirstKey(user string) string  { return "iphist:countryfirst:" + user }
 
 // IPStat — один адрес в истории пользователя.
 type IPStat struct {
@@ -165,8 +167,12 @@ func (s *Store) RecordIPObservation(ctx context.Context, user string, ips []stri
 		}
 		pipe.Expire(ctx, key, s.retention)
 		pipe.SAdd(ctx, dayKey(user, day), ip)
+		pipe.HSetNX(ctx, dayFirstKey(user, day), ip, now.Format(time.RFC3339))
+		pipe.HSet(ctx, dayLastKey(user, day), ip, now.Format(time.RFC3339))
 	}
 	pipe.Expire(ctx, dayKey(user, day), s.retention)
+	pipe.Expire(ctx, dayFirstKey(user, day), s.retention)
+	pipe.Expire(ctx, dayLastKey(user, day), s.retention)
 	pipe.Expire(ctx, seenKey(user), s.retention)
 	pipe.Expire(ctx, firstKey(user), s.retention)
 	pipe.ZRemRangeByScore(ctx, seenKey(user), "-inf", strconv.FormatInt(now.Add(-s.retention).Unix(), 10))
@@ -463,6 +469,8 @@ func (s *Store) DeleteIPHistory(ctx context.Context, user string) error {
 	for _, pattern := range []string{
 		"iphist:ip:" + user + ":*",
 		"iphist:day:" + user + ":*",
+		"iphist:dayfirst:" + user + ":*",
+		"iphist:daylast:" + user + ":*",
 		"iphist:max:" + user + ":*",
 		"iphist:country:" + user + ":*",
 		"iphist:foreign:" + user + ":*",

@@ -101,6 +101,69 @@ export interface RiskDefaults {
   newCountries: boolean;
 }
 
+export interface RiskCountry {
+  code: string;
+  name: string;
+}
+
+export interface RiskReason {
+  code: string;
+  severity: number;
+  value: number;
+  threshold?: number;
+  countries?: string[];
+  message: string;
+}
+
+export interface RiskIP {
+  ip: string;
+  country?: string;
+  countryName?: string;
+  asn?: number;
+  asnOrg?: string;
+  internal?: boolean;
+  firstSeen?: string;
+  lastSeen?: string;
+  dayFirst?: string;
+  dayLast?: string;
+  count: number;
+  new: boolean;
+  trusted: boolean;
+}
+
+export interface RiskDay {
+  day: string;
+  distinct: number;
+  max: number;
+  newIps: number;
+  newCountries?: RiskCountry[];
+  traffic: number;
+  ips: RiskIP[];
+}
+
+export interface RiskCurrent {
+  activeIps: number;
+  trustedActive: number;
+  current: number;
+  distinct24h: number;
+  distinct7d: number;
+  maxToday: number;
+  newIps24h: number;
+  newCountries: number;
+  foreignIps24h: number;
+  countries?: RiskCountry[];
+}
+
+export interface RiskReport {
+  user: string;
+  level: number;
+  custom: boolean;
+  thresholds: RiskDefaults;
+  current: RiskCurrent;
+  reasons: RiskReason[];
+  days: RiskDay[];
+}
+
 export interface Trusted {
   countries: string[];
   ips: string[];
@@ -276,6 +339,10 @@ export const api = {
     request<Trusted>('GET', `/api/users/${encodeURIComponent(name)}/trusted`),
   setTrusted: (name: string, body: Trusted) =>
     request<Trusted>('PUT', `/api/users/${encodeURIComponent(name)}/trusted`, body),
+  riskReport: (name: string, days = 7) =>
+    request<RiskReport>('GET', `/api/users/${encodeURIComponent(name)}/risk-report?days=${days}`),
+  riskCSVUrl: (name: string, days = 30) =>
+    `/api/users/${encodeURIComponent(name)}/risk.csv?days=${days}`,
   setRisk: (name: string, body: RiskThresholds) =>
     request<{ riskThresholds: RiskThresholds; riskDefaults: RiskDefaults }>(
       'PUT',

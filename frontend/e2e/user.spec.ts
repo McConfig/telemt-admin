@@ -42,6 +42,18 @@ test('лимиты: сохранение отправляет введённые
   expect(limitBodies[0]).toMatchObject({ maxUniqueIps: 2 });
 });
 
+test('риск: отчёт показывает причины, дни и адреса', async ({ page }) => {
+  await mockApi(page);
+  await login(page);
+  await page.goto('/users/chernyh');
+
+  await page.getByRole('button', { name: 'Риск', exact: true }).click();
+  await expect(page.getByText('Отчёт по риску').last()).toBeVisible();
+  await expect(page.getByText('Новые страны за сутки: NL')).toBeVisible();
+  await expect(page.getByText('203.0.113.7')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Экспорт CSV' })).toBeVisible();
+});
+
 test('пользователи UI: действия иконками', async ({ page }) => {
   await mockApi(page);
   await login(page);

@@ -86,6 +86,8 @@
 | POST | `/api/users/{name}/reset-quota` | admin | сбросить квоту |
 | GET | `/api/users/{name}/qr.png` | admin | QR ссылки |
 | GET | `/api/users/{name}/history.csv` | admin | история адресов |
+| GET | `/api/users/{name}/risk-report?days=7` | admin | отчёт по риску |
+| GET | `/api/users/{name}/risk.csv?days=30` | admin | отчёт по риску в CSV |
 | DELETE | `/api/users/{name}/history` | admin | удалить историю |
 | GET | `/api/users/{name}/traffic?days=30` | обе | трафик по дням |
 | GET | `/api/users/{name}/timeline?days=14` | обе | новые адреса и страны |
@@ -178,6 +180,56 @@
 В ответе и в карточке клиента есть два объекта: `riskThresholds` —
 переопределения (могут быть `null`) и `riskDefaults` — действующие значения
 после подстановки глобальных.
+
+`GET /api/users/{name}/risk-report?days=7`:
+
+```json
+{
+  "user":"chernyh",
+  "level":2,
+  "custom":false,
+  "thresholds":{"warnIps":3,"highIps":5,"distinct7d":15,"newCountries":true},
+  "current":{
+    "activeIps":6,"trustedActive":0,"current":6,
+    "distinct24h":8,"distinct7d":22,"maxToday":7,
+    "newIps24h":4,"newCountries":1,"foreignIps24h":5,
+    "countries":[{"code":"NL","name":"Нидерланды"}]
+  },
+  "reasons":[
+    {"code":"current_ips","severity":2,"value":6,"threshold":5,
+     "message":"Активных адресов 6 при высоком пороге 5"},
+    {"code":"new_country","severity":1,"value":1,"countries":["NL"],
+     "message":"Новые страны за сутки: NL"}
+  ],
+  "days":[
+    {
+      "day":"2026-11-25","distinct":6,"max":7,"newIps":2,
+      "newCountries":[{"code":"NL","name":"Нидерланды"}],
+      "traffic":12345678,
+      "ips":[
+        {
+          "ip":"198.51.100.7","country":"NL","countryName":"Нидерланды",
+          "asn":60781,"asnOrg":"LeaseWeb",
+          "firstSeen":"2026-11-20T10:00:00Z","lastSeen":"2026-11-25T12:00:00Z",
+          "dayFirst":"2026-11-25T08:12:00Z","dayLast":"2026-11-25T12:00:00Z",
+          "count":42,"new":true,"trusted":false
+        }
+      ]
+    }
+  ]
+}
+```
+
+`days` — от 1 до 30, по умолчанию 7. Дни идут от нового к старому.
+`severity` причины: 1 — предупреждение, 2 — высокий риск. Коды причин:
+`current_ips`, `distinct_7d`, `new_country`. Адреса, помеченные доверенными
+по IP или стране, исключаются из причин и получают `trusted: true`.
+`dayFirst` и `dayLast` пустые для дней, собранных до версии 1.2.0.
+
+`GET /api/users/{name}/risk.csv?days=30` отдаёт те же данные построчно:
+`day, distinct, max, new_ips, new_countries, traffic_bytes, ip, country,
+country_name, asn, asn_org, first_seen, last_seen, day_first, day_last,
+observations, new, trusted`.
 
 ## Пользователи UI
 
