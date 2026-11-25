@@ -10,7 +10,9 @@
 - workflow `sign-releases.yml` для подписи уже опубликованных релизов:
   cosign, SBOM, `.sig`, `.pem` и SPDX-аттестация;
 - ручной запуск Scorecard через `workflow_dispatch`;
-- Dependabot alerts и security updates включены в настройках репозитория.
+- Dependabot alerts и security updates включены в настройках репозитория;
+- подписаны cosign релизы v1.1.4-v1.1.7: у всех пяти последних релизов
+  есть SBOM, `.sig` и `.pem`; Signed-Releases в Scorecard вырос до 8.
 
 ### Изменено
 
