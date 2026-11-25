@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -71,7 +72,10 @@ func TestSecurityHeaders(t *testing.T) {
 	if rr.Header().Get("X-Frame-Options") != "DENY" {
 		t.Fatalf("заголовки: %v", rr.Header())
 	}
-	if rr.Header().Get("Content-Security-Policy") == "" {
-		t.Fatal("нет CSP")
+	csp := rr.Header().Get("Content-Security-Policy")
+	for _, directive := range []string{"default-src 'self'", "object-src 'none'", "base-uri 'self'", "frame-ancestors 'none'"} {
+		if !strings.Contains(csp, directive) {
+			t.Fatalf("в CSP нет %q: %s", directive, csp)
+		}
 	}
 }

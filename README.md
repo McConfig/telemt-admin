@@ -6,6 +6,7 @@
 [![coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/McConfig/telemt-admin/badges/coverage.json)](https://github.com/McConfig/telemt-admin/actions/workflows/ci.yml)
 [![frontend coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/McConfig/telemt-admin/badges/frontend-coverage.json)](https://github.com/McConfig/telemt-admin/actions/workflows/ci.yml)
 [![golangci-lint](https://img.shields.io/badge/lint-golangci--lint-blue)](.golangci.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/McConfig/telemt-admin/badge)](https://securityscorecards.dev/viewer/?uri=github.com/McConfig/telemt-admin)
 [![license](https://img.shields.io/github/license/McConfig/telemt-admin)](LICENSE)
 [![go](https://img.shields.io/github/go-mod/go-version/McConfig/telemt-admin)](go.mod)
 

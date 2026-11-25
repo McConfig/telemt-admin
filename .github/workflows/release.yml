@@ -41,6 +41,7 @@ jobs:
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
           outputs: >-
             type=image,name=${{ steps.image.outputs.name }},push-by-digest=true,name-canonical=true,push=true
+          provenance: mode=max
           cache-from: type=gha,scope=image-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=image-${{ matrix.arch }}
       - name: Сохранить digest
@@ -114,6 +115,12 @@ jobs:
             cosign verify ghcr.io/mcconfig/telemt-admin:${{ github.ref_name }} \
               --certificate-identity-regexp 'https://github.com/McConfig/telemt-admin/.*' \
               --certificate-oidc-issuer https://token.actions.githubusercontent.com
+            ```
+
+            Проверка provenance:
+
+            ```bash
+            gh attestation verify oci://ghcr.io/mcconfig/telemt-admin:${{ github.ref_name }} --owner McConfig
             ```
 
             SBOM приложен к релизу файлом `sbom.spdx.json`.

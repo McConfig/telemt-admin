@@ -51,7 +51,20 @@ TeleMT Admin управляет MTProto-прокси и видит ссылки 
 - аудит действий;
 - CI: CodeQL, gosec, Trivy, govulncheck, Gitleaks, Semgrep;
 - образы подписываются cosign, к релизу прикладывается SBOM;
+- релизные образы содержат SLSA provenance, Scorecard проверяется в CI;
 - секреты не хранятся в репозитории.
+
+## Проверка релиза
+
+```bash
+cosign verify ghcr.io/mcconfig/telemt-admin:v1.1.4 \
+  --certificate-identity-regexp 'https://github.com/McConfig/telemt-admin/.*' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+gh attestation verify oci://ghcr.io/mcconfig/telemt-admin:v1.1.4 --owner McConfig
+```
+
+SBOM лежит в GitHub Release файлом `sbom.spdx.json`.
 
 ## Обновление
 

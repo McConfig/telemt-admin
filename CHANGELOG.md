@@ -5,6 +5,17 @@
 
 ## [Unreleased]
 
+## [1.1.5] — 2026-11-25
+
+### Добавлено
+
+- строгий CSP с `object-src 'none'`, `base-uri 'self'` и
+  `frame-ancestors 'none'`;
+- OpenSSF Scorecard в CI и бейдж;
+- SLSA provenance у релизных образов, проверка через
+  `gh attestation verify`;
+- раздел проверки релиза в `SECURITY.md`.
+
 ## [1.1.4] — 2026-11-25
 
 ### Добавлено
