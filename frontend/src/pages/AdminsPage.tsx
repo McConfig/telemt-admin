@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Dialog, Label, Loader, Text, TextInput } from '@gravity-ui/uikit';
 import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
@@ -38,8 +38,8 @@ export default function AdminsPage({ me }: { me: Me }) {
     }
   };
 
-  const { sortHeader, sortRows } = useTableSort();
-  const columns: ColumnDef<AdminUser>[] = [
+  const { sorting, sortHeader, sortRows } = useTableSort();
+  const columns = useMemo<ColumnDef<AdminUser>[]>(() => [
     { id: 'name', header: () => sortHeader('name', 'Имя'), cell: ({ row }) => row.original.name },
     {
       id: 'role',
@@ -133,8 +133,8 @@ export default function AdminsPage({ me }: { me: Me }) {
         </div>
       ),
     },
-  ];
-  const sorted = sortRows(items, compareAdmins);
+  ], [sorting]);
+  const sorted = useMemo(() => sortRows(items, compareAdmins), [items, sorting]);
   const table = useTable({ columns, data: sorted });
 
   if (me.user.role !== 'admin') {

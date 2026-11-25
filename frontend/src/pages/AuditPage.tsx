@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Loader, Text, TextInput } from '@gravity-ui/uikit';
 import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
@@ -56,14 +56,14 @@ export default function AuditPage() {
       .finally(() => setLoading(false));
   }, [q, action, from, to, sortParam, page]);
 
-  const columns: ColumnDef<AuditItem>[] = [
+  const columns = useMemo<ColumnDef<AuditItem>[]>(() => [
     { id: 'at', header: () => sortHeader('at', 'Время'), cell: ({ row }) => formatTime(row.original.at) },
     { id: 'actor', header: () => sortHeader('actor', 'Кто'), cell: ({ row }) => row.original.actor },
     { id: 'action', header: () => sortHeader('action', 'Действие'), cell: ({ row }) => row.original.action },
     { id: 'target', header: () => sortHeader('target', 'Цель'), cell: ({ row }) => row.original.target },
     { id: 'result', header: () => sortHeader('result', 'Результат'), cell: ({ row }) => row.original.result },
     { id: 'ip', header: () => sortHeader('ip', 'IP'), cell: ({ row }) => row.original.ip },
-  ];
+  ], [sorting]);
 
   const table = useTable({ columns, data: items });
 
