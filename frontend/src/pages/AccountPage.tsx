@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Loader, Text, TextInput } from '@gravity-ui/uikit';
 import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
@@ -55,8 +55,8 @@ export default function AccountPage() {
 
   useEffect(load, []);
 
-  const { sortHeader, sortRows } = useTableSort();
-  const columns: ColumnDef<SessionItem>[] = [
+  const { sorting, sortHeader, sortRows } = useTableSort();
+  const columns = useMemo<ColumnDef<SessionItem>[]>(() => [
     { id: 'ua', header: () => sortHeader('ua', 'Устройство'), cell: ({ row }) => row.original.userAgent || '—' },
     { id: 'ip', header: () => sortHeader('ip', 'IP'), cell: ({ row }) => row.original.ip },
     { id: 'at', header: () => sortHeader('at', 'Вход'), cell: ({ row }) => formatTime(row.original.createdAt) },
@@ -72,7 +72,7 @@ export default function AccountPage() {
           </Button>
         ),
     },
-  ];
+  ], [sorting]);
 
   const changePassword = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -92,7 +92,7 @@ export default function AccountPage() {
     }
   };
 
-  const sorted = sortRows(sessions, compareSessions);
+  const sorted = useMemo(() => sortRows(sessions, compareSessions), [sessions, sorting]);
   const table = useTable({ columns, data: sorted });
 
   return (
