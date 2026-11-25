@@ -62,6 +62,14 @@
 | `retention` | duration | active | сразу, к новым записям | 168h–2160h |
 | `session.ttl` | duration | active | к новым входам | 1h–720h |
 | `links.mode` | enum | active | сразу | `tls`, `secure`, `classic` |
+| `login.max_failures` | int | active | сразу | 1–1000 |
+| `login.window` | duration | active | сразу | 1m–24h |
+| `totp.pending_ttl` | duration | active | сразу | 1m–15m |
+| `totp.max_attempts` | int | active | сразу | 1–20 |
+| `audit.max_events` | int | active | сразу, к новым записям | 100–1000000 |
+| `password.min_length` | int | active | сразу, к новым паролям | 8–128 |
+| `ui.default_chart_days` | int | active | сразу | 7–90 |
+| `log.level` | enum | active | сразу | `debug`, `info`, `warn`, `error` |
 
 ### 4.3. Будущие настройки
 
@@ -69,20 +77,13 @@
 
 | Ключ | Версия | Смысл |
 |---|---|---|
-| `login.max_failures` | 1.4.0 | неудачных входов до блокировки |
-| `login.window` | 1.4.0 | окно подсчёта неудачных входов |
-| `totp.pending_ttl` | 1.4.0 | срок ожидания второго фактора |
-| `totp.max_attempts` | 1.4.0 | попыток ввода кода |
-| `audit.max_events` | 1.4.0 | размер потока аудита |
-| `password.min_length` | 1.4.0 | минимальная длина пароля |
-| `ui.default_chart_days` | 1.4.0 | период графиков по умолчанию |
-| `log.level` | 1.4.0 | уровень логирования, после перезапуска |
 | `security.require_2fa` | 1.5.0 | обязательный 2FA для админов |
 | `notifications.webhook_url` | 1.5.0 | URL вебхука |
 | `notifications.webhook_secret` | 1.5.0 | секрет подписи |
 | `notifications.events` | 1.5.0 | список событий |
 | `backup.schedule` | 1.5.0 | расписание на хосте |
 | `backup.keep_days` | 1.5.0 | срок хранения снимков |
+| `backup.restore_test` | 1.5.0 | проверка восстановления на хосте |
 | `backup.offsite` | 1.6.0 | копия вне хоста |
 
 ### 4.4. Только чтение
@@ -158,6 +159,12 @@ TTL у настроек нет. Удаление ключа возвращает
 | `links.mode` | используется при формировании ответа клиента |
 | `collect.interval` | сборщик перечитывает интервал перед каждым ожиданием |
 | `retention` | `store.SetRetention` вызывается сразу при сохранении |
+| `login.*` | `store.SetLoginPolicy` при сохранении |
+| `totp.*` | читается в обработчиках входа |
+| `audit.max_events` | `store.SetAuditMax`, применяется к новым записям |
+| `password.min_length` | проверяется при создании и смене пароля |
+| `ui.default_chart_days` | отдаётся в `/api/meta`, фронтенд использует для графиков |
+| `log.level` | динамический `slog.LevelVar` |
 
 Изменение домашней страны не переписывает уже сохранённую историю. В
 интерфейсе есть пояснение: новые расчёты используют новую страну, старые

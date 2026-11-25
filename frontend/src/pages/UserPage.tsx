@@ -89,6 +89,7 @@ export default function UserPage({ me }: { me: Me }) {
   const [riskDays, setRiskDays] = useState(7);
   const [riskLoading, setRiskLoading] = useState(false);
   const [riskDay, setRiskDay] = useState('');
+  const [chartDays, setChartDays] = useState(30);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -118,11 +119,11 @@ export default function UserPage({ me }: { me: Me }) {
             : 'no',
       );
       api
-        .userTraffic(name)
+        .userTraffic(name, chartDays)
         .then(setTraffic)
         .catch(() => setTraffic([]));
       api
-        .userTimeline(name)
+        .userTimeline(name, chartDays)
         .then(setTimeline)
         .catch(() => setTimeline([]));
     } catch (err) {
@@ -130,7 +131,18 @@ export default function UserPage({ me }: { me: Me }) {
     } finally {
       setLoading(false);
     }
-  }, [name]);
+  }, [name, chartDays]);
+
+  useEffect(() => {
+    api
+      .meta()
+      .then((meta) => {
+        if (meta.defaultChartDays && meta.defaultChartDays > 0) {
+          setChartDays(meta.defaultChartDays);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     setRiskSaved(false);
@@ -477,7 +489,7 @@ export default function UserPage({ me }: { me: Me }) {
           <div className="card-head">
             <Text variant="header-1">Трафик по дням</Text>
             <div style={{ flex: 1 }} />
-            <Text className="muted">30 дней</Text>
+            <Text className="muted">{chartDays} дней</Text>
           </div>
           <TrafficChart items={traffic} />
         </div>

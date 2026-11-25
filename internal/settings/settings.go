@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/McConfig/telemt-admin/internal/config"
+	"github.com/McConfig/telemt-admin/internal/logging"
 	"github.com/McConfig/telemt-admin/internal/store"
 )
 
@@ -362,6 +363,27 @@ func (s *Service) Save(
 	if retentionChanged {
 		s.st.SetRetention(s.Retention(ctx))
 	}
+	touched := func(key string) bool {
+		if _, ok := set[key]; ok {
+			return true
+		}
+		for _, item := range reset {
+			if item == key {
+				return true
+			}
+		}
+		return false
+	}
+	if touched("login.max_failures") || touched("login.window") {
+		maxFailures, loginWindow := s.LoginPolicy(ctx)
+		s.st.SetLoginPolicy(maxFailures, loginWindow)
+	}
+	if touched("audit.max_events") {
+		s.st.SetAuditMax(s.AuditMaxEvents(ctx))
+	}
+	if touched("log.level") {
+		_ = logging.Set(s.LogLevel(ctx))
+	}
 
 	return catalog, changes, nil
 }
@@ -493,6 +515,62 @@ func (s *Service) Definitions() []Definition {
 	return out
 }
 
+// LoginPolicy возвращает лимит и окно неудачных входов.
+func (s *Service) LoginPolicy(ctx context.Context) (int, time.Duration) {
+	s.ensure(ctx)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.intValue("login.max_failures"), s.durationValue("login.window")
+}
+
+// TOTPPendingTTL — срок временной сессии ввода кода.
+func (s *Service) TOTPPendingTTL(ctx context.Context) time.Duration {
+	s.ensure(ctx)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.durationValue("totp.pending_ttl")
+}
+
+// TOTPMaxAttempts — число неверных кодов до нового входа.
+func (s *Service) TOTPMaxAttempts(ctx context.Context) int {
+	s.ensure(ctx)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.intValue("totp.max_attempts")
+}
+
+// AuditMaxEvents — размер потока аудита.
+func (s *Service) AuditMaxEvents(ctx context.Context) int64 {
+	s.ensure(ctx)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return int64(s.intValue("audit.max_events"))
+}
+
+// PasswordMinLength — минимальная длина пароля.
+func (s *Service) PasswordMinLength(ctx context.Context) int {
+	s.ensure(ctx)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.intValue("password.min_length")
+}
+
+// DefaultChartDays — период графиков по умолчанию.
+func (s *Service) DefaultChartDays(ctx context.Context) int {
+	s.ensure(ctx)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.intValue("ui.default_chart_days")
+}
+
+// LogLevel — уровень логирования.
+func (s *Service) LogLevel(ctx context.Context) string {
+	s.ensure(ctx)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.stringValue("log.level")
+}
+
 // IsActive сообщает, можно ли менять ключ.
 func (s *Service) IsActive(key string) bool {
 	d, ok := s.by[key]
@@ -500,7 +578,32 @@ func (s *Service) IsActive(key string) bool {
 }
 
 func (s *Service) build() {
-	cfg := s.cfg
+	cfg := *s.cfg
+	if cfg.LoginMaxFailures <= 0 {
+		cfg.LoginMaxFailures = 10
+	}
+	if cfg.LoginWindow <= 0 {
+		cfg.LoginWindow = 15 * time.Minute
+	}
+	if cfg.TOTPPendingTTL <= 0 {
+		cfg.TOTPPendingTTL = 5 * time.Minute
+	}
+	if cfg.TOTPMaxAttempts <= 0 {
+		cfg.TOTPMaxAttempts = 5
+	}
+	if cfg.AuditMaxEvents <= 0 {
+		cfg.AuditMaxEvents = 10000
+	}
+	if cfg.PasswordMinLength <= 0 {
+		cfg.PasswordMinLength = 12
+	}
+	if cfg.DefaultChartDays <= 0 {
+		cfg.DefaultChartDays = 30
+	}
+	if cfg.LogLevel == "" {
+		cfg.LogLevel = "info"
+	}
+	cfgPtr := &cfg
 	add := func(d Definition) {
 		if d.Section == "" {
 			panic("settings: у настройки нет раздела: " + d.Key)
@@ -565,19 +668,58 @@ func (s *Service) build() {
 		Options: []Option{{Value: "tls", Label: "TLS"}, {Value: "secure", Label: "Secure"}, {Value: "classic", Label: "Classic"}},
 	})
 
+	add(Definition{
+		Key: "login.max_failures", Section: "security", Title: "Неудачных входов до блокировки",
+		Description: "Сколько неудачных попыток разрешено до временной блокировки",
+		Kind:        KindInt, Status: Active, Default: cfg.LoginMaxFailures, Min: intp(1), Max: intp(1000),
+	})
+	add(Definition{
+		Key: "login.window", Section: "security", Title: "Окно подсчёта входов",
+		Description: "За какой период считаются неудачные попытки",
+		Kind:        KindDuration, Status: Active, Default: cfg.LoginWindow,
+		MinDur: durp(time.Minute), MaxDur: durp(24 * time.Hour),
+	})
+	add(Definition{
+		Key: "totp.pending_ttl", Section: "security", Title: "Ожидание второго фактора",
+		Description: "Сколько действует временная сессия ввода кода",
+		Kind:        KindDuration, Status: Active, Default: cfg.TOTPPendingTTL,
+		MinDur: durp(time.Minute), MaxDur: durp(15 * time.Minute),
+	})
+	add(Definition{
+		Key: "totp.max_attempts", Section: "security", Title: "Попыток ввода TOTP",
+		Description: "После какого числа неверных кодов вход начинается заново",
+		Kind:        KindInt, Status: Active, Default: cfg.TOTPMaxAttempts, Min: intp(1), Max: intp(20),
+	})
+	add(Definition{
+		Key: "audit.max_events", Section: "security", Title: "Размер аудита",
+		Description: "Сколько последних событий хранить; применяется к новым записям",
+		Kind:        KindInt, Status: Active, Default: int(cfg.AuditMaxEvents), Min: intp(100), Max: intp(1000000),
+	})
+	add(Definition{
+		Key: "password.min_length", Section: "security", Title: "Минимальная длина пароля",
+		Description: "Для новых паролей и сброса пароля",
+		Kind:        KindInt, Status: Active, Default: cfg.PasswordMinLength, Min: intp(8), Max: intp(128),
+	})
+	add(Definition{
+		Key: "ui.default_chart_days", Section: "interface", Title: "Период графиков по умолчанию",
+		Description: "Сколько дней показывать в графиках трафика и активности",
+		Kind:        KindInt, Status: Active, Default: cfg.DefaultChartDays, Min: intp(7), Max: intp(90),
+	})
+	add(Definition{
+		Key: "log.level", Section: "logging", Title: "Уровень логирования",
+		Description: "Применяется сразу, без перезапуска", Kind: KindEnum, Status: Active,
+		Default: cfg.LogLevel,
+		Options: []Option{
+			{Value: "debug", Label: "debug"}, {Value: "info", Label: "info"},
+			{Value: "warn", Label: "warn"}, {Value: "error", Label: "error"},
+		},
+	})
+
 	planned := func(key, section, title, desc string, kind Kind, release string, def any) {
 		add(Definition{Key: key, Section: section, Title: title, Description: desc,
 			Kind: kind, Status: Planned, PlannedRelease: release, Default: def})
 	}
-	planned("login.max_failures", "security", "Неудачных входов до блокировки", "Сейчас жёстко 10 за 15 минут", KindInt, "1.4.0", 10)
-	planned("login.window", "security", "Окно подсчёта входов", "Сейчас 15 минут", KindDuration, "1.4.0", 15*time.Minute)
-	planned("totp.pending_ttl", "security", "Ожидание второго фактора", "Сейчас 5 минут", KindDuration, "1.4.0", 5*time.Minute)
-	planned("totp.max_attempts", "security", "Попыток ввода TOTP", "Сейчас 5", KindInt, "1.4.0", 5)
-	planned("audit.max_events", "security", "Размер аудита", "Сейчас 10 000 событий", KindInt, "1.4.0", 10000)
-	planned("password.min_length", "security", "Минимальная длина пароля", "Сейчас 12 символов", KindInt, "1.4.0", 12)
 	planned("security.require_2fa", "security", "Обязательный 2FA для админов", "Политика для всех администраторов", KindBool, "1.5.0", false)
-	planned("ui.default_chart_days", "interface", "Период графиков по умолчанию", "Сейчас 30 дней", KindInt, "1.4.0", 30)
-	planned("log.level", "logging", "Уровень логирования", "Сейчас info, нужен перезапуск", KindEnum, "1.4.0", "info")
 	planned("notifications.webhook_url", "notifications", "URL вебхука", "Доставка событий во внешнюю систему", KindString, "1.5.0", "")
 	planned("notifications.webhook_secret", "notifications", "Секрет вебхука", "HMAC-подпись запросов", KindString, "1.5.0", "")
 	planned("notifications.events", "notifications", "События", "Какие события отправлять", KindString, "1.5.0", "")
@@ -590,8 +732,8 @@ func (s *Service) build() {
 		add(Definition{Key: key, Section: section, Title: title, Description: desc,
 			Kind: kind, Status: Readonly, ReadonlyValue: value})
 	}
-	readonly("network.allowed_cidrs", "infrastructure", "Разрешённые сети", "Меняется только через TGADMIN_ALLOWED_CIDRS", KindString, prefixes(cfg))
-	readonly("network.trusted_proxies", "infrastructure", "Доверенные прокси", "Меняется только через TGADMIN_TRUSTED_PROXIES", KindString, trustedProxies(cfg))
+	readonly("network.allowed_cidrs", "infrastructure", "Разрешённые сети", "Меняется только через TGADMIN_ALLOWED_CIDRS", KindString, prefixes(cfgPtr))
+	readonly("network.trusted_proxies", "infrastructure", "Доверенные прокси", "Меняется только через TGADMIN_TRUSTED_PROXIES", KindString, trustedProxies(cfgPtr))
 	readonly("app.base_url", "infrastructure", "Base URL", "Влияет на cookie, CSRF и Origin", KindString, cfg.BaseURL.String())
 	readonly("app.cookie_secure", "infrastructure", "Cookie Secure", "Меняется только через TGADMIN_COOKIE_SECURE", KindBool, cfg.CookieSecure)
 	readonly("app.listen", "infrastructure", "Адрес приложения", "Меняется только через TGADMIN_LISTEN", KindString, cfg.Listen)

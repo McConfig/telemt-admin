@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/McConfig/telemt-admin/internal/config"
+	"github.com/McConfig/telemt-admin/internal/logging"
 	"github.com/McConfig/telemt-admin/internal/store"
 	"github.com/alicebob/miniredis/v2"
 )
@@ -27,9 +28,13 @@ func testService(t *testing.T) (*Service, *store.Store) {
 		Listen: ":8090", BaseURL: base, SessionTTL: 720 * time.Hour,
 		LinkMode: "tls", CookieSecure: true, RiskIPsWarn: 3, RiskIPsHigh: 5,
 		RiskDistinct7d: 15, HomeCountry: "RU", Retention: 720 * time.Hour,
-		CollectInterval: time.Minute,
-		AllowedCIDRs:    []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")},
-		GeoIPCity:       "/opt/geoip/city.mmdb", GeoIPASN: "/opt/geoip/asn.mmdb",
+		CollectInterval:  time.Minute,
+		LoginMaxFailures: 10, LoginWindow: 15 * time.Minute,
+		TOTPPendingTTL: 5 * time.Minute, TOTPMaxAttempts: 5,
+		AuditMaxEvents: 10000, PasswordMinLength: 12,
+		DefaultChartDays: 30, LogLevel: "info",
+		AllowedCIDRs: []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")},
+		GeoIPCity:    "/opt/geoip/city.mmdb", GeoIPASN: "/opt/geoip/asn.mmdb",
 		ValkeyURL: "redis://valkey:6379/0", TelemtURL: "http://telemt:9091",
 		TOTPKey: []byte("0123456789abcdef0123456789abcdef"),
 	}
@@ -64,8 +69,11 @@ func TestCatalogStatusesAndSecrets(t *testing.T) {
 			t.Fatalf("%s: статус %s", key, statuses[key])
 		}
 	}
-	if statuses["login.max_failures"] != Planned {
+	if statuses["login.max_failures"] != Active {
 		t.Fatalf("login.max_failures: %s", statuses["login.max_failures"])
+	}
+	if statuses["security.require_2fa"] != Planned {
+		t.Fatalf("security.require_2fa: %s", statuses["security.require_2fa"])
 	}
 	if statuses["network.allowed_cidrs"] != Readonly {
 		t.Fatalf("network.allowed_cidrs: %s", statuses["network.allowed_cidrs"])
@@ -172,7 +180,7 @@ func TestValidation(t *testing.T) {
 func TestPlannedAndReadonlyRejected(t *testing.T) {
 	svc, _ := testService(t)
 	ctx := context.Background()
-	for _, key := range []string{"login.max_failures", "network.allowed_cidrs", "valkey.password"} {
+	for _, key := range []string{"security.require_2fa", "network.allowed_cidrs", "valkey.password"} {
 		_, _, err := svc.Save(ctx, 0, map[string]json.RawMessage{key: raw(1)}, nil)
 		var invalid *ValidationError
 		if !errors.As(err, &invalid) {
@@ -216,4 +224,38 @@ func TestTemplateValidation(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("валидный шаблон: %v", err)
 	}
+}
+
+func TestSecuritySettingsApplied(t *testing.T) {
+	svc, st := testService(t)
+	ctx := context.Background()
+	if _, _, err := svc.Save(ctx, 0, map[string]json.RawMessage{
+		"login.max_failures":    raw(4),
+		"login.window":          raw("5m"),
+		"totp.pending_ttl":      raw("2m"),
+		"totp.max_attempts":     raw(3),
+		"audit.max_events":      raw(500),
+		"password.min_length":   raw(16),
+		"ui.default_chart_days": raw(14),
+		"log.level":             raw("debug"),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+	max, window := st.LoginPolicy()
+	if max != 4 || window != 5*time.Minute {
+		t.Fatalf("политика входа: %d %s", max, window)
+	}
+	if st.AuditMax() != 500 {
+		t.Fatalf("аудит: %d", st.AuditMax())
+	}
+	if svc.TOTPPendingTTL(ctx) != 2*time.Minute || svc.TOTPMaxAttempts(ctx) != 3 {
+		t.Fatalf("TOTP: %s %d", svc.TOTPPendingTTL(ctx), svc.TOTPMaxAttempts(ctx))
+	}
+	if svc.PasswordMinLength(ctx) != 16 || svc.DefaultChartDays(ctx) != 14 {
+		t.Fatalf("пароль/графики: %d %d", svc.PasswordMinLength(ctx), svc.DefaultChartDays(ctx))
+	}
+	if logging.Level() != "debug" {
+		t.Fatalf("лог: %s", logging.Level())
+	}
+	t.Cleanup(func() { _ = logging.Set("info") })
 }

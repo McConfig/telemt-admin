@@ -13,6 +13,7 @@ import (
 
 	"github.com/McConfig/telemt-admin/internal/cli"
 	"github.com/McConfig/telemt-admin/internal/config"
+	"github.com/McConfig/telemt-admin/internal/logging"
 )
 
 func main() {
@@ -60,6 +61,7 @@ func healthcheck() error {
 }
 
 func run() error {
+	slog.SetDefault(slog.New(logging.Handler()))
 	cfg, err := config.Load(os.Getenv)
 	if err != nil {
 		return err

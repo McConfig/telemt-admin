@@ -24,8 +24,13 @@ const (
 )
 
 // CheckPolicy проверяет минимальные требования к паролю.
-func CheckPolicy(password string) error {
-	if utf8.RuneCountInString(password) < 12 {
+// Без аргумента используется 12 символов; web передаёт значение из настроек.
+func CheckPolicy(password string, minLength ...int) error {
+	min := 12
+	if len(minLength) > 0 && minLength[0] > 0 {
+		min = minLength[0]
+	}
+	if utf8.RuneCountInString(password) < min {
 		return ErrPolicy
 	}
 	return nil

@@ -35,6 +35,10 @@ func testServerWithMR(t *testing.T) (*Server, *miniredis.Miniredis) {
 		TOTPKey:      []byte("0123456789abcdef0123456789abcdef"),
 		RiskIPsWarn:  3, RiskIPsHigh: 5, RiskDistinct7d: 15,
 		HomeCountry: "RU", Retention: 720 * time.Hour, CollectInterval: time.Minute,
+		LoginMaxFailures: 10, LoginWindow: 15 * time.Minute,
+		TOTPPendingTTL: 5 * time.Minute, TOTPMaxAttempts: 5,
+		AuditMaxEvents: 10000, PasswordMinLength: 12,
+		DefaultChartDays: 30, LogLevel: "info",
 	}
 	return New(cfg, st, nil, nil), mr
 }

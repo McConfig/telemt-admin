@@ -49,8 +49,12 @@ func TestSettingsCatalog(t *testing.T) {
 	if interval.Restart {
 		t.Fatalf("интервал сбора не должен требовать перезапуска: %+v", interval)
 	}
-	planned := settingsField(t, cat, "login.max_failures")
-	if planned.Status != stgs.Planned || planned.PlannedRelease != "1.4.0" {
+	activeLogin := settingsField(t, cat, "login.max_failures")
+	if activeLogin.Status != stgs.Active || activeLogin.Value.(float64) != 10 {
+		t.Fatalf("login.max_failures: %+v", activeLogin)
+	}
+	planned := settingsField(t, cat, "security.require_2fa")
+	if planned.Status != stgs.Planned || planned.PlannedRelease != "1.5.0" {
 		t.Fatalf("planned: %+v", planned)
 	}
 	readonly := settingsField(t, cat, "network.allowed_cidrs")
@@ -110,7 +114,7 @@ func TestSettingsUpdateAndConflict(t *testing.T) {
 
 	rr = httptest.NewRecorder()
 	s.Handler().ServeHTTP(rr, apiRequest(t, "PUT", "/api/settings",
-		`{"version":1,"values":{"login.max_failures":5}}`, tok, csrf))
+		`{"version":1,"values":{"security.require_2fa":true}}`, tok, csrf))
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("planned: код %d", rr.Code)
 	}
@@ -210,5 +214,59 @@ func TestSettingsBackupsAndSystem(t *testing.T) {
 	s.Handler().ServeHTTP(rr, apiRequest(t, "GET", "/api/settings/history", "", tok, ""))
 	if rr.Code != http.StatusOK {
 		t.Fatalf("история: код %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestMetaDefaultChartDays(t *testing.T) {
+	s := testServer(t)
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, apiRequest(t, "GET", "/api/meta", "", "", ""))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("meta: %d", rr.Code)
+	}
+	var meta struct {
+		DefaultChartDays int `json:"defaultChartDays"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &meta); err != nil {
+		t.Fatal(err)
+	}
+	if meta.DefaultChartDays != 30 {
+		t.Fatalf("по умолчанию: %d", meta.DefaultChartDays)
+	}
+	tok, csrf := seedSession(t, s, store.RoleAdmin)
+	if _, _, err := s.settings.Save(context.Background(), 0, map[string]json.RawMessage{
+		"ui.default_chart_days": json.RawMessage("14"),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+	rr = httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, apiRequest(t, "GET", "/api/meta", "", tok, csrf))
+	if err := json.Unmarshal(rr.Body.Bytes(), &meta); err != nil {
+		t.Fatal(err)
+	}
+	if meta.DefaultChartDays != 14 {
+		t.Fatalf("после настройки: %d", meta.DefaultChartDays)
+	}
+}
+
+func TestSettingsPasswordPolicyApplies(t *testing.T) {
+	s := testServer(t)
+	tok, csrf := seedSession(t, s, store.RoleAdmin)
+	if _, _, err := s.settings.Save(context.Background(), 0, map[string]json.RawMessage{
+		"password.min_length": json.RawMessage("20"),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+	short := `{"name":"newadmin","role":"admin","password":"123456789012"}`
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, apiRequest(t, "POST", "/api/admins", short, tok, csrf))
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("короткий пароль: код %d: %s", rr.Code, rr.Body.String())
+	}
+	long := `{"name":"newadmin","role":"admin","password":"12345678901234567890"}`
+	rr = httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, apiRequest(t, "POST", "/api/admins", long, tok, csrf))
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("длинный пароль: код %d: %s", rr.Code, rr.Body.String())
 	}
 }

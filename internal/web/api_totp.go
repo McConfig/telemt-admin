@@ -13,11 +13,6 @@ import (
 	"github.com/skip2/go-qrcode"
 )
 
-const (
-	pendingTOTPTTL  = 5 * time.Minute
-	maxTOTPAttempts = 5
-)
-
 type totpStatus struct {
 	Available    bool   `json:"available"`
 	Enabled      bool   `json:"enabled"`
@@ -69,7 +64,7 @@ func (s *Server) apiLoginTOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !allowed {
-		writeError(w, http.StatusTooManyRequests, "too_many_attempts", "слишком много попыток, попробуйте через 15 минут")
+		writeError(w, http.StatusTooManyRequests, "too_many_attempts", "слишком много попыток, попробуйте позже")
 		return
 	}
 	u, err := s.store.GetUser(r.Context(), pending.User)
@@ -81,7 +76,7 @@ func (s *Server) apiLoginTOTP(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		attempts, _ := s.store.IncrPendingTOTPAttempts(r.Context(), c.Value)
 		_ = s.store.RecordLoginFailure(r.Context(), addr.String(), u.Name)
-		if attempts >= maxTOTPAttempts {
+		if attempts >= int64(s.settings.TOTPMaxAttempts(r.Context())) {
 			_ = s.store.DeletePendingTOTP(r.Context(), c.Value)
 			s.clearCookie(w)
 			writeError(w, http.StatusTooManyRequests, "too_many_attempts", "слишком много неверных кодов, начните вход заново")

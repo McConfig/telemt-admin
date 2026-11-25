@@ -26,7 +26,7 @@ func (s *Store) Audit(ctx context.Context, e AuditEvent) error {
 	}
 	_, err := s.rdb.XAdd(ctx, &redis.XAddArgs{
 		Stream: auditStream,
-		MaxLen: 10000,
+		MaxLen: s.auditMax.Load(),
 		Approx: true,
 		Values: map[string]any{
 			"at": e.At.UTC().Format(time.RFC3339), "actor": e.Actor,
