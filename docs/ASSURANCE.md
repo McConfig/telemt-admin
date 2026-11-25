@@ -27,7 +27,7 @@ TeleMT Admin — локальный веб-интерфейс для управ�
 | CSRF | сторонний сайт от имени админа | SameSite, CSRF-токен, проверка Origin |
 | XSS | пользовательские заметки и имена | React escaping, CSP, запрет inline script |
 | SSRF | healthcheck URL | адрес задаёт оператор, `#nosec` с обоснованием |
-| Утечка секретов | коммит `.env` | Gitleaks, `.gitignore`, CI |
+| Утечка секретов | коммит `.env` | secret scanning GitHub, push protection, `.gitignore`, CI |
 | Подмена образа | компрометация реестра | cosign, SBOM, provenance |
 | Утечка данных | доступ вне сети | allowlist CIDR, reverse-proxy, HTTPS |
 | Отказ Valkey | потеря истории | ежедневный бэкап, restore-test |
@@ -55,7 +55,7 @@ TeleMT Admin — локальный веб-интерфейс для управ�
 
 - Go-тесты, включая TOTP, CSRF, права, лимиты и ошибки.
 - Vitest и Playwright для UI и сквозных сценариев.
-- gosec, Trivy, govulncheck, Semgrep, Gitleaks, CodeQL.
+- CodeQL, gosec, Trivy, govulncheck; секреты — secret scanning GitHub.
 - Fuzz-тесты TOTP и разбора ссылок.
 - Ручная проверка на стенде и на домашнем сервере.
 - Восстановление Valkey из снимка.

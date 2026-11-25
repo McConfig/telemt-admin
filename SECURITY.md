@@ -67,7 +67,7 @@ TeleMT Admin управляет MTProto-прокси и видит ссылки 
 - ограничение попыток входа и доступа по сетям;
 - TOTP с одноразовыми резервными кодами, секреты шифруются AES-GCM;
 - аудит действий;
-- CI: CodeQL, gosec, Trivy, govulncheck, Gitleaks, Semgrep;
+- CI: CodeQL, gosec, Trivy, govulncheck; секреты — secret scanning GitHub;
 - образы подписываются cosign, к релизу прикладывается SBOM;
 - релизные образы содержат SLSA provenance, Scorecard проверяется в CI;
 - Dependabot следит за зависимостями, SBOM прикладывается к релизу;

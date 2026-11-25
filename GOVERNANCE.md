@@ -39,8 +39,9 @@ There is no separate membership process.
 ## Releases
 
 - Versions follow Semantic Versioning: `MAJOR.MINOR.PATCH`.
-- `main` is protected: pull request, green `test`, `security` and `e2e`
-  checks, linear history, no force-push.
+- `main` is protected by an active repository ruleset: pull request, green
+  `test`, `security` and `e2e` checks, linear history, no force-push and no
+  branch deletion.
 - A release is a signed Git tag `vX.Y.Z`. The release workflow builds
   multi-architecture images, signs the image with cosign, publishes an SBOM
   and provenance, and creates a GitHub Release.
@@ -78,7 +79,7 @@ checks:
 
 Review comments are written in Russian or English. A change is merged only
 after the `test`, `security` and `e2e` checks are green and the review
-comments are resolved. `main` is protected and requires a pull request.
+comments are resolved. `main` is protected by a repository ruleset and requires a pull request.
 
 ## Code of conduct
 
