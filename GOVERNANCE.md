@@ -62,6 +62,24 @@ There is no separate membership process.
   documented separately for the operator and is not part of the public
   repository.
 
+## Code review
+
+Every pull request is reviewed by the maintainer before merge. Review
+checks:
+
+- correctness and failure handling, including error paths;
+- security: authentication, authorization, input validation, secrets,
+  CSRF, access control;
+- tests: new behaviour covered by Go, Vitest or Playwright tests;
+- compatibility: public API, environment variables, Valkey schema and
+  upgrade notes;
+- documentation and `CHANGELOG.md`;
+- no secrets, real IPs, customer data or disabled checks.
+
+Review comments are written in Russian or English. A change is merged only
+after the `test`, `security` and `e2e` checks are green and the review
+comments are resolved. `main` is protected and requires a pull request.
+
 ## Code of conduct
 
 Participation is governed by [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
