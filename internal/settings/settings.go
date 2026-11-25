@@ -311,7 +311,11 @@ func (s *Service) Save(
 			old, _ := s.effectiveLocked(d)
 			oldCanonical, _ := canonicalValue(d, old)
 			set[key] = canonical
-			changes = append(changes, Change{Key: key, Old: oldCanonical, New: canonicalString(d, value)})
+			if d.Secret {
+				changes = append(changes, Change{Key: key, Old: "***", New: "***"})
+			} else {
+				changes = append(changes, Change{Key: key, Old: oldCanonical, New: canonicalString(d, value)})
+			}
 		}
 		for _, key := range reset {
 			d, ok := s.by[key]
@@ -327,7 +331,11 @@ func (s *Service) Save(
 			old, _ := s.effectiveLocked(d)
 			oldCanonical, _ := canonicalValue(d, old)
 			defaultCanonical, _ := canonicalValue(d, d.Default)
-			changes = append(changes, Change{Key: key, Old: oldCanonical, New: defaultCanonical})
+			if d.Secret {
+				changes = append(changes, Change{Key: key, Old: "***", New: "***"})
+			} else {
+				changes = append(changes, Change{Key: key, Old: oldCanonical, New: defaultCanonical})
+			}
 		}
 		return s.validateRiskLocked(set, reset)
 	}()
@@ -828,7 +836,7 @@ func (s *Service) build() {
 	})
 	add(Definition{
 		Key: "backup.schedule", Section: "backups", Title: "Расписание",
-		Description: "Время ежедневного снимка, ЧЧ:ММ", Kind: KindString,
+		Description: "Время ежедневного снимка, ЧЧ:ММ; минуты кратны 5", Kind: KindString,
 		Status: Active, Default: cfg.BackupSchedule,
 	})
 	add(Definition{
