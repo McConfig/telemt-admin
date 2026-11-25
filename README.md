@@ -20,6 +20,27 @@ MTProto-прокси для Telegram. Работает через официал
 [Control API](https://github.com/telemt/telemt/blob/main/docs/Architecture/API/API.md)
 и не хранит секреты прокси.
 
+## Демо
+
+Демо-стенд поднимает настоящий `tgadmin` с фейковым Control API: реальный
+прокси, домены и секреты не нужны. Внутри 8 клиентов, история за 8 дней,
+страны, аудит и лимиты.
+
+```bash
+cd deploy/demo
+cp .env.example .env
+docker compose up -d --build
+docker compose --profile seed run --rm seed
+```
+
+Откройте <http://localhost:8090>, войдите как `demo` с паролем
+`demo-admin-password`. Подробности, смена версии, скриншоты и удаление
+данных — в [deploy/demo/README.md](deploy/demo/README.md).
+
+| Клиенты | Карточка клиента |
+|---|---|
+| ![Список клиентов](docs/screenshots/clients.png) | ![Карточка клиента](docs/screenshots/client.png) |
+
 ## Возможности
 
 - список пользователей: статус, активные IP, соединения, суммарный трафик,
@@ -60,6 +81,7 @@ MTProto-прокси для Telegram. Работает через официал
 - [Assurance case](docs/ASSURANCE.md).
 - [Участие](CONTRIBUTING.md) и [кодекс поведения](CODE_OF_CONDUCT.md).
 - [Управление проектом](GOVERNANCE.md).
+- [Демо-стенд](deploy/demo/README.md) — фейковый telemt и скриншоты.
 
 ## Архитектура
 

@@ -1,0 +1,97 @@
+name: telemt-admin-demo
+
+# Демонстрационный стенд: настоящий tgadmin, фейковый telemt и Valkey.
+# Реальный прокси не нужен, наружу ничего не проксируется.
+#
+# Запуск: см. deploy/demo/README.md.
+
+services:
+  fake-telemt:
+    build:
+      context: ../..
+      dockerfile: deploy/demo/fake-telemt/Dockerfile
+    restart: unless-stopped
+    environment:
+      TELEMT_LISTEN: ":9091"
+      TELEMT_API_TOKEN: "${TELEMT_API_TOKEN:-demo-token}"
+      DEMO_DOMAIN: "${DEMO_DOMAIN:-demo.example.com}"
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+
+  tgadmin:
+    image: ghcr.io/mcconfig/telemt-admin:${TGADMIN_VERSION:-v1.1.9}
+    restart: unless-stopped
+    depends_on: [valkey, fake-telemt]
+    environment:
+      TGADMIN_LISTEN: ":8090"
+      TGADMIN_ALLOWED_CIDRS: "127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+      TGADMIN_BASE_URL: "http://localhost:8090"
+      # Демо работает по HTTP на localhost, поэтому cookie без Secure.
+      TGADMIN_COOKIE_SECURE: "false"
+      TGADMIN_SESSION_TTL: "24h"
+      VALKEY_URL: "redis://valkey:6379/0"
+      VALKEY_PASSWORD: "${VALKEY_PASSWORD:-demo-valkey-password}"
+      TELEMT_API_URL: "http://fake-telemt:9091"
+      TELEMT_API_TOKEN: "${TELEMT_API_TOKEN:-demo-token}"
+      TELEMT_LINK_MODE: "tls"
+      TGADMIN_COLLECT_INTERVAL: "30s"
+      TGADMIN_GEOIP_CITY: "/opt/geoip/demo-city.mmdb"
+      TGADMIN_GEOIP_ASN: "/opt/geoip/demo-asn.mmdb"
+      TGADMIN_RISK_IPS_WARN: "3"
+      TGADMIN_RISK_IPS_HIGH: "5"
+      TGADMIN_RISK_DISTINCT_7D: "4"
+      # Демо-ключ шифрования TOTP: публичный, только для стенда.
+      TGADMIN_TOTP_KEY: "${TGADMIN_TOTP_KEY:-AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=}"
+    volumes: ["./geoip:/opt/geoip:ro"]
+    ports: ["127.0.0.1:8090:8090"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+
+  valkey:
+    image: valkey/valkey:8
+    restart: unless-stopped
+    command:
+      - valkey-server
+      - --requirepass
+      - "${VALKEY_PASSWORD:-demo-valkey-password}"
+      - --appendonly
+      - "yes"
+    volumes: ["valkey_data:/data"]
+    # Официальный образ запускается от root и сам понижает привилегии через
+    # setpriv. Поэтому cap_drop и no-new-privileges здесь не применяются:
+    # с ними контейнер падает с setresuid failed.
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+
+  seed:
+    profiles: ["seed"]
+    build:
+      context: ../..
+      dockerfile: deploy/demo/seed/Dockerfile
+    depends_on: [valkey, fake-telemt]
+    environment:
+      VALKEY_URL: "redis://valkey:6379/0"
+      VALKEY_PASSWORD: "${VALKEY_PASSWORD:-demo-valkey-password}"
+      TELEMT_API_URL: "http://fake-telemt:9091"
+      TELEMT_API_TOKEN: "${TELEMT_API_TOKEN:-demo-token}"
+      DEMO_ADMIN_PASSWORD: "${DEMO_ADMIN_PASSWORD:-demo-admin-password}"
+      DEMO_VIEWER_PASSWORD: "${DEMO_VIEWER_PASSWORD:-demo-viewer-password}"
+    restart: "no"
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  valkey_data: {}

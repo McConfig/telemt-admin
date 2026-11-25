@@ -7,6 +7,8 @@
 
 ### Добавлено
 
+- демо-стенд `deploy/demo`: фейковый Control API telemt, Valkey, seed
+  истории за 8 дней, генератор демо-GeoIP и скриншоты Playwright;
 - workflow `sign-releases.yml` для подписи уже опубликованных релизов:
   cosign, SBOM, `.sig`, `.pem` и SPDX-аттестация;
 - ручной запуск Scorecard через `workflow_dispatch`;

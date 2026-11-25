@@ -1,0 +1,435 @@
+//go:build demo
+
+// Command fake-telemt — демонстрационный Control API telemt.
+//
+// Сервис нужен только для локального демо и скриншотов: он не проксирует
+// трафик, не хранит реальные секреты и отвечает теми же JSON-структурами,
+// что настоящий telemt. Данные детерминированные, адреса — из RFC 5737.
+package main
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"sync"
+	"time"
+)
+
+const (
+	defaultListen = ":9091"
+	defaultDomain = "demo.example.com"
+)
+
+// Links — ссылки пользователя.
+type Links struct {
+	Classic []string `json:"classic"`
+	Secure  []string `json:"secure"`
+	TLS     []string `json:"tls"`
+}
+
+// User — пользователь прокси в формате Control API.
+type User struct {
+	Username           string   `json:"username"`
+	Enabled            bool     `json:"enabled"`
+	InRuntime          bool     `json:"in_runtime"`
+	MaxTCPConns        *uint64  `json:"max_tcp_conns"`
+	MaxUniqueIPs       *uint64  `json:"max_unique_ips"`
+	ExpirationRFC3339  *string  `json:"expiration_rfc3339"`
+	DataQuotaBytes     *uint64  `json:"data_quota_bytes"`
+	QuotaPeriod        *string  `json:"quota_period"`
+	RateLimitUpBps     *uint64  `json:"rate_limit_up_bps"`
+	RateLimitDownBps   *uint64  `json:"rate_limit_down_bps"`
+	CurrentConnections uint64   `json:"current_connections"`
+	ActiveUniqueIPs    uint64   `json:"active_unique_ips"`
+	ActiveUniqueIPList []string `json:"active_unique_ips_list"`
+	RecentUniqueIPList []string `json:"recent_unique_ips_list"`
+	TotalOctets        uint64   `json:"total_octets"`
+	Links              *Links   `json:"links"`
+}
+
+type server struct {
+	mu     sync.Mutex
+	token  string
+	domain string
+	users  map[string]*User
+	order  []string
+	rots   int
+}
+
+func main() {
+	listen := env("TELEMT_LISTEN", defaultListen)
+	s := newServer(env("TELEMT_API_TOKEN", ""), env("DEMO_DOMAIN", defaultDomain))
+
+	log.Printf("fake telemt слушает %s, домен ссылок %s", listen, s.domain)
+	srv := &http.Server{
+		Addr:              listen,
+		Handler:           s.routes(),
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	if err := srv.ListenAndServe(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func env(key, def string) string {
+	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+		return v
+	}
+	return def
+}
+
+func newServer(token, domain string) *server {
+	s := &server{token: token, domain: domain, users: map[string]*User{}}
+	s.seed()
+	return s
+}
+
+func u64(v uint64) *uint64 { return &v }
+func str(v string) *string { return &v }
+
+// secret возвращает 32 hex-символа, детерминированные по имени и номеру.
+func secret(name string, generation int) string {
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%s/%d", name, generation)))
+	return hex.EncodeToString(sum[:16])
+}
+
+func (s *server) makeLinks(name string, generation int) *Links {
+	key := secret(name, generation)
+	return &Links{
+		Classic: []string{fmt.Sprintf("tg://proxy?server=%s&port=443&secret=%s", s.domain, key)},
+		Secure:  []string{fmt.Sprintf("tg://proxy?server=%s&port=443&secret=dd%s", s.domain, key)},
+		TLS:     []string{fmt.Sprintf("tg://proxy?server=%s&port=443&secret=ee%s%s", s.domain, key, s.domain)},
+	}
+}
+
+func (s *server) seed() {
+	now := time.Now().UTC()
+	expired := now.Add(-24 * time.Hour).Format(time.RFC3339)
+	soon := now.Add(30 * 24 * time.Hour).Format(time.RFC3339)
+
+	type item struct {
+		name    string
+		enabled bool
+		ips     []string
+		conns   uint64
+		total   uint64
+		maxTCP  *uint64
+		maxIPs  *uint64
+		expires *string
+		quota   *uint64
+		period  *string
+		up      *uint64
+		down    *uint64
+	}
+
+	items := []item{
+		{
+			name: "router-home", enabled: true,
+			ips:   []string{"192.0.2.10", "192.0.2.11"},
+			conns: 12, total: 12_400_000_000,
+			maxIPs: u64(5),
+		},
+		{
+			name: "phone-main", enabled: true,
+			ips:   []string{"192.0.2.24", "198.51.100.7"},
+			conns: 4, total: 4_250_000_000,
+			maxIPs: u64(3), expires: str(soon),
+		},
+		{
+			name: "laptop-work", enabled: true,
+			ips:   []string{"192.0.2.31"},
+			conns: 2, total: 830_000_000,
+			up: u64(2_000_000), down: u64(8_000_000),
+		},
+		{
+			name: "tablet-kids", enabled: true,
+			ips:   []string{"192.0.2.44"},
+			conns: 1, total: 1_100_000_000,
+			quota: u64(5_000_000_000), period: str("month"),
+		},
+		{
+			name: "travel-phone", enabled: true,
+			ips:   []string{"198.51.100.21", "203.0.113.9"},
+			conns: 3, total: 2_600_000_000,
+		},
+		{
+			name: "tv-livingroom", enabled: true,
+			ips:   []string{"192.0.2.55"},
+			conns: 6, total: 38_900_000_000,
+		},
+		{
+			name: "test-device", enabled: false,
+			ips:    []string{},
+			total:  0,
+			maxTCP: u64(10),
+		},
+		{
+			name: "expired-trial", enabled: false,
+			ips:     []string{"203.0.113.77"},
+			total:   320_000_000,
+			expires: str(expired),
+		},
+	}
+
+	for _, it := range items {
+		u := &User{
+			Username:           it.name,
+			Enabled:            it.enabled,
+			InRuntime:          it.enabled,
+			MaxTCPConns:        it.maxTCP,
+			MaxUniqueIPs:       it.maxIPs,
+			ExpirationRFC3339:  it.expires,
+			DataQuotaBytes:     it.quota,
+			QuotaPeriod:        it.period,
+			RateLimitUpBps:     it.up,
+			RateLimitDownBps:   it.down,
+			CurrentConnections: it.conns,
+			ActiveUniqueIPs:    uint64(len(it.ips)),
+			ActiveUniqueIPList: it.ips,
+			RecentUniqueIPList: it.ips,
+			TotalOctets:        it.total,
+			Links:              s.makeLinks(it.name, 0),
+		}
+		s.users[it.name] = u
+		s.order = append(s.order, it.name)
+	}
+}
+
+func (s *server) routes() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+	mux.HandleFunc("GET /v1/capabilities", s.handleCapabilities)
+	mux.HandleFunc("GET /v1/users", s.handleList)
+	mux.HandleFunc("POST /v1/users", s.handleCreate)
+	mux.HandleFunc("GET /v1/users/{name}", s.handleGet)
+	mux.HandleFunc("PATCH /v1/users/{name}", s.handlePatch)
+	mux.HandleFunc("DELETE /v1/users/{name}", s.handleDelete)
+	mux.HandleFunc("POST /v1/users/{name}/reset-quota", s.handleResetQuota)
+	mux.HandleFunc("POST /v1/users/{name}/rotate-secret", s.handleRotate)
+	mux.HandleFunc("POST /v1/users/{name}/enable", s.handleEnable)
+	mux.HandleFunc("POST /v1/users/{name}/disable", s.handleDisable)
+	return s.withAuth(mux)
+}
+
+func (s *server) withAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.token != "" && r.Header.Get("Authorization") != s.token {
+			writeError(w, http.StatusUnauthorized, "unauthorized", "invalid API token")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *server) handleCapabilities(w http.ResponseWriter, _ *http.Request) {
+	writeOK(w, map[string]any{
+		"version": "3.5.17-demo",
+		"api":     "v1",
+		"demo":    true,
+	})
+}
+
+func (s *server) handleList(w http.ResponseWriter, _ *http.Request) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]User, 0, len(s.order))
+	for _, name := range s.order {
+		if u, ok := s.users[name]; ok {
+			out = append(out, *u)
+		}
+	}
+	writeOK(w, out)
+}
+
+func (s *server) handleGet(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	u, ok := s.users[r.PathValue("name")]
+	if !ok {
+		writeError(w, http.StatusNotFound, "not_found", "user not found")
+		return
+	}
+	writeOK(w, u)
+}
+
+func (s *server) handleCreate(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Username          string  `json:"username"`
+		MaxTCPConns       *uint64 `json:"max_tcp_conns"`
+		MaxUniqueIPs      *uint64 `json:"max_unique_ips"`
+		ExpirationRFC3339 *string `json:"expiration_rfc3339"`
+		DataQuotaBytes    *uint64 `json:"data_quota_bytes"`
+		QuotaPeriod       *string `json:"quota_period"`
+		RateLimitUpBps    *uint64 `json:"rate_limit_up_bps"`
+		RateLimitDownBps  *uint64 `json:"rate_limit_down_bps"`
+		Enabled           *bool   `json:"enabled"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON")
+		return
+	}
+	name := strings.TrimSpace(in.Username)
+	if name == "" || strings.Contains(name, "/") {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid username")
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.users[name]; exists {
+		writeError(w, http.StatusConflict, "exists", "user already exists")
+		return
+	}
+	enabled := true
+	if in.Enabled != nil {
+		enabled = *in.Enabled
+	}
+	u := &User{
+		Username:          name,
+		Enabled:           enabled,
+		InRuntime:         enabled,
+		MaxTCPConns:       in.MaxTCPConns,
+		MaxUniqueIPs:      in.MaxUniqueIPs,
+		ExpirationRFC3339: in.ExpirationRFC3339,
+		DataQuotaBytes:    in.DataQuotaBytes,
+		QuotaPeriod:       in.QuotaPeriod,
+		RateLimitUpBps:    in.RateLimitUpBps,
+		RateLimitDownBps:  in.RateLimitDownBps,
+		Links:             s.makeLinks(name, 0),
+	}
+	s.users[name] = u
+	s.order = append(s.order, name)
+	writeOK(w, map[string]any{"user": u})
+}
+
+func (s *server) handlePatch(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	var patch map[string]json.RawMessage
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&patch); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON")
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	u, ok := s.users[name]
+	if !ok {
+		writeError(w, http.StatusNotFound, "not_found", "user not found")
+		return
+	}
+	for key, raw := range patch {
+		switch key {
+		case "max_tcp_conns":
+			u.MaxTCPConns = decodePtr[uint64](raw)
+		case "max_unique_ips":
+			u.MaxUniqueIPs = decodePtr[uint64](raw)
+		case "expiration_rfc3339":
+			u.ExpirationRFC3339 = decodePtr[string](raw)
+		case "data_quota_bytes":
+			u.DataQuotaBytes = decodePtr[uint64](raw)
+		case "quota_period":
+			u.QuotaPeriod = decodePtr[string](raw)
+		case "rate_limit_up_bps":
+			u.RateLimitUpBps = decodePtr[uint64](raw)
+		case "rate_limit_down_bps":
+			u.RateLimitDownBps = decodePtr[uint64](raw)
+		case "enabled":
+			if v := decodePtr[bool](raw); v != nil {
+				u.Enabled = *v
+				u.InRuntime = *v
+			}
+		}
+	}
+	writeOK(w, u)
+}
+
+func decodePtr[T any](raw json.RawMessage) *T {
+	if string(raw) == "null" {
+		return nil
+	}
+	var v T
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return nil
+	}
+	return &v
+}
+
+func (s *server) handleDelete(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.users[name]; !ok {
+		writeError(w, http.StatusNotFound, "not_found", "user not found")
+		return
+	}
+	delete(s.users, name)
+	for i, n := range s.order {
+		if n == name {
+			s.order = append(s.order[:i], s.order[i+1:]...)
+			break
+		}
+	}
+	writeOK(w, map[string]any{"deleted": name})
+}
+
+func (s *server) handleResetQuota(w http.ResponseWriter, r *http.Request) {
+	s.mutate(w, r, func(u *User) { u.TotalOctets = 0 })
+}
+
+func (s *server) handleRotate(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	u, ok := s.users[r.PathValue("name")]
+	if !ok {
+		writeError(w, http.StatusNotFound, "not_found", "user not found")
+		return
+	}
+	s.rots++
+	u.Links = s.makeLinks(u.Username, s.rots)
+	writeOK(w, u)
+}
+
+func (s *server) handleEnable(w http.ResponseWriter, r *http.Request) {
+	s.mutate(w, r, func(u *User) { u.Enabled = true; u.InRuntime = true })
+}
+
+func (s *server) handleDisable(w http.ResponseWriter, r *http.Request) {
+	s.mutate(w, r, func(u *User) { u.Enabled = false; u.InRuntime = false })
+}
+
+func (s *server) mutate(w http.ResponseWriter, r *http.Request, fn func(*User)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	u, ok := s.users[r.PathValue("name")]
+	if !ok {
+		writeError(w, http.StatusNotFound, "not_found", "user not found")
+		return
+	}
+	fn(u)
+	writeOK(w, u)
+}
+
+func writeOK(w http.ResponseWriter, data any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "data": data})
+}
+
+func writeError(w http.ResponseWriter, status int, code, message string) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"ok": false,
+		"error": map[string]string{
+			"code":    code,
+			"message": message,
+		},
+	})
+}
