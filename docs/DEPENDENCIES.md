@@ -42,8 +42,8 @@
 - `govulncheck` для Go;
 - Trivy для файловой системы и конфигов;
 - CodeQL и gosec для кода;
-- Gitleaks для секретов;
-- Dependabot alerts и security updates;
+- secret scanning и push protection GitHub для секретов;
+- Dependabot alerts, security updates и weekly version updates;
 - SBOM в каждом релизе.
 
 ## Обновление компонентов

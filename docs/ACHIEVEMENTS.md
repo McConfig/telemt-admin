@@ -21,11 +21,13 @@
 
 ## Безопасность
 
-- CodeQL, gosec, Trivy, govulncheck, Semgrep, Gitleaks.
+- CodeQL, gosec, Trivy, govulncheck; secret scanning и push protection GitHub.
 - Argon2id, TOTP с резервными кодами, CSRF, ограничение попыток входа.
 - Приватные отчёты об уязвимостях через GitHub Security Advisories.
-- Образы подписаны cosign, SBOM и provenance приложены к релизам.
-- OpenSSF Scorecard 7,2 на 25 ноября 2026.
+- Образы подписаны cosign, SBOM и provenance приложены к релизам;
+  подписи есть у всех последних релизов.
+- OpenSSF Scorecard 7,3 на 25 ноября 2026.
+- OpenSSF Best Practices: уровень Passing, бейдж в README.
 
 ## Документация
 

@@ -5,6 +5,48 @@
 
 ## [Unreleased]
 
+### Добавлено
+
+- workflow `sign-releases.yml` для подписи уже опубликованных релизов:
+  cosign, SBOM, `.sig`, `.pem` и SPDX-аттестация;
+- ручной запуск Scorecard через `workflow_dispatch`;
+- Dependabot alerts и security updates включены в настройках репозитория.
+
+### Изменено
+
+- защита `main` переведена с classic branch protection на repository
+  ruleset: те же проверки `test`, `security`, `e2e`, линейная история,
+  запрет force-push и удаления;
+- исправлены документы: убраны утверждения о Gitleaks и Semgrep, которых
+  нет в CI, добавлены secret scanning и push protection GitHub.
+
+## [1.1.9] — 2026-11-25
+
+### Исправлено
+
+- подпись SBOM переведена на cosign v2, к релизу прикладываются `.sig`
+  и `.pem`.
+
+## [1.1.8] — 2026-11-25
+
+### Добавлено
+
+- SBOM релизного образа подписывается cosign вместе с образом.
+
+## [1.1.7] — 2026-11-25
+
+### Изменено
+
+- повышена оценка OpenSSF Scorecard: образы закреплены по digest,
+  минимальные permissions у workflow, CodeQL на pull request, fuzz-тесты.
+
+## [1.1.6] — 2026-11-25
+
+### Добавлено
+
+- SLSA provenance для итогового multi-arch manifest, проверка через
+  `gh attestation verify`.
+
 ## [1.1.5] — 2026-11-25
 
 ### Добавлено
