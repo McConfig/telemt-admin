@@ -118,6 +118,9 @@ func TestSecurityDefaults(t *testing.T) {
 	if cfg.LogLevel != "info" || cfg.LoginWindow.Minutes() != 15 || cfg.TOTPPendingTTL.Minutes() != 5 {
 		t.Fatalf("безопасность: %+v", cfg)
 	}
+	if cfg.Require2FA || cfg.Require2FAGraceDays != 7 {
+		t.Fatalf("2FA: %+v", cfg)
+	}
 	cfg, err = Load(env(map[string]string{
 		"TGADMIN_LOGIN_MAX_FAILURES":  "4",
 		"TGADMIN_PASSWORD_MIN_LENGTH": "16",

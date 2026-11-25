@@ -7,6 +7,21 @@ import { renderUI } from './test/render';
 import { stubFetch } from './test/stubFetch';
 
 describe('Layout', () => {
+  it('показывает предупреждение о сроке 2FA', () => {
+    stubFetch({ '/api/meta': { version: 'v9.9.9', repo: 'https://example.com/repo' } });
+    renderUI(
+      <Layout
+        me={{ ...me, require2fa: { enabled: true, enforced: false, daysLeft: 3 } }}
+        onLogout={() => {}}
+        theme="dark"
+        onToggleTheme={() => {}}
+      >
+        <div>содержимое</div>
+      </Layout>,
+    );
+    expect(screen.getByText(/Через 3 дн/)).toBeInTheDocument();
+  });
+
   it('показывает меню, тему, выход и футер', async () => {
     stubFetch({ '/api/meta': { version: 'v9.9.9', repo: 'https://example.com/repo' } });
     const onLogout = vi.fn();

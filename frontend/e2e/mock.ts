@@ -216,13 +216,13 @@ const settingsCatalog = {
           max: 1000,
         },
         {
-          key: 'security.require_2fa',
-          title: 'Обязательный 2FA',
-          description: 'Политика для всех администраторов',
-          kind: 'bool',
+          key: 'notifications.webhook_url',
+          title: 'URL вебхука',
+          description: 'Доставка событий во внешнюю систему',
+          kind: 'string',
           status: 'planned',
           plannedRelease: '1.5.0',
-          default: false,
+          default: '',
         },
       ],
     },
@@ -253,8 +253,15 @@ const settingsCatalog = {
 
 export async function mockApi(
   page: Page,
-  options: { totp?: boolean } = {},
+  options: { totp?: boolean; require2fa?: boolean; require2faEnforced?: boolean } = {},
 ): Promise<{ limitBodies: unknown[]; settingsBodies: unknown[] }> {
+  const require2fa = options.require2fa
+    ? {
+        enabled: true,
+        enforced: Boolean(options.require2faEnforced),
+        daysLeft: options.require2faEnforced ? 0 : 7,
+      }
+    : undefined;
   let loggedIn = false;
   const limitBodies: unknown[] = [];
   const settingsBodies: unknown[] = [];
@@ -280,13 +287,13 @@ export async function mockApi(
     }
     if (path === '/api/me') {
       return loggedIn
-        ? json(route, { user: { name: 'mcconfig', role: 'admin' }, csrf: 'csrf' })
+        ? json(route, { user: { name: 'mcconfig', role: 'admin' }, csrf: 'csrf', require2fa })
         : json(route, { error: { code: 'unauthorized', message: 'требуется вход' } }, 401);
     }
     if (path === '/api/login' && method === 'POST') {
       if (options.totp) return json(route, { totpRequired: true });
       loggedIn = true;
-      return json(route, { user: { name: 'mcconfig', role: 'admin' }, csrf: 'csrf' });
+      return json(route, { user: { name: 'mcconfig', role: 'admin' }, csrf: 'csrf', require2fa });
     }
     if (path === '/api/login/totp' && method === 'POST') {
       loggedIn = true;
@@ -477,10 +484,12 @@ export async function mockApi(
 }
 
 /** Входит в интерфейс через форму. */
-export async function login(page: Page) {
+export async function login(page: Page, waitForApp = true) {
   await page.goto('/');
   await page.locator('input[autocomplete="username"]').fill('admin');
   await page.locator('input[type="password"]').fill('secret');
   await page.getByRole('button', { name: 'Войти' }).click();
-  await page.getByRole('link', { name: 'main', exact: true }).waitFor();
+  if (waitForApp) {
+    await page.getByRole('link', { name: 'main', exact: true }).waitFor();
+  }
 }

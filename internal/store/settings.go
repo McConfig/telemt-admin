@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -11,6 +12,7 @@ import (
 const (
 	settingsGlobalKey  = "settings:global"
 	settingsVersionKey = "settings:version"
+	require2FASinceKey = "security:require_2fa_since"
 )
 
 // ErrVersionConflict возвращается, когда настройки уже изменил другой админ.
@@ -69,4 +71,30 @@ func (s *Store) SaveGlobalSettings(
 		return 0, err
 	}
 	return next, nil
+}
+
+// Require2FASince возвращает момент включения обязательного 2FA.
+func (s *Store) Require2FASince(ctx context.Context) (time.Time, bool, error) {
+	raw, err := s.rdb.Get(ctx, require2FASinceKey).Result()
+	if errors.Is(err, redis.Nil) {
+		return time.Time{}, false, nil
+	}
+	if err != nil {
+		return time.Time{}, false, err
+	}
+	t, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return time.Time{}, false, nil
+	}
+	return t, true, nil
+}
+
+// SetRequire2FASince запоминает момент включения обязательного 2FA.
+func (s *Store) SetRequire2FASince(ctx context.Context, at time.Time) error {
+	return s.rdb.Set(ctx, require2FASinceKey, at.UTC().Format(time.RFC3339), 0).Err()
+}
+
+// ClearRequire2FASince снимает отметку обязательного 2FA.
+func (s *Store) ClearRequire2FASince(ctx context.Context) error {
+	return s.rdb.Del(ctx, require2FASinceKey).Err()
 }

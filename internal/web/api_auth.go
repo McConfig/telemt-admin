@@ -1,18 +1,27 @@
 package web
 
 import (
+	"context"
 	"net/http"
-
-	"github.com/McConfig/telemt-admin/internal/version"
 	"strings"
+	"time"
 
 	"github.com/McConfig/telemt-admin/internal/auth"
 	"github.com/McConfig/telemt-admin/internal/store"
+	"github.com/McConfig/telemt-admin/internal/version"
 )
 
+type require2FAInfo struct {
+	Enabled  bool   `json:"enabled"`
+	Enforced bool   `json:"enforced"`
+	Deadline string `json:"deadline,omitempty"`
+	DaysLeft int    `json:"daysLeft"`
+}
+
 type meResponse struct {
-	User meUser `json:"user"`
-	CSRF string `json:"csrf"`
+	User       meUser          `json:"user"`
+	CSRF       string          `json:"csrf"`
+	Require2FA *require2FAInfo `json:"require2fa,omitempty"`
 }
 
 type meUser struct {
@@ -26,7 +35,23 @@ func (s *Server) me(r *http.Request) (meResponse, error) {
 	if err != nil {
 		return meResponse{}, err
 	}
-	return meResponse{User: meUser{Name: u.Name, Role: string(u.Role)}, CSRF: sess.CSRF}, nil
+	return s.meForUser(r.Context(), *u, sess.CSRF), nil
+}
+
+func (s *Server) meForUser(ctx context.Context, u store.User, csrf string) meResponse {
+	out := meResponse{User: meUser{Name: u.Name, Role: string(u.Role)}, CSRF: csrf}
+	if u.Role != store.RoleAdmin || u.TOTPEnabled {
+		return out
+	}
+	enabled, deadline, daysLeft := s.settings.Require2FA(ctx)
+	if !enabled {
+		return out
+	}
+	out.Require2FA = &require2FAInfo{
+		Enabled: true, Enforced: time.Now().UTC().After(deadline),
+		Deadline: deadline.UTC().Format(time.RFC3339), DaysLeft: daysLeft,
+	}
+	return out
 }
 
 func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
@@ -115,9 +140,7 @@ func (s *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 		s.serverErrorJSON(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, meResponse{
-		User: meUser{Name: username, Role: string(u.Role)}, CSRF: sess.CSRF,
-	})
+	writeJSON(w, http.StatusOK, s.meForUser(r.Context(), *u, sess.CSRF))
 }
 
 func (s *Server) apiLogout(w http.ResponseWriter, r *http.Request) {

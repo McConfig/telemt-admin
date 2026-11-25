@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	stgs "github.com/McConfig/telemt-admin/internal/settings"
 	"github.com/McConfig/telemt-admin/internal/store"
@@ -53,7 +54,7 @@ func TestSettingsCatalog(t *testing.T) {
 	if activeLogin.Status != stgs.Active || activeLogin.Value.(float64) != 10 {
 		t.Fatalf("login.max_failures: %+v", activeLogin)
 	}
-	planned := settingsField(t, cat, "security.require_2fa")
+	planned := settingsField(t, cat, "notifications.webhook_url")
 	if planned.Status != stgs.Planned || planned.PlannedRelease != "1.5.0" {
 		t.Fatalf("planned: %+v", planned)
 	}
@@ -114,7 +115,7 @@ func TestSettingsUpdateAndConflict(t *testing.T) {
 
 	rr = httptest.NewRecorder()
 	s.Handler().ServeHTTP(rr, apiRequest(t, "PUT", "/api/settings",
-		`{"version":1,"values":{"security.require_2fa":true}}`, tok, csrf))
+		`{"version":1,"values":{"notifications.webhook_url":"https://example.com/hook"}}`, tok, csrf))
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("planned: код %d", rr.Code)
 	}
@@ -268,5 +269,46 @@ func TestSettingsPasswordPolicyApplies(t *testing.T) {
 	s.Handler().ServeHTTP(rr, apiRequest(t, "POST", "/api/admins", long, tok, csrf))
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("длинный пароль: код %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestRequire2FAEnforcement(t *testing.T) {
+	s := testServer(t)
+	ctx := context.Background()
+	tok, _ := seedSession(t, s, store.RoleAdmin)
+	if _, _, err := s.settings.Save(ctx, 0, map[string]json.RawMessage{
+		"security.require_2fa":            json.RawMessage("true"),
+		"security.require_2fa_grace_days": json.RawMessage("0"),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.store.SetRequire2FASince(ctx, time.Now().Add(-time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, apiRequest(t, "GET", "/api/me", "", tok, ""))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("me: код %d", rr.Code)
+	}
+	var meResp struct {
+		Require2FA *require2FAInfo `json:"require2fa"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &meResp); err != nil {
+		t.Fatal(err)
+	}
+	if meResp.Require2FA == nil || !meResp.Require2FA.Enforced {
+		t.Fatalf("require2fa: %+v", meResp.Require2FA)
+	}
+
+	rr = httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, apiRequest(t, "GET", "/api/users", "", tok, ""))
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("users: код %d: %s", rr.Code, rr.Body.String())
+	}
+	rr = httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, apiRequest(t, "GET", "/api/account/totp", "", tok, ""))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("totp: код %d", rr.Code)
 	}
 }

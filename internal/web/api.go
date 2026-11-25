@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/McConfig/telemt-admin/internal/store"
@@ -56,6 +57,10 @@ func (s *Server) withAPISession(next http.Handler) http.Handler {
 		if err != nil || u.Disabled {
 			s.clearCookie(w)
 			writeError(w, http.StatusUnauthorized, "unauthorized", "учётная запись недоступна")
+			return
+		}
+		if s.totpRestricted(r.Context(), *u) && !totpAllowedPath(r.URL.Path) {
+			writeError(w, http.StatusForbidden, "totp_required", "включите двухфакторную аутентификацию")
 			return
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), sessionCtxKey, sess)))
@@ -167,4 +172,21 @@ func decodeJSON(r *http.Request, v any) error {
 func (s *Server) serverErrorJSON(w http.ResponseWriter, r *http.Request, err error) {
 	slog.Error("внутренняя ошибка", "path", r.URL.Path, "err", err)
 	writeError(w, http.StatusInternalServerError, "internal", "внутренняя ошибка")
+}
+
+func (s *Server) totpRestricted(ctx context.Context, u store.User) bool {
+	if u.Role != store.RoleAdmin || u.TOTPEnabled {
+		return false
+	}
+	enabled, deadline, _ := s.settings.Require2FA(ctx)
+	return enabled && time.Now().UTC().After(deadline)
+}
+
+func totpAllowedPath(path string) bool {
+	switch path {
+	case "/api/me", "/api/logout", "/api/account/password",
+		"/api/account/totp", "/api/account/totp/setup", "/api/account/totp/enable":
+		return true
+	}
+	return strings.HasPrefix(path, "/api/account/sessions")
 }

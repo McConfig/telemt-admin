@@ -72,8 +72,11 @@ func TestCatalogStatusesAndSecrets(t *testing.T) {
 	if statuses["login.max_failures"] != Active {
 		t.Fatalf("login.max_failures: %s", statuses["login.max_failures"])
 	}
-	if statuses["security.require_2fa"] != Planned {
+	if statuses["security.require_2fa"] != Active {
 		t.Fatalf("security.require_2fa: %s", statuses["security.require_2fa"])
+	}
+	if statuses["notifications.webhook_url"] != Planned {
+		t.Fatalf("notifications.webhook_url: %s", statuses["notifications.webhook_url"])
 	}
 	if statuses["network.allowed_cidrs"] != Readonly {
 		t.Fatalf("network.allowed_cidrs: %s", statuses["network.allowed_cidrs"])
@@ -180,7 +183,7 @@ func TestValidation(t *testing.T) {
 func TestPlannedAndReadonlyRejected(t *testing.T) {
 	svc, _ := testService(t)
 	ctx := context.Background()
-	for _, key := range []string{"security.require_2fa", "network.allowed_cidrs", "valkey.password"} {
+	for _, key := range []string{"notifications.webhook_url", "network.allowed_cidrs", "valkey.password"} {
 		_, _, err := svc.Save(ctx, 0, map[string]json.RawMessage{key: raw(1)}, nil)
 		var invalid *ValidationError
 		if !errors.As(err, &invalid) {
@@ -258,4 +261,33 @@ func TestSecuritySettingsApplied(t *testing.T) {
 		t.Fatalf("лог: %s", logging.Level())
 	}
 	t.Cleanup(func() { _ = logging.Set("info") })
+}
+
+func TestRequire2FAState(t *testing.T) {
+	svc, st := testService(t)
+	ctx := context.Background()
+	if _, _, err := svc.Save(ctx, 0, map[string]json.RawMessage{
+		"security.require_2fa":            raw(true),
+		"security.require_2fa_grace_days": raw(7),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+	enabled, deadline, days := svc.Require2FA(ctx)
+	if !enabled || deadline.IsZero() || days < 6 || days > 7 {
+		t.Fatalf("2FA: %v %s %d", enabled, deadline, days)
+	}
+	if _, ok, err := st.Require2FASince(ctx); err != nil || !ok {
+		t.Fatalf("отметка включения: %v %v", ok, err)
+	}
+	if _, _, err := svc.Save(ctx, 1, map[string]json.RawMessage{
+		"security.require_2fa": raw(false),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if enabled, _, _ := svc.Require2FA(ctx); enabled {
+		t.Fatal("2FA должна быть выключена")
+	}
+	if _, ok, _ := st.Require2FASince(ctx); ok {
+		t.Fatal("отметка включения должна быть удалена")
+	}
 }

@@ -6,9 +6,17 @@ export interface Meta {
   defaultChartDays?: number;
 }
 
+export interface Require2FAInfo {
+  enabled: boolean;
+  enforced: boolean;
+  deadline?: string;
+  daysLeft: number;
+}
+
 export interface Me {
   user: { name: string; role: Role };
   csrf: string;
+  require2fa?: Require2FAInfo;
 }
 
 export interface AdminUser {

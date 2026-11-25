@@ -24,7 +24,7 @@ function compareSessions(a: SessionItem, b: SessionItem, id: string): number {
   }
 }
 
-export default function AccountPage() {
+export default function AccountPage({ onMeChange }: { onMeChange?: () => void } = {}) {
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -234,6 +234,7 @@ export default function AccountPage() {
                             setTotpCode('');
                             setMessage('2FA включена. Сохраните резервные коды.');
                             load();
+                            onMeChange?.();
                           })
                           .catch((err) =>
                             setError(err instanceof ApiError ? err.message : 'не удалось включить'),

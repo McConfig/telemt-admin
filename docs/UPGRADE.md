@@ -32,8 +32,16 @@
 `TGADMIN_LOGIN_MAX_FAILURES=10`, `TGADMIN_LOGIN_WINDOW=15m`,
 `TGADMIN_TOTP_PENDING_TTL=5m`, `TGADMIN_TOTP_MAX_ATTEMPTS=5`,
 `TGADMIN_AUDIT_MAX_EVENTS=10000`, `TGADMIN_PASSWORD_MIN_LENGTH=12`,
-`TGADMIN_DEFAULT_CHART_DAYS=30`, `TGADMIN_LOG_LEVEL=info`. Их можно
+`TGADMIN_DEFAULT_CHART_DAYS=30`, `TGADMIN_LOG_LEVEL=info`,
+`TGADMIN_REQUIRE_2FA=false`, `TGADMIN_REQUIRE_2FA_GRACE_DAYS=7`. Их можно
 переопределить на странице «Настройки»; поведение по умолчанию не меняется.
+
+При включении обязательной 2FA фиксируется момент включения в
+`security:require_2fa_since`. Администраторы без 2FA видят предупреждение с
+числом оставшихся дней. После льготного срока вход разрешён, но доступ к
+интерфейсу ограничен настройкой 2FA в разделе «Аккаунт». Администратор с
+включённой 2FA не может её отключить, пока требование активно. Отключение
+требования снимает ограничение; повторное включение начинает новый срок.
 Формат файла:
 
 ```json
