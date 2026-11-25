@@ -9,6 +9,10 @@
 
 - пороги риска на клиента: `PUT /api/users/{name}/risk`, ключ
   `risk:user:*`, блок «Пороги риска» в карточке, аудит `user.risk`;
+- отчёт по риску: `GET /api/users/{name}/risk-report`, `risk.csv`,
+  вкладка «Риск», причины, дни, время первого и последнего появления
+  адреса за день, доверие IP и стране;
+- ключи `iphist:dayfirst:*` и `iphist:daylast:*` для времени внутри дня;
 - демо-стенд `deploy/demo`: фейковый Control API telemt, Valkey, seed
   истории за 8 дней, генератор демо-GeoIP и скриншоты Playwright;
 - workflow `sign-releases.yml` для подписи уже опубликованных релизов:

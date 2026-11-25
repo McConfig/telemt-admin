@@ -77,6 +77,8 @@ func New(cfg *config.Config, st *store.Store, tc *telemt.Client, metrics http.Ha
 				r.Get("/users/{name}/qr.png", s.apiQR)
 				r.Post("/users/{name}/reset-quota", s.apiResetQuota)
 				r.Get("/users/{name}/history.csv", s.apiHistoryCSV)
+				r.Get("/users/{name}/risk-report", s.apiRiskReport)
+				r.Get("/users/{name}/risk.csv", s.apiRiskCSV)
 				r.Get("/users/{name}/traffic", s.apiUserTraffic)
 				r.Get("/users/{name}/timeline", s.apiUserTimeline)
 				r.Get("/summary", s.apiSummary)

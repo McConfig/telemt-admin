@@ -18,6 +18,7 @@ import (
 	"log"
 	"net/netip"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -143,9 +144,14 @@ func seedHistory(ctx context.Context, st *store.Store, u telemt.User, now time.T
 	}
 	codeList := make([]string, 0, len(codes))
 	nameList := make([]string, 0, len(codes))
-	for code, name := range codes {
+	sortedCodes := make([]string, 0, len(codes))
+	for code := range codes {
+		sortedCodes = append(sortedCodes, code)
+	}
+	sort.Strings(sortedCodes)
+	for _, code := range sortedCodes {
 		codeList = append(codeList, code)
-		nameList = append(nameList, name)
+		nameList = append(nameList, codes[code])
 	}
 	opList := make([]string, 0, len(operators))
 	for op := range operators {

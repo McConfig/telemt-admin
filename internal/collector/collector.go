@@ -162,12 +162,17 @@ func (c *Collector) collect(ctx context.Context) {
 				seenOperator[info.ASNOrg] = true
 			}
 		}
-		for code, name := range seenCountry {
-			snap.CountryCodes = append(snap.CountryCodes, code)
-			snap.Countries = append(snap.Countries, name)
+		// Коды и названия должны идти в одном порядке: API сопоставляет их
+		// по индексу.
+		codes := make([]string, 0, len(seenCountry))
+		for code := range seenCountry {
+			codes = append(codes, code)
 		}
-		sort.Strings(snap.CountryCodes)
-		sort.Strings(snap.Countries)
+		sort.Strings(codes)
+		for _, code := range codes {
+			snap.CountryCodes = append(snap.CountryCodes, code)
+			snap.Countries = append(snap.Countries, seenCountry[code])
+		}
 		operators := make([]string, 0, len(seenOperator))
 		for name := range seenOperator {
 			operators = append(operators, name)

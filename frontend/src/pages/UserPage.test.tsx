@@ -7,6 +7,69 @@ import { me, proxyUser } from '../test/data';
 import { renderUI } from '../test/render';
 import { stubFetch } from '../test/stubFetch';
 
+const riskDay = new Date().toISOString().slice(0, 10);
+const riskReport = {
+  user: 'main',
+  level: 1,
+  custom: false,
+  thresholds: { warnIps: 3, highIps: 5, distinct7d: 15, newCountries: true },
+  current: {
+    activeIps: 2,
+    trustedActive: 0,
+    current: 2,
+    distinct24h: 2,
+    distinct7d: 4,
+    maxToday: 2,
+    newIps24h: 1,
+    newCountries: 1,
+    foreignIps24h: 1,
+    countries: [{ code: 'NL', name: 'Нидерланды' }],
+  },
+  reasons: [
+    {
+      code: 'new_country',
+      severity: 1,
+      value: 1,
+      countries: ['NL'],
+      message: 'Новые страны за сутки: NL',
+    },
+  ],
+  days: [
+    {
+      day: riskDay,
+      distinct: 2,
+      max: 2,
+      newIps: 1,
+      newCountries: [{ code: 'NL', name: 'Нидерланды' }],
+      traffic: 2048,
+      ips: [
+        {
+          ip: '198.51.100.7',
+          country: 'NL',
+          countryName: 'Нидерланды',
+          asn: 60781,
+          asnOrg: 'LeaseWeb',
+          dayFirst: new Date().toISOString(),
+          dayLast: new Date().toISOString(),
+          count: 5,
+          new: true,
+          trusted: false,
+        },
+        {
+          ip: '192.0.2.10',
+          country: 'RU',
+          countryName: 'Россия',
+          dayFirst: new Date().toISOString(),
+          dayLast: new Date().toISOString(),
+          count: 40,
+          new: false,
+          trusted: false,
+        },
+      ],
+    },
+  ],
+};
+
 function renderUser() {
   stubFetch({
     '/api/users/main/traffic': [{ day: '2026-11-24', bytes: 1024 }],
@@ -15,6 +78,7 @@ function renderUser() {
     ],
     '/api/users/main/trusted': { countries: [], ips: [] },
     '/api/users/main/note': { note: 'телефон' },
+    '/api/users/main/risk-report': riskReport,
     '/api/users/main/rotate': proxyUser,
     '/api/users/main/disable': proxyUser,
     '/api/users/main': proxyUser,
@@ -53,6 +117,33 @@ describe('UserPage', () => {
     expect(screen.getByText('Квота трафика')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Аудит' }));
     expect(await screen.findByText('Аудит клиента')).toBeInTheDocument();
+  });
+
+  it('показывает отчёт по риску и доверяет адрес', async () => {
+    renderUser();
+    const mock = vi.mocked(fetch);
+    await screen.findByText('main');
+    await userEvent.click(screen.getByRole('button', { name: 'Риск' }));
+
+    expect(await screen.findByText('Новые страны за сутки: NL')).toBeInTheDocument();
+    expect(screen.getByText('198.51.100.7')).toBeInTheDocument();
+    expect(screen.getByText('LeaseWeb')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Экспорт CSV' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('/risk.csv'),
+    );
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Доверять IP' })[0]);
+    await waitFor(() => {
+      const call = mock.mock.calls.find(
+        ([url, init]) =>
+          String(url).includes('/trusted') && (init as RequestInit | undefined)?.method === 'PUT',
+      );
+      expect(call).toBeTruthy();
+      expect(JSON.parse(String((call?.[1] as RequestInit).body))).toMatchObject({
+        ips: ['198.51.100.7'],
+      });
+    });
   });
 
   it('сохраняет пороги риска', async () => {
