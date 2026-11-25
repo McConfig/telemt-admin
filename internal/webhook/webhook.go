@@ -90,11 +90,17 @@ func eventEnabled(events []string, event string) bool {
 }
 
 func (s *Sender) sendWithRetry(ctx context.Context, event string, payload map[string]any) error {
-	delays := []time.Duration{time.Second, 5 * time.Second, 15 * time.Second}
 	var last error
 	for attempt := 0; attempt < 3; attempt++ {
 		if attempt > 0 {
-			timer := time.NewTimer(delays[attempt-1])
+			delay := time.Second
+			switch attempt {
+			case 2:
+				delay = 5 * time.Second
+			case 3:
+				delay = 15 * time.Second
+			}
+			timer := time.NewTimer(delay)
 			select {
 			case <-ctx.Done():
 				timer.Stop()

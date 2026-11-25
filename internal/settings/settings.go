@@ -1019,11 +1019,13 @@ func (s *Service) writeBackupConfig(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(s.cfg.BackupConfig), 0o755); err != nil {
+	// Каталог общий с хостовым скриптом бэкапов: владелец — пользователь
+	// контейнера, группа — mcconfig. Секретов в файле нет.
+	if err := os.MkdirAll(filepath.Dir(s.cfg.BackupConfig), 0o770); err != nil { // #nosec G301 -- общий каталог с хостом.
 		return err
 	}
 	tmp := s.cfg.BackupConfig + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := os.WriteFile(tmp, data, 0o640); err != nil { // #nosec G306 -- конфиг без секретов, читает хост.
 		return err
 	}
 	return os.Rename(tmp, s.cfg.BackupConfig)
