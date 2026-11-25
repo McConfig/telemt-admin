@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/McConfig/telemt-admin/internal/geoip"
+	"github.com/McConfig/telemt-admin/internal/settings"
 	"github.com/McConfig/telemt-admin/internal/store"
 	"github.com/McConfig/telemt-admin/internal/telemt"
 )
@@ -45,13 +46,16 @@ type Snapshot struct {
 
 // Collector периодически снимает активные IP и трафик через API telemt.
 type Collector struct {
-	st         *store.Store
-	tc         *telemt.Client
-	geo        *geoip.Resolver
-	interval   time.Duration
-	warn       int64
-	high       int64
-	distinct7d int64
+	st           *store.Store
+	tc           *telemt.Client
+	geo          *geoip.Resolver
+	interval     time.Duration
+	warn         int64
+	high         int64
+	distinct7d   int64
+	newCountries bool
+	homeCountry  string
+	svc          *settings.Service
 
 	mu           sync.RWMutex
 	snap         map[string]Snapshot
@@ -68,6 +72,7 @@ func New(st *store.Store, tc *telemt.Client, geo *geoip.Resolver, interval time.
 	return &Collector{
 		st: st, tc: tc, geo: geo, interval: interval,
 		warn: warn, high: high, distinct7d: distinct7d,
+		newCountries: true, homeCountry: "RU",
 		snap: map[string]Snapshot{},
 	}
 }
@@ -87,7 +92,19 @@ func (c *Collector) Run(ctx context.Context) {
 	}
 }
 
+// SetSettings подключает источник глобальных настроек. Значения
+// перечитываются на каждом сборе.
+func (c *Collector) SetSettings(svc *settings.Service) {
+	c.svc = svc
+}
+
 func (c *Collector) collect(ctx context.Context) {
+	if c.svc != nil {
+		warn, high, distinct, newCountries, home := c.svc.RiskValues(ctx)
+		c.warn, c.high, c.distinct7d = int64(warn), int64(high), int64(distinct)
+		c.newCountries = newCountries
+		c.homeCountry = home
+	}
 	users, err := c.tc.ListUsers(ctx)
 	if err != nil {
 		c.mu.Lock()
@@ -152,7 +169,7 @@ func (c *Collector) collect(ctx context.Context) {
 			if info.Internal {
 				continue
 			}
-			if info.Country != "" && info.Country != "RU" {
+			if info.Country != "" && info.Country != c.homeCountry {
 				snap.ForeignCurrent++
 			}
 			if info.Country != "" {
@@ -246,7 +263,7 @@ func (c *Collector) lookupIPs(ips []string) map[string]store.IPGeo {
 }
 
 func (c *Collector) risk(s Snapshot, cfg store.Risk) int {
-	warn, high, distinct, newCountries := c.warn, c.high, c.distinct7d, true
+	warn, high, distinct, newCountries := c.warn, c.high, c.distinct7d, c.newCountries
 	if cfg.WarnIPs != nil {
 		warn = int64(*cfg.WarnIPs)
 	}

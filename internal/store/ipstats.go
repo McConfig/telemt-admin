@@ -156,7 +156,7 @@ func (s *Store) RecordIPObservation(ctx context.Context, user string, ips []stri
 		if g, ok := geo[ip]; ok && g.Country != "" && !g.Internal {
 			pipe.SAdd(ctx, countryKey(user, day), g.Country)
 			pipe.Expire(ctx, countryKey(user, day), s.retention)
-			if g.Country != "RU" {
+			if g.Country != s.HomeCountry() {
 				pipe.SAdd(ctx, foreignKey(user, day), ip)
 				pipe.Expire(ctx, foreignKey(user, day), s.retention)
 				pipe.ZAddArgs(ctx, countryFirstKey(user), redis.ZAddArgs{

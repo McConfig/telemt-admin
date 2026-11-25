@@ -97,7 +97,8 @@ func (s *Server) apiLoginTOTP(w http.ResponseWriter, r *http.Request) {
 	if !recovery {
 		_ = s.store.SetTOTPLastCounter(r.Context(), u.Name, usedCounter)
 	}
-	token, err := s.store.CreateSession(r.Context(), u.Name, addr.String(), r.UserAgent(), s.cfg.SessionTTL)
+	ttl := s.settings.SessionTTL(r.Context())
+	token, err := s.store.CreateSession(r.Context(), u.Name, addr.String(), r.UserAgent(), ttl)
 	if err != nil {
 		s.serverErrorJSON(w, r, err)
 		return
@@ -111,7 +112,7 @@ func (s *Server) apiLoginTOTP(w http.ResponseWriter, r *http.Request) {
 	_ = s.store.Audit(r.Context(), store.AuditEvent{
 		Actor: u.Name, Action: "login." + result, Target: u.Name, Result: "ok", IP: addr.String(),
 	})
-	s.setCookie(w, token)
+	s.setCookie(w, token, ttl)
 	sess, err := s.store.GetSession(r.Context(), token)
 	if err != nil {
 		s.serverErrorJSON(w, r, err)

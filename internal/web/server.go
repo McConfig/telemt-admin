@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/McConfig/telemt-admin/internal/config"
+	"github.com/McConfig/telemt-admin/internal/settings"
 	"github.com/McConfig/telemt-admin/internal/store"
 	"github.com/McConfig/telemt-admin/internal/telemt"
 	"github.com/go-chi/chi/v5"
@@ -20,13 +21,15 @@ var distFS embed.FS
 
 // Server — HTTP-слой приложения: JSON API и статика SPA.
 type Server struct {
-	cfg    *config.Config
-	store  *store.Store
-	telemt *telemt.Client
-	router chi.Router
-	assets http.Handler
-	now    func() time.Time
-	status func() collector.Status
+	cfg       *config.Config
+	store     *store.Store
+	telemt    *telemt.Client
+	settings  *settings.Service
+	router    chi.Router
+	assets    http.Handler
+	now       func() time.Time
+	startedAt time.Time
+	status    func() collector.Status
 }
 
 // SetCollectorStatus подключает источник состояния сборщика.
@@ -36,7 +39,7 @@ func (s *Server) SetCollectorStatus(fn func() collector.Status) {
 
 // New собирает сервер и маршруты.
 func New(cfg *config.Config, st *store.Store, tc *telemt.Client, metrics http.Handler) *Server {
-	s := &Server{cfg: cfg, store: st, telemt: tc, now: time.Now}
+	s := &Server{cfg: cfg, store: st, telemt: tc, settings: settings.New(cfg, st), now: time.Now, startedAt: time.Now()}
 	sub, err := fs.Sub(distFS, "dist")
 	if err != nil {
 		panic(fmt.Sprintf("dist: %v", err))
@@ -79,6 +82,17 @@ func New(cfg *config.Config, st *store.Store, tc *telemt.Client, metrics http.Ha
 				r.Get("/users/{name}/history.csv", s.apiHistoryCSV)
 				r.Get("/users/{name}/risk-report", s.apiRiskReport)
 				r.Get("/users/{name}/risk.csv", s.apiRiskCSV)
+				r.Get("/settings", s.apiGetSettings)
+				r.Put("/settings", s.apiUpdateSettings)
+				r.Get("/settings/templates", s.apiListTemplates)
+				r.Post("/settings/templates", s.apiSaveTemplate)
+				r.Put("/settings/templates/default", s.apiSetDefaultTemplate)
+				r.Put("/settings/templates/{name}", s.apiSaveTemplate)
+				r.Delete("/settings/templates/{name}", s.apiDeleteTemplate)
+				r.Get("/settings/backups", s.apiBackups)
+				r.Post("/settings/backups/snapshot", s.apiBackupSnapshot)
+				r.Get("/settings/system", s.apiSystem)
+				r.Get("/settings/history", s.apiSettingsHistory)
 				r.Get("/users/{name}/traffic", s.apiUserTraffic)
 				r.Get("/users/{name}/timeline", s.apiUserTimeline)
 				r.Get("/summary", s.apiSummary)

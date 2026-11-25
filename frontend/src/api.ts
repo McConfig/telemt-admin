@@ -164,6 +164,110 @@ export interface RiskReport {
   days: RiskDay[];
 }
 
+export type SettingStatus = 'active' | 'readonly' | 'planned';
+export type SettingKind = 'int' | 'bool' | 'duration' | 'string' | 'enum';
+
+export interface SettingOption {
+  value: string;
+  label: string;
+}
+
+export interface SettingField {
+  key: string;
+  title: string;
+  description: string;
+  kind: SettingKind;
+  status: SettingStatus;
+  plannedRelease?: string;
+  restartRequired?: boolean;
+  secret?: boolean;
+  value?: unknown;
+  default?: unknown;
+  source?: string;
+  secretSet?: boolean;
+  min?: number;
+  max?: number;
+  minDuration?: string;
+  maxDuration?: string;
+  options?: SettingOption[];
+}
+
+export interface SettingsSection {
+  id: string;
+  title: string;
+  description: string;
+  settings: SettingField[];
+}
+
+export interface SettingsCatalog {
+  version: number;
+  sections: SettingsSection[];
+}
+
+export interface LimitTemplate {
+  name: string;
+  maxIps?: number;
+  maxTcpConns?: number;
+  dataQuotaBytes?: number;
+  quotaPeriod?: string;
+  rateLimitUpBps?: number;
+  rateLimitDownBps?: number;
+  expirationDays?: number;
+  sourceDeny?: string[];
+  riskWarnIps?: number;
+  riskHighIps?: number;
+  riskDistinct7d?: number;
+  riskNewCountries?: boolean;
+}
+
+export interface TemplatesResponse {
+  default: string;
+  templates: LimitTemplate[];
+}
+
+export interface BackupStatus {
+  valkey: {
+    lastSave?: string;
+    saveInProgress: boolean;
+    lastStatus?: string;
+    keys: number;
+    memory?: string;
+  };
+  host: {
+    available: boolean;
+    lastRun?: string;
+    result?: string;
+    size?: number;
+    keepDays?: number;
+    restoreTest?: boolean;
+  };
+}
+
+export interface SettingsSystem {
+  version: string;
+  uptime: string;
+  collector?: {
+    up: boolean;
+    lastSuccess?: string;
+    lastError?: string;
+  };
+  geoip?: {
+    loaded: boolean;
+    built?: number;
+  };
+  valkey: { keys: number; memory?: string };
+  counts: { uiUsers: number; auditEvents: number; templates: number };
+}
+
+export interface SettingsHistoryItem {
+  At: string;
+  Actor: string;
+  Action: string;
+  Target: string;
+  Result: string;
+  IP: string;
+}
+
 export interface Trusted {
   countries: string[];
   ips: string[];
@@ -285,8 +389,18 @@ export const api = {
   logout: () => request<void>('POST', '/api/logout'),
   users: () => request<ProxyUser[]>('GET', '/api/users'),
   user: (name: string) => request<ProxyUser>('GET', `/api/users/${encodeURIComponent(name)}`),
-  create: (body: { name: string; secret?: string; maxUniqueIps?: number; maxTcpConns?: number }) =>
-    request<ProxyUser>('POST', '/api/users', body),
+  create: (body: {
+    name: string;
+    secret?: string;
+    maxUniqueIps?: number;
+    maxTcpConns?: number;
+    dataQuotaBytes?: number;
+    quotaPeriod?: string;
+    rateLimitUpBps?: number;
+    rateLimitDownBps?: number;
+    expiration?: string;
+    sourceDeny?: string[];
+  }) => request<ProxyUser>('POST', '/api/users', body),
   updateLimits: (name: string, body: Record<string, unknown>) =>
     request<ProxyUser>('PATCH', `/api/users/${encodeURIComponent(name)}`, body),
   rotate: (name: string) =>
@@ -343,6 +457,23 @@ export const api = {
     request<RiskReport>('GET', `/api/users/${encodeURIComponent(name)}/risk-report?days=${days}`),
   riskCSVUrl: (name: string, days = 30) =>
     `/api/users/${encodeURIComponent(name)}/risk.csv?days=${days}`,
+  settings: () => request<SettingsCatalog>('GET', '/api/settings'),
+  updateSettings: (body: { version: number; values: Record<string, unknown>; reset?: string[] }) =>
+    request<SettingsCatalog>('PUT', '/api/settings', body),
+  templates: () => request<TemplatesResponse>('GET', '/api/settings/templates'),
+  saveTemplate: (body: LimitTemplate) =>
+    request<LimitTemplate>('POST', '/api/settings/templates', body),
+  updateTemplate: (name: string, body: LimitTemplate) =>
+    request<LimitTemplate>('PUT', `/api/settings/templates/${encodeURIComponent(name)}`, body),
+  deleteTemplate: (name: string) =>
+    request<void>('DELETE', `/api/settings/templates/${encodeURIComponent(name)}`),
+  setDefaultTemplate: (name: string) =>
+    request<{ default: string }>('PUT', '/api/settings/templates/default', { name }),
+  backups: () => request<BackupStatus>('GET', '/api/settings/backups'),
+  backupSnapshot: () =>
+    request<{ started: boolean }>('POST', '/api/settings/backups/snapshot'),
+  system: () => request<SettingsSystem>('GET', '/api/settings/system'),
+  settingsHistory: () => request<SettingsHistoryItem[]>('GET', '/api/settings/history'),
   setRisk: (name: string, body: RiskThresholds) =>
     request<{ riskThresholds: RiskThresholds; riskDefaults: RiskDefaults }>(
       'PUT',

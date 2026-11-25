@@ -53,7 +53,7 @@ func (s *Server) apiSummary(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			riskCfg = store.Risk{}
 		}
-		switch s.risk(int64(len(u.ActiveUniqueIPList)), stats, riskCfg) {
+		switch s.risk(r.Context(), int64(len(u.ActiveUniqueIPList)), stats, riskCfg) {
 		case 2:
 			out.RiskHigh++
 		case 1:

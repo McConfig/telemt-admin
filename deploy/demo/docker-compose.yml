@@ -45,6 +45,7 @@ services:
       TGADMIN_RISK_IPS_WARN: "3"
       TGADMIN_RISK_IPS_HIGH: "5"
       TGADMIN_RISK_DISTINCT_7D: "4"
+      TGADMIN_HOME_COUNTRY: "RU"
       # Демо-ключ шифрования TOTP: публичный, только для стенда.
       TGADMIN_TOTP_KEY: "${TGADMIN_TOTP_KEY:-AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=}"
     volumes: ["./geoip:/opt/geoip:ro"]

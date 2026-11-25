@@ -185,7 +185,7 @@ func (s *Server) buildRiskReport(r *http.Request, name string, days int) (apiRis
 	if err != nil {
 		riskCfg = store.Risk{}
 	}
-	warn, high, distinct, newCountriesOn := s.riskValues(riskCfg)
+	warn, high, distinct, newCountriesOn := s.riskValues(ctx, riskCfg)
 
 	trustedIPs := make(map[string]bool, len(trusted.IPs))
 	for _, ip := range trusted.IPs {
@@ -215,7 +215,7 @@ func (s *Server) buildRiskReport(r *http.Request, name string, days int) (apiRis
 	}
 	stats.NewCountries24h = int64(len(newCodes))
 
-	level := s.risk(current, stats, riskCfg)
+	level := s.risk(ctx, current, stats, riskCfg)
 	reasons := make([]apiRiskReason, 0, 3)
 	switch {
 	case current > int64(high):

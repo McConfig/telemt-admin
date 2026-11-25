@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/McConfig/telemt-admin/internal/store"
@@ -56,7 +57,7 @@ func (s *Server) apiSetRisk(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", "некорректный JSON")
 		return
 	}
-	risk, message := s.normalizeRisk(body)
+	risk, message := s.normalizeRisk(r.Context(), body)
 	if message != "" {
 		writeError(w, http.StatusBadRequest, "bad_request", message)
 		return
@@ -66,7 +67,7 @@ func (s *Server) apiSetRisk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r, "user.risk", name, "ok")
-	warn, high, distinct, newCountries := s.riskValues(risk)
+	warn, high, distinct, newCountries := s.riskValues(r.Context(), risk)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"riskThresholds": riskOverrides(risk),
 		"riskDefaults":   riskDefaults(warn, high, distinct, newCountries),
@@ -75,7 +76,7 @@ func (s *Server) apiSetRisk(w http.ResponseWriter, r *http.Request) {
 
 // normalizeRisk проверяет значения и возвращает структуру для хранения.
 // Пустые поля означают наследование глобального значения.
-func (s *Server) normalizeRisk(in apiRisk) (store.Risk, string) {
+func (s *Server) normalizeRisk(ctx context.Context, in apiRisk) (store.Risk, string) {
 	r := store.Risk{
 		WarnIPs: in.WarnIPs, HighIPs: in.HighIPs,
 		Distinct7d: in.Distinct7d, NewCountries: in.NewCountries,
@@ -89,7 +90,7 @@ func (s *Server) normalizeRisk(in apiRisk) (store.Risk, string) {
 	if in.Distinct7d != nil && (*in.Distinct7d < 0 || *in.Distinct7d > maxRiskDistinct) {
 		return r, "порог адресов за 7 дней должен быть от 0 до 10000"
 	}
-	warn, high, _, _ := s.riskValues(r)
+	warn, high, _, _ := s.riskValues(ctx, r)
 	if warn >= high {
 		return r, "порог предупреждения должен быть меньше порога высокого риска"
 	}
@@ -97,11 +98,8 @@ func (s *Server) normalizeRisk(in apiRisk) (store.Risk, string) {
 }
 
 // riskValues возвращает действующие пороги: переопределение или глобальное.
-func (s *Server) riskValues(r store.Risk) (warn, high, distinct int, newCountries bool) {
-	warn = s.cfg.RiskIPsWarn
-	high = s.cfg.RiskIPsHigh
-	distinct = s.cfg.RiskDistinct7d
-	newCountries = true
+func (s *Server) riskValues(ctx context.Context, r store.Risk) (warn, high, distinct int, newCountries bool) {
+	warn, high, distinct, newCountries, _ = s.settings.RiskValues(ctx)
 	if r.WarnIPs != nil {
 		warn = *r.WarnIPs
 	}

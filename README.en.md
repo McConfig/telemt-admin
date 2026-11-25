@@ -39,6 +39,10 @@ details, screenshots and cleanup.
   to ignore new countries and inherit global defaults;
 - risk report with reasons and thresholds, daily address lists with first and
   last seen time, trust actions and CSV export;
+- settings page with global risk rules and home country, session TTL, link
+  mode, collection interval and retention, limit templates, backup status,
+  system panel and change history; future settings are shown disabled with
+  their release version;
 - TOTP two-factor authentication with recovery codes;
 - audit log, CSV export, Prometheus metrics and Grafana dashboards;
 - local-only access control, Argon2id passwords and CSRF protection.
