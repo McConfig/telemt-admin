@@ -35,6 +35,8 @@ details, screenshots and cleanup.
 - per-client limits: traffic quota, rate, expiration and source deny;
 - IP and country history with GeoIP, new-country detection and alerts;
 - trusted countries and addresses to suppress false positives;
+- per-client risk thresholds for active and weekly addresses, with an option
+  to ignore new countries and inherit global defaults;
 - TOTP two-factor authentication with recovery codes;
 - audit log, CSV export, Prometheus metrics and Grafana dashboards;
 - local-only access control, Argon2id passwords and CSRF protection.
@@ -62,6 +64,7 @@ your networks.
 - [Roadmap](docs/ROADMAP.md)
 - [Coding standards](docs/CODING_STANDARDS.md)
 - [Dependencies](docs/DEPENDENCIES.md)
+- [Architecture decisions](docs/adr/README.md)
 - [Achievements](docs/ACHIEVEMENTS.md)
 - [Security assurance case](docs/ASSURANCE.md)
 - [Demo stack](deploy/demo/README.md)

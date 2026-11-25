@@ -13,6 +13,7 @@ const actions = [
   'auth.logout',
   'user.create',
   'user.limits',
+  'user.risk',
   'user.rotate',
   'user.enable',
   'user.disable',

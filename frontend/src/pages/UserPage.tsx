@@ -71,6 +71,11 @@ export default function UserPage({ me }: { me: Me }) {
   const [trustedCountries, setTrustedCountries] = useState('');
   const [trustedIps, setTrustedIps] = useState('');
   const [trustedSaved, setTrustedSaved] = useState(false);
+  const [riskWarn, setRiskWarn] = useState('');
+  const [riskHigh, setRiskHigh] = useState('');
+  const [riskDistinct, setRiskDistinct] = useState('');
+  const [riskNewMode, setRiskNewMode] = useState<'inherit' | 'yes' | 'no'>('inherit');
+  const [riskSaved, setRiskSaved] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -89,6 +94,16 @@ export default function UserPage({ me }: { me: Me }) {
       setNote(value.note ?? '');
       setTrustedCountries((value.trustedCountries ?? []).join(', '));
       setTrustedIps((value.trustedIps ?? []).join(', '));
+      setRiskWarn(value.riskThresholds?.warnIps?.toString() ?? '');
+      setRiskHigh(value.riskThresholds?.highIps?.toString() ?? '');
+      setRiskDistinct(value.riskThresholds?.distinct7d?.toString() ?? '');
+      setRiskNewMode(
+        value.riskThresholds?.newCountries == null
+          ? 'inherit'
+          : value.riskThresholds.newCountries
+            ? 'yes'
+            : 'no',
+      );
       api
         .userTraffic(name)
         .then(setTraffic)
@@ -105,6 +120,7 @@ export default function UserPage({ me }: { me: Me }) {
   }, [name]);
 
   useEffect(() => {
+    setRiskSaved(false);
     void load();
   }, [load]);
 
@@ -598,6 +614,99 @@ export default function UserPage({ me }: { me: Me }) {
                 <Button view="outlined" onClick={() => void run(() => api.resetQuota(user.username))}>
                   Сбросить квоту
                 </Button>
+              </div>
+            </form>
+          </Card>
+
+          <Card view="filled" style={{ padding: 16 }}>
+            <form
+              className="stack"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void run(async () => {
+                  await api.setRisk(user.username, {
+                    warnIps: riskWarn ? Number(riskWarn) : null,
+                    highIps: riskHigh ? Number(riskHigh) : null,
+                    distinct7d: riskDistinct ? Number(riskDistinct) : null,
+                    newCountries: riskNewMode === 'inherit' ? null : riskNewMode === 'yes',
+                  });
+                  setRiskSaved(true);
+                });
+              }}
+            >
+              <Text variant="header-1">Пороги риска</Text>
+              <Text className="muted">
+                Пустое поле — общее значение: предупреждение {user.riskDefaults?.warnIps ?? '—'}, высокий риск{' '}
+                {user.riskDefaults?.highIps ?? '—'}, адресов за 7 дней {user.riskDefaults?.distinct7d ?? '—'}.
+              </Text>
+              <div className="form-grid">
+                <section className="form-section">
+                  <Text variant="subheader-1">Активные адреса</Text>
+                  <label className="field">
+                    <span>Предупреждение, больше IP</span>
+                    <TextInput
+                      placeholder={`например, ${user.riskDefaults?.warnIps ?? 3}`}
+                      value={riskWarn}
+                      onUpdate={setRiskWarn}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Высокий риск, больше IP</span>
+                    <TextInput
+                      placeholder={`например, ${user.riskDefaults?.highIps ?? 5}`}
+                      value={riskHigh}
+                      onUpdate={setRiskHigh}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Адресов за 7 дней</span>
+                    <TextInput
+                      placeholder={`например, ${user.riskDefaults?.distinct7d ?? 15}`}
+                      value={riskDistinct}
+                      onUpdate={setRiskDistinct}
+                    />
+                  </label>
+                </section>
+                <section className="form-section">
+                  <Text variant="subheader-1">Новые страны</Text>
+                  <label className="field">
+                    <span>Реакция на новую страну</span>
+                    <select
+                      value={riskNewMode}
+                      onChange={(e) => setRiskNewMode(e.target.value as 'inherit' | 'yes' | 'no')}
+                    >
+                      <option value="inherit">как у всех</option>
+                      <option value="yes">считать риском</option>
+                      <option value="no">не считать</option>
+                    </select>
+                  </label>
+                </section>
+              </div>
+              <div className="form-actions">
+                <Button view="action" type="submit" loading={busy}>
+                  Сохранить пороги
+                </Button>
+                <Button
+                  view="outlined"
+                  onClick={() =>
+                    void run(async () => {
+                      setRiskWarn('');
+                      setRiskHigh('');
+                      setRiskDistinct('');
+                      setRiskNewMode('inherit');
+                      await api.setRisk(user.username, {
+                        warnIps: null,
+                        highIps: null,
+                        distinct7d: null,
+                        newCountries: null,
+                      });
+                      setRiskSaved(true);
+                    })
+                  }
+                >
+                  Сбросить к общим
+                </Button>
+                {riskSaved && <Text color="positive">сохранено</Text>}
               </div>
             </form>
           </Card>

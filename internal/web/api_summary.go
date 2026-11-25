@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/McConfig/telemt-admin/internal/geoip"
+	"github.com/McConfig/telemt-admin/internal/store"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -48,7 +49,11 @@ func (s *Server) apiSummary(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			continue
 		}
-		switch s.risk(int64(len(u.ActiveUniqueIPList)), stats) {
+		riskCfg, _, err := s.store.GetRisk(r.Context(), u.Username)
+		if err != nil {
+			riskCfg = store.Risk{}
+		}
+		switch s.risk(int64(len(u.ActiveUniqueIPList)), stats, riskCfg) {
 		case 2:
 			out.RiskHigh++
 		case 1:

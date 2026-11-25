@@ -1,6 +1,6 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 import UserPage from './UserPage';
 import { me, proxyUser } from '../test/data';
@@ -53,6 +53,29 @@ describe('UserPage', () => {
     expect(screen.getByText('Квота трафика')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Аудит' }));
     expect(await screen.findByText('Аудит клиента')).toBeInTheDocument();
+  });
+
+  it('сохраняет пороги риска', async () => {
+    renderUser();
+    const mock = vi.mocked(fetch);
+    await screen.findByText('main');
+    await userEvent.click(screen.getByRole('button', { name: 'Лимиты' }));
+
+    await userEvent.type(screen.getByLabelText('Предупреждение, больше IP'), '6');
+    await userEvent.type(screen.getByLabelText('Высокий риск, больше IP'), '8');
+    await userEvent.selectOptions(screen.getByLabelText('Реакция на новую страну'), 'no');
+    await userEvent.click(screen.getByRole('button', { name: 'Сохранить пороги' }));
+
+    expect(await screen.findByText('сохранено')).toBeInTheDocument();
+    const call = mock.mock.calls.find(([url]) => String(url).includes('/risk'));
+    expect(call).toBeTruthy();
+    const init = call?.[1] as RequestInit;
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      warnIps: 6,
+      highIps: 8,
+      distinct7d: null,
+      newCountries: false,
+    });
   });
 
   it('перевыпускает секрет через диалог', async () => {

@@ -91,6 +91,7 @@
 | GET | `/api/users/{name}/timeline?days=14` | обе | новые адреса и страны |
 | GET | `/api/users/{name}/trusted` | admin | доверенные страны и адреса |
 | PUT | `/api/users/{name}/trusted` | admin | заменить списки |
+| PUT | `/api/users/{name}/risk` | admin | пороги риска клиента |
 | GET | `/api/users/{name}/note` | admin | заметка |
 | PUT | `/api/users/{name}/note` | admin | `{"note":"..."}` |
 | GET | `/api/summary` | обе | сводка и здоровье |
@@ -118,7 +119,19 @@
   "newCountries24h":0,
   "operators":["LeaseWeb"],
   "trustedCountries":[],
-  "trustedIps":[]
+  "trustedIps":[],
+  "riskThresholds":{
+    "warnIps":null,
+    "highIps":null,
+    "distinct7d":null,
+    "newCountries":null
+  },
+  "riskDefaults":{
+    "warnIps":3,
+    "highIps":5,
+    "distinct7d":15,
+    "newCountries":true
+  }
 }
 ```
 
@@ -148,6 +161,23 @@
 ```
 
 Доверенные страны и адреса не поднимают риск и не дают алертов.
+
+`PUT /api/users/{name}/risk`:
+
+```json
+{"warnIps":8,"highIps":12,"distinct7d":25,"newCountries":false}
+```
+
+Поля необязательные. `null` или отсутствие поля означают «использовать
+глобальное значение» из `TGADMIN_RISK_IPS_WARN`, `TGADMIN_RISK_IPS_HIGH`,
+`TGADMIN_RISK_DISTINCT_7D`. Пустой объект `{}` снимает все переопределения.
+
+Ограничения: `0 <= warnIps < highIps <= 1000`, `0 <= distinct7d <= 10000`.
+`newCountries` управляет реакцией на страну, которой раньше не было.
+
+В ответе и в карточке клиента есть два объекта: `riskThresholds` —
+переопределения (могут быть `null`) и `riskDefaults` — действующие значения
+после подстановки глобальных.
 
 ## Пользователи UI
 
