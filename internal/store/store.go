@@ -19,7 +19,7 @@ var (
 // Store — обёртка над Valkey.
 type Store struct {
 	rdb       *redis.Client
-	retention time.Duration
+	retention atomic.Int64 // окно истории в наносекундах
 	home      atomic.Value // string, домашняя страна для истории
 }
 
@@ -37,7 +37,8 @@ func Open(ctx context.Context, rawURL, password string) (*Store, error) {
 		_ = rdb.Close()
 		return nil, fmt.Errorf("подключение к Valkey: %w", err)
 	}
-	st := &Store{rdb: rdb, retention: 30 * 24 * time.Hour}
+	st := &Store{rdb: rdb}
+	st.retention.Store(int64(30 * 24 * time.Hour))
 	st.home.Store("RU")
 	return st, nil
 }
@@ -62,8 +63,13 @@ func (s *Store) HomeCountry() string {
 // SetRetention задаёт срок хранения истории IP.
 func (s *Store) SetRetention(d time.Duration) {
 	if d > 0 {
-		s.retention = d
+		s.retention.Store(int64(d))
 	}
+}
+
+// Retention возвращает текущее окно истории.
+func (s *Store) Retention() time.Duration {
+	return time.Duration(s.retention.Load())
 }
 
 func (s *Store) Close() error { return s.rdb.Close() }

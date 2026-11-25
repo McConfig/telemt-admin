@@ -45,6 +45,10 @@ func TestSettingsCatalog(t *testing.T) {
 	if warn.Status != stgs.Active || warn.Value.(float64) != 3 || warn.Source != "env" {
 		t.Fatalf("warn: %+v", warn)
 	}
+	interval := settingsField(t, cat, "collect.interval")
+	if interval.Restart {
+		t.Fatalf("интервал сбора не должен требовать перезапуска: %+v", interval)
+	}
 	planned := settingsField(t, cat, "login.max_failures")
 	if planned.Status != stgs.Planned || planned.PlannedRelease != "1.4.0" {
 		t.Fatalf("planned: %+v", planned)

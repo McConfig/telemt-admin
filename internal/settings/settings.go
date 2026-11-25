@@ -350,6 +350,18 @@ func (s *Service) Save(
 	if homeChanged {
 		s.st.SetHomeCountry(s.HomeCountry(ctx))
 	}
+	retentionChanged := false
+	if _, ok := set["retention"]; ok {
+		retentionChanged = true
+	}
+	for _, key := range reset {
+		if key == "retention" {
+			retentionChanged = true
+		}
+	}
+	if retentionChanged {
+		s.st.SetRetention(s.Retention(ctx))
+	}
 
 	return catalog, changes, nil
 }
@@ -531,13 +543,13 @@ func (s *Service) build() {
 	add(Definition{
 		Key: "collect.interval", Section: "collect", Title: "Интервал сбора",
 		Description: "Как часто опрашивать Control API telemt", Kind: KindDuration,
-		Status: Active, Default: cfg.CollectInterval, Restart: true,
+		Status: Active, Default: cfg.CollectInterval,
 		MinDur: durp(10 * time.Second), MaxDur: durp(time.Hour),
 	})
 	add(Definition{
 		Key: "retention", Section: "collect", Title: "Срок хранения истории",
 		Description: "История адресов, стран и трафика", Kind: KindDuration,
-		Status: Active, Default: cfg.Retention, Restart: true,
+		Status: Active, Default: cfg.Retention,
 		MinDur: durp(7 * 24 * time.Hour), MaxDur: durp(90 * 24 * time.Hour),
 	})
 	add(Definition{

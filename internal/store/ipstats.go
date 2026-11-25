@@ -78,7 +78,7 @@ func (s *Store) SaveGeoStats(ctx context.Context, user string, foreign int64, co
 	}).Err(); err != nil {
 		return err
 	}
-	return s.rdb.Expire(ctx, geoKey(user), s.retention).Err()
+	return s.rdb.Expire(ctx, geoKey(user), s.Retention()).Err()
 }
 
 // GeoStats читает последние агрегаты GeoIP. Второй результат — есть ли запись.
@@ -155,28 +155,28 @@ func (s *Store) RecordIPObservation(ctx context.Context, user string, ips []stri
 		}
 		if g, ok := geo[ip]; ok && g.Country != "" && !g.Internal {
 			pipe.SAdd(ctx, countryKey(user, day), g.Country)
-			pipe.Expire(ctx, countryKey(user, day), s.retention)
+			pipe.Expire(ctx, countryKey(user, day), s.Retention())
 			if g.Country != s.HomeCountry() {
 				pipe.SAdd(ctx, foreignKey(user, day), ip)
-				pipe.Expire(ctx, foreignKey(user, day), s.retention)
+				pipe.Expire(ctx, foreignKey(user, day), s.Retention())
 				pipe.ZAddArgs(ctx, countryFirstKey(user), redis.ZAddArgs{
 					NX: true, Members: []redis.Z{{Score: ts, Member: g.Country}},
 				})
-				pipe.Expire(ctx, countryFirstKey(user), s.retention)
+				pipe.Expire(ctx, countryFirstKey(user), s.Retention())
 			}
 		}
-		pipe.Expire(ctx, key, s.retention)
+		pipe.Expire(ctx, key, s.Retention())
 		pipe.SAdd(ctx, dayKey(user, day), ip)
 		pipe.HSetNX(ctx, dayFirstKey(user, day), ip, now.Format(time.RFC3339))
 		pipe.HSet(ctx, dayLastKey(user, day), ip, now.Format(time.RFC3339))
 	}
-	pipe.Expire(ctx, dayKey(user, day), s.retention)
-	pipe.Expire(ctx, dayFirstKey(user, day), s.retention)
-	pipe.Expire(ctx, dayLastKey(user, day), s.retention)
-	pipe.Expire(ctx, seenKey(user), s.retention)
-	pipe.Expire(ctx, firstKey(user), s.retention)
-	pipe.ZRemRangeByScore(ctx, seenKey(user), "-inf", strconv.FormatInt(now.Add(-s.retention).Unix(), 10))
-	pipe.ZRemRangeByScore(ctx, firstKey(user), "-inf", strconv.FormatInt(now.Add(-s.retention).Unix(), 10))
+	pipe.Expire(ctx, dayKey(user, day), s.Retention())
+	pipe.Expire(ctx, dayFirstKey(user, day), s.Retention())
+	pipe.Expire(ctx, dayLastKey(user, day), s.Retention())
+	pipe.Expire(ctx, seenKey(user), s.Retention())
+	pipe.Expire(ctx, firstKey(user), s.Retention())
+	pipe.ZRemRangeByScore(ctx, seenKey(user), "-inf", strconv.FormatInt(now.Add(-s.Retention()).Unix(), 10))
+	pipe.ZRemRangeByScore(ctx, firstKey(user), "-inf", strconv.FormatInt(now.Add(-s.Retention()).Unix(), 10))
 	if _, err := pipe.Exec(ctx); err != nil {
 		return err
 	}
@@ -187,7 +187,7 @@ func (s *Store) RecordIPObservation(ctx context.Context, user string, ips []stri
 			return err
 		}
 		if int64(len(ips)) > max {
-			if err := s.rdb.Set(ctx, maxKey(user, day), len(ips), s.retention).Err(); err != nil {
+			if err := s.rdb.Set(ctx, maxKey(user, day), len(ips), s.Retention()).Err(); err != nil {
 				return err
 			}
 		}
@@ -209,7 +209,7 @@ func (s *Store) recordTraffic(ctx context.Context, user string, total uint64, da
 		if err := s.rdb.HSet(ctx, trafficDaysKey(user), day, 0).Err(); err != nil {
 			return err
 		}
-		_ = s.rdb.Expire(ctx, trafficDaysKey(user), s.retention).Err()
+		_ = s.rdb.Expire(ctx, trafficDaysKey(user), s.Retention()).Err()
 		return nil
 	}
 	last, _ := strconv.ParseUint(m["last_total"], 10, 64)
@@ -234,8 +234,8 @@ func (s *Store) recordTraffic(ctx context.Context, user string, total uint64, da
 	if err := s.rdb.HSet(ctx, trafficDaysKey(user), day, dayBytes).Err(); err != nil {
 		return err
 	}
-	_ = s.rdb.Expire(ctx, trafficKey(user), s.retention).Err()
-	_ = s.rdb.Expire(ctx, trafficDaysKey(user), s.retention).Err()
+	_ = s.rdb.Expire(ctx, trafficKey(user), s.Retention()).Err()
+	_ = s.rdb.Expire(ctx, trafficDaysKey(user), s.Retention()).Err()
 	_ = now
 	return nil
 }

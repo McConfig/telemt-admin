@@ -94,6 +94,7 @@ func TestSaveAndReset(t *testing.T) {
 		"risk.new_countries": raw(false),
 		"session.ttl":        raw("24h"),
 		"links.mode":         raw("secure"),
+		"retention":          raw("240h"),
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -101,7 +102,7 @@ func TestSaveAndReset(t *testing.T) {
 	if cat.Version != 1 {
 		t.Fatalf("версия %d", cat.Version)
 	}
-	if len(changes) != 6 {
+	if len(changes) != 7 {
 		t.Fatalf("изменений %d: %+v", len(changes), changes)
 	}
 	warn, high, distinct, newCountries, home := svc.RiskValues(ctx)
@@ -116,6 +117,9 @@ func TestSaveAndReset(t *testing.T) {
 	}
 	if st.HomeCountry() != "DE" {
 		t.Fatalf("домашняя страна в store: %s", st.HomeCountry())
+	}
+	if st.Retention() != 240*time.Hour {
+		t.Fatalf("retention в store: %s", st.Retention())
 	}
 
 	cat, changes, err = svc.Save(ctx, cat.Version, nil, []string{"risk.warn_ips", "links.mode"})
