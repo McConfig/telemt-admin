@@ -54,8 +54,8 @@ func TestSettingsCatalog(t *testing.T) {
 	if activeLogin.Status != stgs.Active || activeLogin.Value.(float64) != 10 {
 		t.Fatalf("login.max_failures: %+v", activeLogin)
 	}
-	planned := settingsField(t, cat, "notifications.webhook_url")
-	if planned.Status != stgs.Planned || planned.PlannedRelease != "1.5.0" {
+	planned := settingsField(t, cat, "backup.offsite")
+	if planned.Status != stgs.Planned || planned.PlannedRelease != "1.6.0" {
 		t.Fatalf("planned: %+v", planned)
 	}
 	readonly := settingsField(t, cat, "network.allowed_cidrs")
@@ -115,7 +115,7 @@ func TestSettingsUpdateAndConflict(t *testing.T) {
 
 	rr = httptest.NewRecorder()
 	s.Handler().ServeHTTP(rr, apiRequest(t, "PUT", "/api/settings",
-		`{"version":1,"values":{"notifications.webhook_url":"https://example.com/hook"}}`, tok, csrf))
+		`{"version":1,"values":{"backup.offsite":true}}`, tok, csrf))
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("planned: код %d", rr.Code)
 	}
@@ -310,5 +310,42 @@ func TestRequire2FAEnforcement(t *testing.T) {
 	s.Handler().ServeHTTP(rr, apiRequest(t, "GET", "/api/account/totp", "", tok, ""))
 	if rr.Code != http.StatusOK {
 		t.Fatalf("totp: код %d", rr.Code)
+	}
+}
+
+type fakeNotifier struct {
+	sent  bool
+	event string
+}
+
+func (f *fakeNotifier) Emit(context.Context, string, map[string]any) {}
+
+func (f *fakeNotifier) SendNow(_ context.Context, event string, _ map[string]any) (int, error) {
+	f.sent = true
+	f.event = event
+	return http.StatusNoContent, nil
+}
+
+func TestWebhookTestEndpoint(t *testing.T) {
+	s := testServer(t)
+	tok, csrf := seedSession(t, s, store.RoleAdmin)
+	notifier := &fakeNotifier{}
+	s.SetNotifier(notifier)
+
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, apiRequest(t, "POST", "/api/settings/webhook/test", "", tok, csrf))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("код %d: %s", rr.Code, rr.Body.String())
+	}
+	if !notifier.sent || notifier.event != "test" {
+		t.Fatalf("notifier: %+v", notifier)
+	}
+
+	plain := testServer(t)
+	tok2, csrf2 := seedSession(t, plain, store.RoleAdmin)
+	rr = httptest.NewRecorder()
+	plain.Handler().ServeHTTP(rr, apiRequest(t, "POST", "/api/settings/webhook/test", "", tok2, csrf2))
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Fatalf("без notifier: код %d", rr.Code)
 	}
 }

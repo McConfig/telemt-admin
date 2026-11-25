@@ -40,6 +40,13 @@ type Config struct {
 	LogLevel            string
 	Require2FA          bool
 	Require2FAGraceDays int
+	WebhookURL          string
+	WebhookSecret       string
+	WebhookEvents       string
+	BackupSchedule      string
+	BackupKeepDays      int
+	BackupRestoreTest   bool
+	BackupConfig        string
 	GeoIPCity           string
 	GeoIPASN            string
 	BackupStatus        string
@@ -83,6 +90,16 @@ func Load(getenv func(string) string) (*Config, error) {
 	cfg.Require2FAGraceDays = getInt(get("TGADMIN_REQUIRE_2FA_GRACE_DAYS", "7"), 7)
 	if cfg.Require2FAGraceDays < 0 || cfg.Require2FAGraceDays > 30 {
 		return nil, fmt.Errorf("TGADMIN_REQUIRE_2FA_GRACE_DAYS: от 0 до 30")
+	}
+	cfg.WebhookURL = get("TGADMIN_WEBHOOK_URL", "")
+	cfg.WebhookSecret = getenv("TGADMIN_WEBHOOK_SECRET")
+	cfg.WebhookEvents = get("TGADMIN_WEBHOOK_EVENTS", "user.create,user.rename,user.rotate,user.enable,user.disable,user.delete,settings.update,settings.backup")
+	cfg.BackupSchedule = get("TGADMIN_BACKUP_SCHEDULE", "04:30")
+	cfg.BackupKeepDays = getInt(get("TGADMIN_BACKUP_KEEP_DAYS", "14"), 14)
+	cfg.BackupRestoreTest = get("TGADMIN_BACKUP_RESTORE_TEST", "true") != "false"
+	cfg.BackupConfig = get("TGADMIN_BACKUP_CONFIG", "")
+	if cfg.BackupKeepDays < 1 || cfg.BackupKeepDays > 365 {
+		return nil, fmt.Errorf("TGADMIN_BACKUP_KEEP_DAYS: от 1 до 365")
 	}
 	cfg.LogLevel = strings.ToLower(get("TGADMIN_LOG_LEVEL", "info"))
 	switch cfg.LogLevel {

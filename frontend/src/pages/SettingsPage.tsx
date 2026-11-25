@@ -39,6 +39,8 @@ export default function SettingsPage() {
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
   const [conflict, setConflict] = useState(false);
+  const [webhookBusy, setWebhookBusy] = useState(false);
+  const [webhookMessage, setWebhookMessage] = useState('');
 
   const applyCatalog = useCallback((data: SettingsCatalog) => {
     setCatalog(data);
@@ -103,6 +105,19 @@ export default function SettingsPage() {
     );
   };
 
+  const testWebhook = async () => {
+    setWebhookBusy(true);
+    setWebhookMessage('');
+    try {
+      const result = await api.webhookTest();
+      setWebhookMessage(`Отправлено, статус ${result.status}`);
+    } catch (err) {
+      setWebhookMessage(err instanceof ApiError ? err.message : 'вебхук не отправлен');
+    } finally {
+      setWebhookBusy(false);
+    }
+  };
+
   const save = async () => {
     if (!catalog) return;
     setBusy(true);
@@ -145,6 +160,26 @@ export default function SettingsPage() {
 
   const renderField = (field: SettingField) => {
     if (field.secret) {
+      if (field.status === 'active') {
+        const value = draft[field.key];
+        return (
+          <label className="field" key={field.key}>
+            <span>{field.title}</span>
+            <TextInput
+              type="password"
+              value={String(value ?? '')}
+              placeholder={field.secretSet ? 'задан, оставьте пустым' : 'не задан'}
+              onUpdate={(next) => update(field.key, next)}
+            />
+            <Text className="muted">{field.description}</Text>
+            {(field.source === 'settings' || isDirty(field, value)) && (
+              <Button view="flat" size="s" onClick={() => resetField(field)}>
+                сбросить
+              </Button>
+            )}
+          </label>
+        );
+      }
       return (
         <label className="field" key={field.key}>
           <span>{field.title}</span>
@@ -278,6 +313,14 @@ export default function SettingsPage() {
               <Text variant="header-1">{section.title}</Text>
               <Text className="muted">{section.description}</Text>
               <div className="form-grid">{section.settings.map(renderField)}</div>
+              {section.id === 'notifications' && (
+                <div className="row">
+                  <Button view="outlined" loading={webhookBusy} onClick={() => void testWebhook()}>
+                    Проверить вебхук
+                  </Button>
+                  {webhookMessage && <Text className="muted">{webhookMessage}</Text>}
+                </div>
+              )}
               {section.id === 'collect' && (
                 <Text className="muted">
                   Интервал применяется со следующего цикла. Увеличение retention не возвращает

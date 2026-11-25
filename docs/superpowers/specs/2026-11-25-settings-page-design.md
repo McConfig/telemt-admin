@@ -72,6 +72,12 @@
 | `log.level` | enum | active | сразу | `debug`, `info`, `warn`, `error` |
 | `security.require_2fa` | bool | active | сразу | — |
 | `security.require_2fa_grace_days` | int | active | сразу | 0–30 |
+| `notifications.webhook_url` | string | active | сразу | http(s) URL |
+| `notifications.webhook_secret` | string | active, secret | сразу | HMAC-секрет |
+| `notifications.events` | string | active | сразу | список событий |
+| `backup.schedule` | string | active | к хостовому скрипту | ЧЧ:ММ, кратно 5 |
+| `backup.keep_days` | int | active | к хостовому скрипту | 1–365 |
+| `backup.restore_test` | bool | active | к хостовому скрипту | — |
 
 ### 4.3. Будущие настройки
 
@@ -79,12 +85,6 @@
 
 | Ключ | Версия | Смысл |
 |---|---|---|
-| `notifications.webhook_url` | 1.5.0 | URL вебхука |
-| `notifications.webhook_secret` | 1.5.0 | секрет подписи |
-| `notifications.events` | 1.5.0 | список событий |
-| `backup.schedule` | 1.5.0 | расписание на хосте |
-| `backup.keep_days` | 1.5.0 | срок хранения снимков |
-| `backup.restore_test` | 1.5.0 | проверка восстановления на хосте |
 | `backup.offsite` | 1.6.0 | копия вне хоста |
 
 ### 4.4. Только чтение
@@ -168,6 +168,8 @@ TTL у настроек нет. Удаление ключа возвращает
 | `log.level` | динамический `slog.LevelVar` |
 | `security.require_2fa` | фиксируется `security:require_2fa_since`, считается дедлайн |
 | `security.require_2fa_grace_days` | меняет дедлайн от момента включения |
+| `notifications.*` | читается отправителем вебхуков |
+| `backup.*` | пишется в `TGADMIN_BACKUP_CONFIG` для хоста |
 
 Изменение домашней страны не переписывает уже сохранённую историю. В
 интерфейсе есть пояснение: новые расчёты используют новую страну, старые

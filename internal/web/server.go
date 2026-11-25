@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"github.com/McConfig/telemt-admin/internal/collector"
@@ -25,11 +26,23 @@ type Server struct {
 	store     *store.Store
 	telemt    *telemt.Client
 	settings  *settings.Service
+	notifier  Notifier
 	router    chi.Router
 	assets    http.Handler
 	now       func() time.Time
 	startedAt time.Time
 	status    func() collector.Status
+}
+
+// Notifier отправляет события аудита во внешнюю систему.
+type Notifier interface {
+	Emit(ctx context.Context, event string, payload map[string]any)
+	SendNow(ctx context.Context, event string, payload map[string]any) (int, error)
+}
+
+// SetNotifier подключает отправитель вебхуков.
+func (s *Server) SetNotifier(n Notifier) {
+	s.notifier = n
 }
 
 // SetCollectorStatus подключает источник состояния сборщика.
@@ -87,6 +100,7 @@ func New(cfg *config.Config, st *store.Store, tc *telemt.Client, metrics http.Ha
 				r.Get("/settings/templates", s.apiListTemplates)
 				r.Post("/settings/templates", s.apiSaveTemplate)
 				r.Put("/settings/templates/default", s.apiSetDefaultTemplate)
+				r.Post("/settings/webhook/test", s.apiWebhookTest)
 				r.Put("/settings/templates/{name}", s.apiSaveTemplate)
 				r.Delete("/settings/templates/{name}", s.apiDeleteTemplate)
 				r.Get("/settings/backups", s.apiBackups)
