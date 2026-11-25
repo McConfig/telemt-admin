@@ -70,6 +70,8 @@
 | `password.min_length` | int | active | сразу, к новым паролям | 8–128 |
 | `ui.default_chart_days` | int | active | сразу | 7–90 |
 | `log.level` | enum | active | сразу | `debug`, `info`, `warn`, `error` |
+| `security.require_2fa` | bool | active | сразу | — |
+| `security.require_2fa_grace_days` | int | active | сразу | 0–30 |
 
 ### 4.3. Будущие настройки
 
@@ -77,7 +79,6 @@
 
 | Ключ | Версия | Смысл |
 |---|---|---|
-| `security.require_2fa` | 1.5.0 | обязательный 2FA для админов |
 | `notifications.webhook_url` | 1.5.0 | URL вебхука |
 | `notifications.webhook_secret` | 1.5.0 | секрет подписи |
 | `notifications.events` | 1.5.0 | список событий |
@@ -165,6 +166,8 @@ TTL у настроек нет. Удаление ключа возвращает
 | `password.min_length` | проверяется при создании и смене пароля |
 | `ui.default_chart_days` | отдаётся в `/api/meta`, фронтенд использует для графиков |
 | `log.level` | динамический `slog.LevelVar` |
+| `security.require_2fa` | фиксируется `security:require_2fa_since`, считается дедлайн |
+| `security.require_2fa_grace_days` | меняет дедлайн от момента включения |
 
 Изменение домашней страны не переписывает уже сохранённую историю. В
 интерфейсе есть пояснение: новые расчёты используют новую страну, старые

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { Loader, ThemeProvider } from '@gravity-ui/uikit';
+import { Alert, Button, Loader, ThemeProvider } from '@gravity-ui/uikit';
 import { api, type Me } from './api';
 import Layout from './Layout';
 import LoginPage from './pages/LoginPage';
@@ -59,6 +59,35 @@ export default function App() {
       setMe(null);
     }
   };
+
+  const refreshMe = () => {
+    api
+      .me()
+      .then(setMe)
+      .catch(() => setMe(null));
+  };
+
+  if (me.require2fa?.enforced) {
+    return (
+      <ThemeProvider theme={theme}>
+        <div className="app-shell">
+          <main className="page stack">
+            <Alert
+              theme="danger"
+              title="Требуется двухфакторная аутентификация"
+              message="Льготный срок истёк. Доступ к интерфейсу ограничен, пока вы не включите 2FA. Настройте её ниже и сохраните резервные коды."
+            />
+            <AccountPage onMeChange={refreshMe} />
+            <div>
+              <Button view="outlined" onClick={() => void logout()}>
+                Выйти
+              </Button>
+            </div>
+          </main>
+        </div>
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider theme={theme}>

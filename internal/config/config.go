@@ -13,35 +13,37 @@ import (
 
 // Config — настройки сервиса из переменных окружения.
 type Config struct {
-	Listen            string
-	AllowedCIDRs      []netip.Prefix
-	TrustedProxies    []netip.Prefix
-	BaseURL           *url.URL
-	SessionTTL        time.Duration
-	ValkeyURL         string
-	ValkeyPassword    string
-	TelemtURL         string
-	TelemtToken       string
-	LinkMode          string
-	CookieSecure      bool
-	CollectInterval   time.Duration
-	RiskIPsWarn       int
-	RiskIPsHigh       int
-	RiskDistinct7d    int
-	HomeCountry       string
-	Retention         time.Duration
-	LoginMaxFailures  int
-	LoginWindow       time.Duration
-	TOTPPendingTTL    time.Duration
-	TOTPMaxAttempts   int
-	AuditMaxEvents    int64
-	PasswordMinLength int
-	DefaultChartDays  int
-	LogLevel          string
-	GeoIPCity         string
-	GeoIPASN          string
-	BackupStatus      string
-	TOTPKey           []byte
+	Listen              string
+	AllowedCIDRs        []netip.Prefix
+	TrustedProxies      []netip.Prefix
+	BaseURL             *url.URL
+	SessionTTL          time.Duration
+	ValkeyURL           string
+	ValkeyPassword      string
+	TelemtURL           string
+	TelemtToken         string
+	LinkMode            string
+	CookieSecure        bool
+	CollectInterval     time.Duration
+	RiskIPsWarn         int
+	RiskIPsHigh         int
+	RiskDistinct7d      int
+	HomeCountry         string
+	Retention           time.Duration
+	LoginMaxFailures    int
+	LoginWindow         time.Duration
+	TOTPPendingTTL      time.Duration
+	TOTPMaxAttempts     int
+	AuditMaxEvents      int64
+	PasswordMinLength   int
+	DefaultChartDays    int
+	LogLevel            string
+	Require2FA          bool
+	Require2FAGraceDays int
+	GeoIPCity           string
+	GeoIPASN            string
+	BackupStatus        string
+	TOTPKey             []byte
 }
 
 // Load читает конфигурацию. getenv передаётся для тестируемости.
@@ -77,6 +79,11 @@ func Load(getenv func(string) string) (*Config, error) {
 	cfg.AuditMaxEvents = int64(getInt(get("TGADMIN_AUDIT_MAX_EVENTS", "10000"), 10000))
 	cfg.PasswordMinLength = getInt(get("TGADMIN_PASSWORD_MIN_LENGTH", "12"), 12)
 	cfg.DefaultChartDays = getInt(get("TGADMIN_DEFAULT_CHART_DAYS", "30"), 30)
+	cfg.Require2FA = strings.EqualFold(get("TGADMIN_REQUIRE_2FA", "false"), "true")
+	cfg.Require2FAGraceDays = getInt(get("TGADMIN_REQUIRE_2FA_GRACE_DAYS", "7"), 7)
+	if cfg.Require2FAGraceDays < 0 || cfg.Require2FAGraceDays > 30 {
+		return nil, fmt.Errorf("TGADMIN_REQUIRE_2FA_GRACE_DAYS: от 0 до 30")
+	}
 	cfg.LogLevel = strings.ToLower(get("TGADMIN_LOG_LEVEL", "info"))
 	switch cfg.LogLevel {
 	case "debug", "info", "warn", "error":

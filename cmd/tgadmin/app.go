@@ -32,6 +32,7 @@ func newHandler(ctx context.Context, cfg *config.Config) (http.Handler, func() e
 	st.SetLoginPolicy(maxFailures, loginWindow)
 	st.SetAuditMax(svc.AuditMaxEvents(ctx))
 	_ = logging.Set(svc.LogLevel(ctx))
+	_, _, _ = svc.Require2FA(ctx)
 	tc := telemt.New(cfg.TelemtURL, cfg.TelemtToken, 15*time.Second)
 	geo, err := geoip.Open(cfg.GeoIPCity, cfg.GeoIPASN)
 	if err != nil {

@@ -278,6 +278,12 @@ func (s *Server) apiTOTPDisable(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "unauthorized", "неверный пароль")
 		return
 	}
+	if u.Role == store.RoleAdmin {
+		if enabled, _, _ := s.settings.Require2FA(r.Context()); enabled {
+			writeError(w, http.StatusBadRequest, "totp_required", "нельзя отключить 2FA, пока она обязательна для администраторов")
+			return
+		}
+	}
 	if _, ok := s.verifyCurrentTOTP(u, in.Code); !ok {
 		writeError(w, http.StatusBadRequest, "bad_totp", "неверный код")
 		return
@@ -308,6 +314,12 @@ func (s *Server) apiTOTPRecovery(w http.ResponseWriter, r *http.Request) {
 	if ok, err := auth.Verify(u.Hash, in.Password); err != nil || !ok {
 		writeError(w, http.StatusUnauthorized, "unauthorized", "неверный пароль")
 		return
+	}
+	if u.Role == store.RoleAdmin {
+		if enabled, _, _ := s.settings.Require2FA(r.Context()); enabled {
+			writeError(w, http.StatusBadRequest, "totp_required", "нельзя отключить 2FA, пока она обязательна для администраторов")
+			return
+		}
 	}
 	if _, ok := s.verifyCurrentTOTP(u, in.Code); !ok {
 		writeError(w, http.StatusBadRequest, "bad_totp", "неверный код")

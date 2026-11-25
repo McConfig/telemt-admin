@@ -74,13 +74,13 @@ const catalog = {
       description: 'Входы',
       settings: [
         {
-          key: 'security.require_2fa',
-          title: 'Обязательный 2FA',
-          description: 'Политика для всех администраторов',
-          kind: 'bool',
+          key: 'notifications.webhook_url',
+          title: 'URL вебхука',
+          description: 'Доставка событий',
+          kind: 'string',
           status: 'planned',
           plannedRelease: '1.5.0',
-          default: false,
+          default: '',
         },
       ],
     },
@@ -100,7 +100,7 @@ describe('SettingsPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Безопасность' }));
     expect(screen.getByText('1.5.0')).toBeInTheDocument();
-    expect(screen.getByText('Политика для всех администраторов')).toBeInTheDocument();
+    expect(screen.getByText('Доставка событий')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Риск' }));
 
     const warn = screen.getByPlaceholderText('по умолчанию: 3');

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { Button, Label } from '@gravity-ui/uikit';
+import { Alert, Button, Label } from '@gravity-ui/uikit';
 import { ArrowRightFromSquare, Moon, Sun } from '@gravity-ui/icons';
 import type { Me } from './api';
 import Footer from './Footer';
@@ -58,7 +58,19 @@ export default function Layout({
           </div>
         </div>
       </header>
-      <main className="page">{children}</main>
+      <main className="page">
+        {me.require2fa?.enabled && !me.require2fa.enforced && (
+          <Alert
+            theme="warning"
+            message={
+              me.require2fa.daysLeft > 0
+                ? `2FA не включена. Через ${me.require2fa.daysLeft} дн. доступ к интерфейсу будет ограничен до её включения. Настройте её в разделе «Аккаунт».`
+                : '2FA не включена. Сегодня истекает льготный срок, после чего доступ будет ограничен. Настройте её в разделе «Аккаунт».'
+            }
+          />
+        )}
+        {children}
+      </main>
       <Footer />
     </div>
   );

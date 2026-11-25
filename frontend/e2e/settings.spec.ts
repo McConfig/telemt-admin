@@ -9,7 +9,7 @@ test('настройки: каталог, planned и сохранение', asyn
   await expect(page.getByText('Настройки', { exact: true }).last()).toBeVisible();
   await page.getByRole('button', { name: 'Безопасность' }).click();
   await expect(page.getByText('1.5.0', { exact: true })).toBeVisible();
-  await expect(page.getByText('Политика для всех администраторов')).toBeVisible();
+  await expect(page.getByText('Доставка событий во внешнюю систему')).toBeVisible();
   await page.getByRole('button', { name: 'Бэкапы' }).click();
   await expect(page.getByRole('button', { name: 'Снимок сейчас' })).toBeVisible();
   await page.getByRole('button', { name: 'Риск' }).click();
@@ -22,4 +22,17 @@ test('настройки: каталог, planned и сохранение', asyn
     version: 0,
     values: { 'risk.warn_ips': 4 },
   });
+});
+
+test('2FA: предупреждение и ограничение доступа', async ({ page }) => {
+  await mockApi(page, { require2fa: true });
+  await login(page);
+  await expect(page.getByText(/2FA не включена/)).toBeVisible();
+});
+
+test('2FA: после срока показывается экран настройки', async ({ page }) => {
+  await mockApi(page, { require2fa: true, require2faEnforced: true });
+  await login(page, false);
+  await expect(page.getByText('Требуется двухфакторная аутентификация')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Выйти' })).toBeVisible();
 });

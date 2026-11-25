@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -384,6 +385,15 @@ func (s *Service) Save(
 	if touched("log.level") {
 		_ = logging.Set(s.LogLevel(ctx))
 	}
+	if touched("security.require_2fa") {
+		if s.boolValue("security.require_2fa") {
+			if _, ok, err := s.st.Require2FASince(ctx); err != nil || !ok {
+				_ = s.st.SetRequire2FASince(ctx, time.Now().UTC())
+			}
+		} else {
+			_ = s.st.ClearRequire2FASince(ctx)
+		}
+	}
 
 	return catalog, changes, nil
 }
@@ -571,6 +581,29 @@ func (s *Service) LogLevel(ctx context.Context) string {
 	return s.stringValue("log.level")
 }
 
+// Require2FA возвращает состояние обязательного 2FA и дедлайн.
+func (s *Service) Require2FA(ctx context.Context) (bool, time.Time, int) {
+	s.ensure(ctx)
+	s.mu.RLock()
+	enabled := s.boolValue("security.require_2fa")
+	grace := s.intValue("security.require_2fa_grace_days")
+	s.mu.RUnlock()
+	if !enabled {
+		return false, time.Time{}, 0
+	}
+	since, ok, err := s.st.Require2FASince(ctx)
+	if err != nil || !ok {
+		since = time.Now().UTC()
+		_ = s.st.SetRequire2FASince(ctx, since)
+	}
+	deadline := since.AddDate(0, 0, grace)
+	left := int(math.Ceil(deadline.Sub(time.Now().UTC()).Hours() / 24))
+	if left < 0 {
+		left = 0
+	}
+	return true, deadline, left
+}
+
 // IsActive сообщает, можно ли менять ключ.
 func (s *Service) IsActive(key string) bool {
 	d, ok := s.by[key]
@@ -715,11 +748,21 @@ func (s *Service) build() {
 		},
 	})
 
+	add(Definition{
+		Key: "security.require_2fa", Section: "security", Title: "Обязательный 2FA для админов",
+		Description: "После льготного срока доступ без 2FA будет ограничен",
+		Kind:        KindBool, Status: Active, Default: cfg.Require2FA,
+	})
+	add(Definition{
+		Key: "security.require_2fa_grace_days", Section: "security", Title: "Льготный срок, дней",
+		Description: "Сколько дней даётся администраторам на включение 2FA",
+		Kind:        KindInt, Status: Active, Default: cfg.Require2FAGraceDays, Min: intp(0), Max: intp(30),
+	})
+
 	planned := func(key, section, title, desc string, kind Kind, release string, def any) {
 		add(Definition{Key: key, Section: section, Title: title, Description: desc,
 			Kind: kind, Status: Planned, PlannedRelease: release, Default: def})
 	}
-	planned("security.require_2fa", "security", "Обязательный 2FA для админов", "Политика для всех администраторов", KindBool, "1.5.0", false)
 	planned("notifications.webhook_url", "notifications", "URL вебхука", "Доставка событий во внешнюю систему", KindString, "1.5.0", "")
 	planned("notifications.webhook_secret", "notifications", "Секрет вебхука", "HMAC-подпись запросов", KindString, "1.5.0", "")
 	planned("notifications.events", "notifications", "События", "Какие события отправлять", KindString, "1.5.0", "")
