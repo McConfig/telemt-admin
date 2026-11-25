@@ -33,6 +33,7 @@ import {
   type TrafficDay,
 } from '../api';
 import { formatBytes, formatTime } from '../format';
+import { useTableSort } from '../tableSort';
 import { useMedia } from '../useMedia';
 
 export default function UserPage({ me }: { me: Me }) {
@@ -749,13 +750,31 @@ function Stat({ label, value }: { label: string; value: string | number }) {
   );
 }
 
+function compareIPHistory(a: IPHistoryItem, b: IPHistoryItem, id: string): number {
+  switch (id) {
+    case 'country':
+      return (a.countryName ?? '').localeCompare(b.countryName ?? '');
+    case 'asn':
+      return (a.asnOrg ?? '').localeCompare(b.asnOrg ?? '');
+    case 'first':
+      return a.firstSeen.localeCompare(b.firstSeen);
+    case 'last':
+      return a.lastSeen.localeCompare(b.lastSeen);
+    case 'count':
+      return a.count - b.count;
+    default:
+      return a.ip.localeCompare(b.ip);
+  }
+}
+
 function IPHistoryTable({ items }: { items: IPHistoryItem[] }) {
   const isMobile = useMedia('(max-width: 760px)');
+  const { sorting, sortHeader, sortRows } = useTableSort([{ id: 'last', desc: true }]);
   const columns = useMemo<ColumnDef<IPHistoryItem>[]>(() => [
-    { id: 'ip', header: 'IP', cell: ({ row }) => row.original.ip },
+    { id: 'ip', header: () => sortHeader('ip', 'IP'), cell: ({ row }) => row.original.ip },
     {
       id: 'country',
-      header: 'Страна',
+      header: () => sortHeader('country', 'Страна'),
       cell: ({ row }) => {
         const item = row.original;
         if (item.internal) return <Label size="s" theme="unknown">локальный</Label>;
@@ -769,7 +788,7 @@ function IPHistoryTable({ items }: { items: IPHistoryItem[] }) {
     },
     {
       id: 'asn',
-      header: 'Оператор',
+      header: () => sortHeader('asn', 'Оператор'),
       cell: ({ row }) => {
         const item = row.original;
         if (!item.asn && !item.asnOrg) return '—';
@@ -785,7 +804,7 @@ function IPHistoryTable({ items }: { items: IPHistoryItem[] }) {
       ? [
           {
             id: 'last',
-            header: 'Последний раз',
+            header: () => sortHeader('last', 'Последний раз'),
             cell: ({ row }: { row: { original: IPHistoryItem } }) =>
               new Date(row.original.lastSeen).toLocaleString('ru-RU'),
           },
@@ -795,8 +814,9 @@ function IPHistoryTable({ items }: { items: IPHistoryItem[] }) {
           { id: 'last', header: 'Последний раз', cell: ({ row }: { row: { original: IPHistoryItem } }) => new Date(row.original.lastSeen).toLocaleString('ru-RU') },
           { id: 'count', header: 'Наблюдений', cell: ({ row }: { row: { original: IPHistoryItem } }) => row.original.count },
         ]),
-  ], [isMobile]);
-  const table = useTable({ columns, data: items });
+  ], [isMobile, sorting]);
+  const data = useMemo(() => sortRows(items, compareIPHistory), [items, sorting]);
+  const table = useTable({ columns, data });
   return (
     <div className="table-scroll">
       <Table table={table} />

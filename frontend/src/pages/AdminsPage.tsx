@@ -5,6 +5,7 @@ import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { ArrowRightFromSquare, Ban, Key, Lock, Play, TrashBin } from '@gravity-ui/icons';
 import { api, ApiError, type AdminUser, type Me } from '../api';
 import { formatTime } from '../format';
+import { useTableSort } from '../tableSort';
 import { useMedia } from '../useMedia';
 
 export default function AdminsPage({ me }: { me: Me }) {
@@ -37,11 +38,12 @@ export default function AdminsPage({ me }: { me: Me }) {
     }
   };
 
+  const { sortHeader, sortRows } = useTableSort();
   const columns: ColumnDef<AdminUser>[] = [
-    { id: 'name', header: 'Имя', cell: ({ row }) => row.original.name },
+    { id: 'name', header: () => sortHeader('name', 'Имя'), cell: ({ row }) => row.original.name },
     {
       id: 'role',
-      header: 'Роль',
+      header: () => sortHeader('role', 'Роль'),
       cell: ({ row }) => (
         <Label theme={row.original.role === 'admin' ? 'success' : 'info'} size="s">
           {row.original.role}
@@ -50,7 +52,7 @@ export default function AdminsPage({ me }: { me: Me }) {
     },
     {
       id: 'state',
-      header: 'Статус',
+      header: () => sortHeader('state', 'Статус'),
       cell: ({ row }) => (
         <Label theme={row.original.disabled ? 'danger' : 'success'} size="s">
           {row.original.disabled ? 'отключён' : 'активен'}
@@ -59,7 +61,7 @@ export default function AdminsPage({ me }: { me: Me }) {
     },
     {
       id: 'totp',
-      header: '2FA',
+      header: () => sortHeader('totp', '2FA'),
       cell: ({ row }) =>
         row.original.totpEnabled ? (
           <Label theme="success" size="s">включена</Label>
@@ -67,8 +69,8 @@ export default function AdminsPage({ me }: { me: Me }) {
           <Label theme="unknown" size="s">выключена</Label>
         ),
     },
-    { id: 'sessions', header: 'Сессии', cell: ({ row }) => row.original.sessions },
-    { id: 'created', header: 'Создан', cell: ({ row }) => formatTime(row.original.createdAt) },
+    { id: 'sessions', header: () => sortHeader('sessions', 'Сессии'), cell: ({ row }) => row.original.sessions },
+    { id: 'created', header: () => sortHeader('created', 'Создан'), cell: ({ row }) => formatTime(row.original.createdAt) },
     {
       id: 'actions',
       header: '',
@@ -132,7 +134,8 @@ export default function AdminsPage({ me }: { me: Me }) {
       ),
     },
   ];
-  const table = useTable({ columns, data: items });
+  const sorted = sortRows(items, compareAdmins);
+  const table = useTable({ columns, data: sorted });
 
   if (me.user.role !== 'admin') {
     return <Alert theme="warning" title="Нет прав" message="Раздел доступен только администраторам" />;
@@ -161,7 +164,7 @@ export default function AdminsPage({ me }: { me: Me }) {
           <Loader size="m" />
         ) : isMobile ? (
           <div className="user-cards" style={{ padding: 8 }}>
-            {items.map((u) => (
+            {sorted.map((u) => (
               <div className="user-card" key={u.name}>
                 <div className="row">
                   <Text>{u.name}</Text>
@@ -247,6 +250,23 @@ export default function AdminsPage({ me }: { me: Me }) {
       />
     </div>
   );
+}
+
+function compareAdmins(a: AdminUser, b: AdminUser, id: string): number {
+  switch (id) {
+    case 'role':
+      return a.role.localeCompare(b.role);
+    case 'state':
+      return Number(a.disabled) - Number(b.disabled);
+    case 'totp':
+      return Number(a.totpEnabled) - Number(b.totpEnabled);
+    case 'sessions':
+      return a.sessions - b.sessions;
+    case 'created':
+      return a.createdAt.localeCompare(b.createdAt);
+    default:
+      return a.name.localeCompare(b.name);
+  }
 }
 
 function CreateAdminDialog({

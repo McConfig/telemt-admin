@@ -141,6 +141,7 @@ func TestAPIAuditFilters(t *testing.T) {
 	filters := []string{
 		"?action=user.create", "?actor=admin", "?target=main", "?q=192.0.2",
 		"?from=2020-01-01&to=2030-01-01", "?limit=1&offset=1",
+		"?sort=-at,actor", "?sort=bad",
 	}
 	for _, f := range filters {
 		if rr := call(t, s, "GET", "/api/audit"+f, "", token, csrf); rr.Code != 200 {

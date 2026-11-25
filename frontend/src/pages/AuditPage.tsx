@@ -4,6 +4,7 @@ import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { api, ApiError, type AuditItem } from '../api';
 import { formatTime } from '../format';
+import { useTableSort } from '../tableSort';
 import { useMedia } from '../useMedia';
 
 const actions = [
@@ -38,28 +39,30 @@ export default function AuditPage() {
   const [to, setTo] = useState('');
   const [page, setPage] = useState(0);
   const isMobile = useMedia('(max-width: 760px)');
+  const { sorting, sortHeader } = useTableSort([{ id: 'at', desc: true }]);
+  const sortParam = sorting.map((item) => `${item.desc ? '-' : ''}${item.id}`).join(',');
 
   useEffect(() => {
     setPage(0);
-  }, [q, action, from, to]);
+  }, [q, action, from, to, sortParam]);
 
   useEffect(() => {
     setLoading(true);
     setError('');
     api
-      .audit({ q, action, from, to, limit: pageSize, offset: page * pageSize })
+      .audit({ q, action, from, to, sort: sortParam, limit: pageSize, offset: page * pageSize })
       .then(setItems)
       .catch((err) => setError(err instanceof ApiError ? err.message : 'не удалось загрузить аудит'))
       .finally(() => setLoading(false));
-  }, [q, action, from, to, page]);
+  }, [q, action, from, to, sortParam, page]);
 
   const columns: ColumnDef<AuditItem>[] = [
-    { id: 'at', header: 'Время', cell: ({ row }) => formatTime(row.original.at) },
-    { id: 'actor', header: 'Кто', cell: ({ row }) => row.original.actor },
-    { id: 'action', header: 'Действие', cell: ({ row }) => row.original.action },
-    { id: 'target', header: 'Цель', cell: ({ row }) => row.original.target },
-    { id: 'result', header: 'Результат', cell: ({ row }) => row.original.result },
-    { id: 'ip', header: 'IP', cell: ({ row }) => row.original.ip },
+    { id: 'at', header: () => sortHeader('at', 'Время'), cell: ({ row }) => formatTime(row.original.at) },
+    { id: 'actor', header: () => sortHeader('actor', 'Кто'), cell: ({ row }) => row.original.actor },
+    { id: 'action', header: () => sortHeader('action', 'Действие'), cell: ({ row }) => row.original.action },
+    { id: 'target', header: () => sortHeader('target', 'Цель'), cell: ({ row }) => row.original.target },
+    { id: 'result', header: () => sortHeader('result', 'Результат'), cell: ({ row }) => row.original.result },
+    { id: 'ip', header: () => sortHeader('ip', 'IP'), cell: ({ row }) => row.original.ip },
   ];
 
   const table = useTable({ columns, data: items });
