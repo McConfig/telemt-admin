@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -18,6 +20,7 @@ var (
 type Store struct {
 	rdb       *redis.Client
 	retention time.Duration
+	home      atomic.Value // string, домашняя страна для истории
 }
 
 // Open подключается к Valkey по URL.
@@ -34,7 +37,26 @@ func Open(ctx context.Context, rawURL, password string) (*Store, error) {
 		_ = rdb.Close()
 		return nil, fmt.Errorf("подключение к Valkey: %w", err)
 	}
-	return &Store{rdb: rdb, retention: 30 * 24 * time.Hour}, nil
+	st := &Store{rdb: rdb, retention: 30 * 24 * time.Hour}
+	st.home.Store("RU")
+	return st, nil
+}
+
+// SetHomeCountry задаёт домашнюю страну для новых наблюдений.
+func (s *Store) SetHomeCountry(code string) {
+	code = strings.ToUpper(strings.TrimSpace(code))
+	if code == "" {
+		code = "RU"
+	}
+	s.home.Store(code)
+}
+
+// HomeCountry возвращает домашнюю страну.
+func (s *Store) HomeCountry() string {
+	if v, ok := s.home.Load().(string); ok && v != "" {
+		return v
+	}
+	return "RU"
 }
 
 // SetRetention задаёт срок хранения истории IP.

@@ -7,7 +7,7 @@ import (
 )
 
 func TestRiskDefaultAndOverrides(t *testing.T) {
-	c := &Collector{warn: 3, high: 5, distinct7d: 15}
+	c := &Collector{warn: 3, high: 5, distinct7d: 15, newCountries: true}
 
 	if got := c.risk(Snapshot{Current: 4}, store.Risk{}); got != 1 {
 		t.Fatalf("предупреждение по умолчанию: %d", got)

@@ -79,6 +79,10 @@ function renderUser() {
     '/api/users/main/trusted': { countries: [], ips: [] },
     '/api/users/main/note': { note: 'телефон' },
     '/api/users/main/risk-report': riskReport,
+    '/api/settings/templates': {
+      default: 'router',
+      templates: [{ name: 'router', maxIps: 5 }],
+    },
     '/api/users/main/rotate': proxyUser,
     '/api/users/main/disable': proxyUser,
     '/api/users/main': proxyUser,
@@ -166,6 +170,31 @@ describe('UserPage', () => {
       highIps: 8,
       distinct7d: null,
       newCountries: false,
+    });
+  });
+
+  it('сохраняет текущие лимиты как шаблон', async () => {
+    renderUser();
+    await screen.findByText('main');
+    await userEvent.click(screen.getByRole('button', { name: 'Лимиты' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Сохранить как шаблон' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(screen.getByPlaceholderText('Имя шаблона'), 'phone');
+    const apply = Array.from(dialog.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Сохранить',
+    );
+    if (apply) await userEvent.click(apply);
+    const mock = vi.mocked(fetch);
+    await waitFor(() => {
+      const call = mock.mock.calls.find(
+        ([url, init]) =>
+          String(url).endsWith('/api/settings/templates') &&
+          (init as RequestInit | undefined)?.method === 'POST',
+      );
+      expect(call).toBeTruthy();
+      expect(JSON.parse(String((call?.[1] as RequestInit).body))).toMatchObject({
+        name: 'phone',
+      });
     });
   });
 

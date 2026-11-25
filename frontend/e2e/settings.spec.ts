@@ -1,0 +1,22 @@
+import { expect, test } from '@playwright/test';
+import { login, mockApi } from './mock';
+
+test('настройки: каталог, planned и сохранение', async ({ page }) => {
+  const { settingsBodies } = await mockApi(page);
+  await login(page);
+  await page.getByRole('link', { name: 'Настройки' }).click();
+
+  await expect(page.getByText('Настройки', { exact: true }).last()).toBeVisible();
+  await expect(page.getByText('1.4.0', { exact: true })).toBeVisible();
+  await expect(page.locator('input[value="10"]')).toBeDisabled();
+  await expect(page.getByText('Бэкапы').last()).toBeVisible();
+
+  const warn = page.getByPlaceholder('по умолчанию: 3');
+  await warn.fill('4');
+  await page.getByRole('button', { name: 'Сохранить настройки' }).click();
+  await expect.poll(() => settingsBodies.length).toBe(1);
+  expect(settingsBodies[0]).toMatchObject({
+    version: 0,
+    values: { 'risk.warn_ips': 4 },
+  });
+});

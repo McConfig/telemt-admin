@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/McConfig/telemt-admin/internal/store"
 	"github.com/McConfig/telemt-admin/internal/telemt"
@@ -128,7 +129,7 @@ func (s *Server) telemtAPIError(w http.ResponseWriter, r *http.Request, err erro
 	writeError(w, http.StatusBadGateway, "telemt_unavailable", "telemt не отвечает")
 }
 
-func (s *Server) setCookie(w http.ResponseWriter, token string) {
+func (s *Server) setCookie(w http.ResponseWriter, token string, ttl time.Duration) {
 	// #nosec G124 -- Secure управляется TGADMIN_COOKIE_SECURE, по умолчанию true.
 	http.SetCookie(w, &http.Cookie{
 		Name: cookieName, Value: token, Path: "/",

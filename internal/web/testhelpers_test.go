@@ -33,6 +33,8 @@ func testServerWithMR(t *testing.T) (*Server, *miniredis.Miniredis) {
 		BaseURL:      mustURL("https://tgadmin.example.com"),
 		AllowedCIDRs: []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")},
 		TOTPKey:      []byte("0123456789abcdef0123456789abcdef"),
+		RiskIPsWarn:  3, RiskIPsHigh: 5, RiskDistinct7d: 15,
+		HomeCountry: "RU", Retention: 720 * time.Hour, CollectInterval: time.Minute,
 	}
 	return New(cfg, st, nil, nil), mr
 }

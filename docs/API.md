@@ -231,6 +231,90 @@
 country_name, asn, asn_org, first_seen, last_seen, day_first, day_last,
 observations, new, trusted`.
 
+## Настройки
+
+Только `admin`. Все изменяющие запросы требуют CSRF.
+
+| Метод | Путь | Назначение |
+|---|---|---|
+| GET | `/api/settings` | каталог разделов, полей, значений и версии |
+| PUT | `/api/settings` | изменить активные настройки |
+| GET | `/api/settings/templates` | шаблоны лимитов и шаблон по умолчанию |
+| POST | `/api/settings/templates` | создать шаблон |
+| PUT | `/api/settings/templates/{name}` | заменить шаблон |
+| DELETE | `/api/settings/templates/{name}` | удалить шаблон |
+| PUT | `/api/settings/templates/default` | `{"name":"..."}` |
+| GET | `/api/settings/backups` | статус Valkey и хоста |
+| POST | `/api/settings/backups/snapshot` | запустить `BGSAVE` |
+| GET | `/api/settings/system` | версия, uptime, сборщик, GeoIP, Valkey |
+| GET | `/api/settings/history` | последние события `settings.*` |
+
+Каждое поле каталога содержит `key`, `title`, `description`, `kind`
+(`int`, `bool`, `duration`, `string`, `enum`), `status`
+(`active`, `readonly`, `planned`), `value`, `default`, `source`
+(`env` или `settings`), `restartRequired`, `plannedRelease`, `secret`,
+`secretSet`, `min`, `max`, `minDuration`, `maxDuration` и `options`.
+
+`PUT /api/settings`:
+
+```json
+{
+  "version": 4,
+  "values": {
+    "risk.warn_ips": 4,
+    "risk.high_ips": 8,
+    "risk.home_country": "RU",
+    "risk.new_countries": true,
+    "session.ttl": "720h",
+    "links.mode": "tls"
+  },
+  "reset": ["collect.interval"]
+}
+```
+
+- неизвестный ключ, `readonly` и `planned` отклоняются с `400`;
+- неверный тип или диапазон — `400` с `error.key`;
+- устаревшая `version` — `409` и актуальный каталог в `catalog`;
+- успех — новый каталог и версия;
+- каждое изменение пишется в аудит как `settings.update` с `old -> new`.
+
+Интервал сбора и retention применяются после перезапуска. Домашняя страна,
+пороги риска, TTL новых сессий и режим ссылок применяются сразу.
+
+### Шаблоны лимитов
+
+```json
+{
+  "name": "router",
+  "maxIps": 5,
+  "maxTcpConns": 20,
+  "dataQuotaBytes": 10737418240,
+  "quotaPeriod": "monthly",
+  "rateLimitUpBps": 2000000,
+  "rateLimitDownBps": 8000000,
+  "expirationDays": 30,
+  "sourceDeny": ["203.0.113.0/24"],
+  "riskWarnIps": 4,
+  "riskHighIps": 6,
+  "riskDistinct7d": 20,
+  "riskNewCountries": false
+}
+```
+
+Имя: латиница, цифры, точка, дефис, подчёркивание, до 64 символов. Не
+больше 50 шаблонов. Ноль или отсутствие поля означают «без лимита».
+
+### Бэкапы
+
+`GET /api/settings/backups` отдаёт `valkey` (`lastSave`, `saveInProgress`,
+`lastStatus`, `keys`, `memory`) и `host` (`available`, `lastRun`, `result`,
+`size`, `keepDays`, `restoreTest`). `host` заполняется из файла
+`TGADMIN_BACKUP_STATUS`, если он смонтирован.
+
+`POST /api/settings/backups/snapshot` запускает `BGSAVE` и возвращает
+`202`. Копирование, сжатие, ротация и тест восстановления остаются на
+хосте.
+
 ## Пользователи UI
 
 Только `admin`.

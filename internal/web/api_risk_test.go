@@ -146,13 +146,13 @@ func TestRiskWithOverrides(t *testing.T) {
 		{current: 7, risk: 2},
 	}
 	for _, c := range cases {
-		if got := s.risk(c.current, stats, cfg); got != c.risk {
+		if got := s.risk(context.Background(), c.current, stats, cfg); got != c.risk {
 			t.Fatalf("current %d: риск %d, ожидался %d", c.current, got, c.risk)
 		}
 	}
 
 	// Глобальный порог новой страны возвращает предупреждение.
-	if got := s.risk(4, stats, store.Risk{}); got != 1 {
+	if got := s.risk(context.Background(), 4, stats, store.Risk{}); got != 1 {
 		t.Fatalf("новая страна по умолчанию: %d, ожидалось 1", got)
 	}
 }

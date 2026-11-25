@@ -148,12 +148,104 @@ const riskReport = {
  * Подменяет все запросы к /api. Возвращает журнал тел PATCH-запросов
  * к лимитам, чтобы тест мог проверить отправленные значения.
  */
+const settingsCatalog = {
+  version: 0,
+  sections: [
+    {
+      id: 'risk',
+      title: 'Риск',
+      description: 'Глобальные пороги',
+      settings: [
+        {
+          key: 'risk.warn_ips',
+          title: 'Предупреждение, больше IP',
+          description: 'Порог предупреждения',
+          kind: 'int',
+          status: 'active',
+          value: 3,
+          default: 3,
+          source: 'env',
+          min: 0,
+          max: 1000,
+        },
+        {
+          key: 'risk.high_ips',
+          title: 'Высокий риск, больше IP',
+          description: 'Порог высокого риска',
+          kind: 'int',
+          status: 'active',
+          value: 5,
+          default: 5,
+          source: 'env',
+          min: 0,
+          max: 1000,
+        },
+        {
+          key: 'risk.home_country',
+          title: 'Домашняя страна',
+          description: 'Код ISO',
+          kind: 'string',
+          status: 'active',
+          value: 'RU',
+          default: 'RU',
+          source: 'env',
+        },
+      ],
+    },
+    {
+      id: 'links',
+      title: 'Ссылки',
+      description: 'Режим ссылок',
+      settings: [],
+    },
+    {
+      id: 'security',
+      title: 'Безопасность',
+      description: 'Входы',
+      settings: [
+        {
+          key: 'login.max_failures',
+          title: 'Неудачных входов',
+          description: 'Появится в 1.3.0',
+          kind: 'int',
+          status: 'planned',
+          plannedRelease: '1.4.0',
+          default: 10,
+        },
+      ],
+    },
+    {
+      id: 'backups',
+      title: 'Бэкапы',
+      description: 'Расписание',
+      settings: [],
+    },
+    {
+      id: 'infrastructure',
+      title: 'Инфраструктура',
+      description: 'Только чтение',
+      settings: [
+        {
+          key: 'app.listen',
+          title: 'Адрес приложения',
+          description: 'Меняется через env',
+          kind: 'string',
+          status: 'readonly',
+          value: ':8090',
+          source: 'env',
+        },
+      ],
+    },
+  ],
+};
+
 export async function mockApi(
   page: Page,
   options: { totp?: boolean } = {},
-): Promise<{ limitBodies: unknown[] }> {
+): Promise<{ limitBodies: unknown[]; settingsBodies: unknown[] }> {
   let loggedIn = false;
   const limitBodies: unknown[] = [];
+  const settingsBodies: unknown[] = [];
   // Свежая копия на каждый тест: создание, переименование и удаление
   // не должны протекать в соседние тесты.
   const userList = users.map((u) => ({
@@ -194,6 +286,35 @@ export async function mockApi(
     }
     if (!loggedIn) {
       return json(route, { error: { code: 'unauthorized', message: 'требуется вход' } }, 401);
+    }
+    if (path === '/api/settings' && method === 'GET') {
+      return json(route, settingsCatalog);
+    }
+    if (path === '/api/settings' && method === 'PUT') {
+      settingsBodies.push(route.request().postDataJSON());
+      return json(route, settingsCatalog);
+    }
+    if (path === '/api/settings/templates' && method === 'GET') {
+      return json(route, { default: '', templates: [] });
+    }
+    if (path === '/api/settings/backups' && method === 'GET') {
+      return json(route, {
+        valkey: { saveInProgress: false, lastStatus: 'ok', keys: 120, memory: '1.2M' },
+        host: { available: false },
+      });
+    }
+    if (path === '/api/settings/system' && method === 'GET') {
+      return json(route, {
+        version: 'v1.3.0-e2e',
+        uptime: '1h',
+        collector: { up: true },
+        geoip: { loaded: true },
+        valkey: { keys: 120, memory: '1.2M' },
+        counts: { uiUsers: 2, auditEvents: 10, templates: 0 },
+      });
+    }
+    if (path === '/api/settings/history' && method === 'GET') {
+      return json(route, []);
     }
     if (path === '/api/users' && method === 'GET') {
       return json(route, userList);
@@ -340,7 +461,7 @@ export async function mockApi(
     return json(route, { ok: true });
   });
 
-  return { limitBodies };
+  return { limitBodies, settingsBodies };
 }
 
 /** Входит в интерфейс через форму. */

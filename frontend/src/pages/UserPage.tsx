@@ -27,6 +27,7 @@ import {
   ApiError,
   type AuditItem,
   type IPHistoryItem,
+  type LimitTemplate,
   type Me,
   type ProxyUser,
   type RiskIP,
@@ -78,6 +79,12 @@ export default function UserPage({ me }: { me: Me }) {
   const [riskDistinct, setRiskDistinct] = useState('');
   const [riskNewMode, setRiskNewMode] = useState<'inherit' | 'yes' | 'no'>('inherit');
   const [riskSaved, setRiskSaved] = useState(false);
+  const [templates, setTemplates] = useState<LimitTemplate[]>([]);
+  const [templateName, setTemplateName] = useState('');
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [saveTemplateName, setSaveTemplateName] = useState('');
+  const [saveTemplateError, setSaveTemplateError] = useState('');
+  const [templateBusy, setTemplateBusy] = useState(false);
   const [riskReport, setRiskReport] = useState<RiskReport | null>(null);
   const [riskDays, setRiskDays] = useState(7);
   const [riskLoading, setRiskLoading] = useState(false);
@@ -131,6 +138,16 @@ export default function UserPage({ me }: { me: Me }) {
   }, [load]);
 
   useEffect(() => {
+    api
+      .templates()
+      .then((data) => {
+        setTemplates(data.templates);
+        setTemplateName(data.default || data.templates[0]?.name || '');
+      })
+      .catch(() => setTemplates([]));
+  }, []);
+
+  useEffect(() => {
     if (tab !== 'risk' || me.user.role !== 'admin') return;
     let cancelled = false;
     setRiskLoading(true);
@@ -161,6 +178,64 @@ export default function UserPage({ me }: { me: Me }) {
       .then(setAuditItems)
       .catch(() => setAuditItems([]));
   }, [tab, name, me.user.role]);
+
+  const applyTemplate = () => {
+    const template = templates.find((item) => item.name === templateName);
+    if (!template) return;
+    setMaxIps(template.maxIps?.toString() ?? '');
+    setMaxConns(template.maxTcpConns?.toString() ?? '');
+    setQuotaGB(template.dataQuotaBytes ? (template.dataQuotaBytes / 1024 ** 3).toFixed(2) : '');
+    setPeriod(template.quotaPeriod ?? '');
+    setRateUp(template.rateLimitUpBps ? (template.rateLimitUpBps / 1000).toString() : '');
+    setRateDown(template.rateLimitDownBps ? (template.rateLimitDownBps / 1000).toString() : '');
+    setExpiration(template.expirationDays ? daysFromNow(template.expirationDays) : '');
+    setSourceDeny((template.sourceDeny ?? []).join('\n'));
+    setRiskWarn(template.riskWarnIps?.toString() ?? '');
+    setRiskHigh(template.riskHighIps?.toString() ?? '');
+    setRiskDistinct(template.riskDistinct7d?.toString() ?? '');
+    setRiskNewMode(
+      template.riskNewCountries == null
+        ? 'inherit'
+        : template.riskNewCountries
+          ? 'yes'
+          : 'no',
+    );
+  };
+
+  const saveAsTemplate = async () => {
+    const name = saveTemplateName.trim();
+    if (!name) return;
+    setTemplateBusy(true);
+    setSaveTemplateError('');
+    try {
+      await api.saveTemplate({
+        name,
+        maxIps: maxIps ? Number(maxIps) : undefined,
+        maxTcpConns: maxConns ? Number(maxConns) : undefined,
+        dataQuotaBytes: quotaGB ? Math.round(Number(quotaGB) * 1024 ** 3) : undefined,
+        quotaPeriod: period || undefined,
+        rateLimitUpBps: rateUp ? Math.round(Number(rateUp) * 1000) : undefined,
+        rateLimitDownBps: rateDown ? Math.round(Number(rateDown) * 1000) : undefined,
+        expirationDays: expiration
+          ? Math.max(0, Math.ceil((new Date(expiration).getTime() - Date.now()) / 86_400_000))
+          : undefined,
+        sourceDeny: sourceDeny.split(/[\n,]+/).map((v) => v.trim()).filter(Boolean),
+        riskWarnIps: riskWarn ? Number(riskWarn) : undefined,
+        riskHighIps: riskHigh ? Number(riskHigh) : undefined,
+        riskDistinct7d: riskDistinct ? Number(riskDistinct) : undefined,
+        riskNewCountries: riskNewMode === 'inherit' ? undefined : riskNewMode === 'yes',
+      });
+      const data = await api.templates();
+      setTemplates(data.templates);
+      setTemplateName(name);
+      setSaveTemplateOpen(false);
+      setSaveTemplateName('');
+    } catch (err) {
+      setSaveTemplateError(err instanceof ApiError ? err.message : 'не удалось сохранить шаблон');
+    } finally {
+      setTemplateBusy(false);
+    }
+  };
 
   const trustRisk = (payload: { ip?: string; country?: string }) => {
     if (!user) return;
@@ -676,6 +751,37 @@ export default function UserPage({ me }: { me: Me }) {
               }}
             >
               <Text variant="header-1">Лимиты</Text>
+              {templates.length > 0 && (
+                <div className="row">
+                  <label className="field field-inline">
+                    <span>Шаблон</span>
+                    <select
+                      value={templateName}
+                      onChange={(event) => setTemplateName(event.target.value)}
+                    >
+                      {templates.map((template) => (
+                        <option key={template.name} value={template.name}>
+                          {template.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <Button view="outlined" type="button" onClick={applyTemplate}>
+                    Заполнить из шаблона
+                  </Button>
+                  <Button
+                    view="flat"
+                    type="button"
+                    onClick={() => {
+                      setSaveTemplateName('');
+                      setSaveTemplateError('');
+                      setSaveTemplateOpen(true);
+                    }}
+                  >
+                    Сохранить как шаблон
+                  </Button>
+                </div>
+              )}
               <div className="form-grid">
                 <section className="form-section">
                   <Text variant="subheader-1">Адреса и соединения</Text>
@@ -920,6 +1026,35 @@ export default function UserPage({ me }: { me: Me }) {
         </Card>
       )}
 
+      <Dialog open={saveTemplateOpen} onOpenChange={setSaveTemplateOpen} maxWidth="s">
+        <Dialog.Header caption="Сохранить как шаблон" />
+        <Dialog.Body>
+          <div className="stack">
+            {saveTemplateError && (
+              <Alert theme="danger" message={saveTemplateError} onClose={() => setSaveTemplateError('')} />
+            )}
+            <Text className="muted">
+              В шаблон попадут текущие лимиты и пороги риска из формы.
+            </Text>
+            <TextInput
+              placeholder="Имя шаблона"
+              value={saveTemplateName}
+              onUpdate={setSaveTemplateName}
+            />
+          </div>
+        </Dialog.Body>
+        <Dialog.Footer
+          onClickButtonCancel={() => setSaveTemplateOpen(false)}
+          onClickButtonApply={() => void saveAsTemplate()}
+          textButtonApply="Сохранить"
+          textButtonCancel="Отмена"
+          propsButtonApply={{
+            loading: templateBusy,
+            disabled: !saveTemplateName.trim(),
+          }}
+        />
+      </Dialog>
+
       <ConfirmDialog
         open={rotateOpen}
         title="Перевыпустить секрет"
@@ -1027,6 +1162,11 @@ function TrafficChart({ items }: { items: TrafficDay[] }) {
       })}
     </div>
   );
+}
+
+function daysFromNow(days: number): string {
+  const date = new Date(Date.now() + days * 24 * 3600 * 1000);
+  return date.toISOString().slice(0, 16);
 }
 
 function formatRiskDay(day: string): string {

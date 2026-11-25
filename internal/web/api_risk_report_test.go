@@ -15,8 +15,12 @@ import (
 func riskReportServer(t *testing.T) *Server {
 	t.Helper()
 	s := riskServer(t)
-	s.cfg.RiskIPsWarn = 0
 	ctx := context.Background()
+	if _, _, err := s.settings.Save(ctx, s.settings.Version(ctx), map[string]json.RawMessage{
+		"risk.warn_ips": json.RawMessage("0"),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
 	now := time.Now().UTC()
 	geo := map[string]store.IPGeo{
 		"192.0.2.10":   {Country: "RU", CountryName: "Россия", ASN: 25513, ASNOrg: "MGTS"},

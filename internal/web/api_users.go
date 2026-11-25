@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/csv"
 	"errors"
 	"net/http"
@@ -92,7 +93,7 @@ func (s *Server) apiUserView(r *http.Request, u telemt.User) apiUser {
 		out.SourceDeny = []string{}
 	}
 	if s.isAdmin(r) {
-		out.Link = u.Link(s.cfg.LinkMode)
+		out.Link = u.Link(s.settings.LinkMode(r.Context()))
 	}
 	if geo, ok, err := s.store.GeoStats(r.Context(), u.Username); err == nil && ok {
 		out.ForeignIPsCurrent = geo.ForeignCurrent
@@ -109,7 +110,7 @@ func (s *Server) apiUserView(r *http.Request, u telemt.User) apiUser {
 	if err != nil {
 		riskCfg = store.Risk{}
 	}
-	warn, high, distinct, newCountries := s.riskValues(riskCfg)
+	warn, high, distinct, newCountries := s.riskValues(r.Context(), riskCfg)
 	out.RiskThresholds = riskOverrides(riskCfg)
 	out.RiskDefaults = riskDefaults(warn, high, distinct, newCountries)
 	stats, err := s.store.UserIPStats(r.Context(), u.Username, time.Now().UTC())
@@ -144,7 +145,7 @@ func (s *Server) apiUserView(r *http.Request, u telemt.User) apiUser {
 		out.Countries24h = stats.Countries24h
 		out.Countries7d = stats.Countries7d
 		out.NewCountries24h = stats.NewCountries24h
-		out.Risk = s.risk(current, stats, riskCfg)
+		out.Risk = s.risk(r.Context(), current, stats, riskCfg)
 	}
 	return out
 }
@@ -167,8 +168,8 @@ func (s *Server) apiIPHistory(r *http.Request, name string) []apiIP {
 	return out
 }
 
-func (s *Server) risk(current int64, stats store.UserIPStats, cfg store.Risk) int {
-	warn, high, distinct, newCountries := s.riskValues(cfg)
+func (s *Server) risk(ctx context.Context, current int64, stats store.UserIPStats, cfg store.Risk) int {
+	warn, high, distinct, newCountries := s.riskValues(ctx, cfg)
 	switch {
 	case current > int64(high):
 		return 2
@@ -486,7 +487,7 @@ func (s *Server) apiQR(w http.ResponseWriter, r *http.Request) {
 		s.telemtAPIError(w, r, err)
 		return
 	}
-	link := u.Link(s.cfg.LinkMode)
+	link := u.Link(s.settings.LinkMode(r.Context()))
 	if link == "" {
 		writeError(w, http.StatusNotFound, "not_found", "у пользователя нет ссылки")
 		return

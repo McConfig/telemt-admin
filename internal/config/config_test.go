@@ -93,3 +93,16 @@ func TestAllows(t *testing.T) {
 		t.Fatal("внешний адрес не должен быть разрешён")
 	}
 }
+
+func TestHomeCountry(t *testing.T) {
+	cfg, err := Load(env(map[string]string{"TGADMIN_HOME_COUNTRY": "de"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.HomeCountry != "DE" {
+		t.Fatalf("HomeCountry = %s", cfg.HomeCountry)
+	}
+	if _, err := Load(env(map[string]string{"TGADMIN_HOME_COUNTRY": "RUS"})); err == nil {
+		t.Fatal("ожидалась ошибка для RUS")
+	}
+}

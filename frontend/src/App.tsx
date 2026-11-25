@@ -10,6 +10,7 @@ import NewUserPage from './pages/NewUserPage';
 import AuditPage from './pages/AuditPage';
 import AccountPage from './pages/AccountPage';
 import AdminsPage from './pages/AdminsPage';
+import SettingsPage from './pages/SettingsPage';
 
 export default function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
@@ -70,6 +71,10 @@ export default function App() {
           <Route path="/audit" element={<AuditPage />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="/admins" element={<AdminsPage me={me} />} />
+          <Route
+            path="/settings"
+            element={me.user.role === 'admin' ? <SettingsPage /> : <Navigate to="/" replace />}
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>

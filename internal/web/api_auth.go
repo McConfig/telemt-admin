@@ -93,11 +93,12 @@ func (s *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 		_ = s.store.Audit(r.Context(), store.AuditEvent{
 			Actor: username, Action: "login.totp.required", Target: username, Result: "ok", IP: addr.String(),
 		})
-		s.setCookie(w, pending)
+		s.setCookie(w, pending, pendingTOTPTTL)
 		writeJSON(w, http.StatusOK, map[string]any{"totpRequired": true})
 		return
 	}
-	token, err := s.store.CreateSession(r.Context(), username, addr.String(), r.UserAgent(), s.cfg.SessionTTL)
+	ttl := s.settings.SessionTTL(r.Context())
+	token, err := s.store.CreateSession(r.Context(), username, addr.String(), r.UserAgent(), ttl)
 	if err != nil {
 		s.serverErrorJSON(w, r, err)
 		return
@@ -106,7 +107,7 @@ func (s *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 	_ = s.store.Audit(r.Context(), store.AuditEvent{
 		Actor: username, Action: "login", Target: username, Result: "ok", IP: addr.String(),
 	})
-	s.setCookie(w, token)
+	s.setCookie(w, token, ttl)
 	sess, err := s.store.GetSession(r.Context(), token)
 	if err != nil {
 		s.serverErrorJSON(w, r, err)

@@ -28,9 +28,11 @@ type Config struct {
 	RiskIPsWarn     int
 	RiskIPsHigh     int
 	RiskDistinct7d  int
+	HomeCountry     string
 	Retention       time.Duration
 	GeoIPCity       string
 	GeoIPASN        string
+	BackupStatus    string
 	TOTPKey         []byte
 }
 
@@ -56,6 +58,12 @@ func Load(getenv func(string) string) (*Config, error) {
 		GeoIPCity:      get("TGADMIN_GEOIP_CITY", "/opt/geoip/GeoLite2-City.mmdb"),
 		GeoIPASN:       get("TGADMIN_GEOIP_ASN", "/opt/geoip/GeoLite2-ASN.mmdb"),
 	}
+	cfg.HomeCountry = strings.ToUpper(get("TGADMIN_HOME_COUNTRY", "RU"))
+	if len(cfg.HomeCountry) != 2 || cfg.HomeCountry[0] < 'A' || cfg.HomeCountry[0] > 'Z' ||
+		cfg.HomeCountry[1] < 'A' || cfg.HomeCountry[1] > 'Z' {
+		return nil, fmt.Errorf("TGADMIN_HOME_COUNTRY %q: нужен код ISO из двух букв", cfg.HomeCountry)
+	}
+	cfg.BackupStatus = get("TGADMIN_BACKUP_STATUS", "")
 	collect, err := time.ParseDuration(get("TGADMIN_COLLECT_INTERVAL", "60s"))
 	if err != nil {
 		return nil, fmt.Errorf("TGADMIN_COLLECT_INTERVAL: %w", err)
