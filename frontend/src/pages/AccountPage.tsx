@@ -10,7 +10,19 @@ import {
   type TOTPStatus,
 } from '../api';
 import { formatTime } from '../format';
+import { useTableSort } from '../tableSort';
 import { useMedia } from '../useMedia';
+
+function compareSessions(a: SessionItem, b: SessionItem, id: string): number {
+  switch (id) {
+    case 'ip':
+      return a.ip.localeCompare(b.ip);
+    case 'at':
+      return a.createdAt.localeCompare(b.createdAt);
+    default:
+      return (a.userAgent ?? '').localeCompare(b.userAgent ?? '');
+  }
+}
 
 export default function AccountPage() {
   const [sessions, setSessions] = useState<SessionItem[]>([]);
@@ -43,10 +55,11 @@ export default function AccountPage() {
 
   useEffect(load, []);
 
+  const { sortHeader, sortRows } = useTableSort();
   const columns: ColumnDef<SessionItem>[] = [
-    { id: 'ua', header: 'Устройство', cell: ({ row }) => row.original.userAgent || '—' },
-    { id: 'ip', header: 'IP', cell: ({ row }) => row.original.ip },
-    { id: 'at', header: 'Вход', cell: ({ row }) => formatTime(row.original.createdAt) },
+    { id: 'ua', header: () => sortHeader('ua', 'Устройство'), cell: ({ row }) => row.original.userAgent || '—' },
+    { id: 'ip', header: () => sortHeader('ip', 'IP'), cell: ({ row }) => row.original.ip },
+    { id: 'at', header: () => sortHeader('at', 'Вход'), cell: ({ row }) => formatTime(row.original.createdAt) },
     {
       id: 'action',
       header: '',
@@ -79,7 +92,8 @@ export default function AccountPage() {
     }
   };
 
-  const table = useTable({ columns, data: sessions });
+  const sorted = sortRows(sessions, compareSessions);
+  const table = useTable({ columns, data: sorted });
 
   return (
     <div className="stack">
@@ -283,7 +297,7 @@ export default function AccountPage() {
           <Loader size="m" />
         ) : isMobile ? (
           <div className="user-cards" style={{ padding: 8 }}>
-            {sessions.map((item) => (
+            {sorted.map((item) => (
               <div className="user-card" key={item.id}>
                 <div>{item.userAgent || 'устройство не определено'}</div>
                 <div className="muted">

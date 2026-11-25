@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/csv"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -70,6 +71,7 @@ func (s *Server) apiAudit(w http.ResponseWriter, r *http.Request) {
 		}
 		filtered = append(filtered, e)
 	}
+	sortAudit(filtered, q.Get("sort"))
 	if offset >= len(filtered) {
 		filtered = nil
 	} else {
@@ -86,6 +88,62 @@ func (s *Server) apiAudit(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+func sortAudit(events []store.AuditEvent, raw string) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return
+	}
+	type rule struct {
+		field string
+		desc  bool
+	}
+	rules := make([]rule, 0, 4)
+	for _, item := range strings.Split(raw, ",") {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		desc := strings.HasPrefix(item, "-")
+		field := strings.TrimPrefix(item, "-")
+		switch field {
+		case "at", "actor", "action", "target", "result", "ip":
+			rules = append(rules, rule{field: field, desc: desc})
+		}
+	}
+	if len(rules) == 0 {
+		return
+	}
+	value := func(e store.AuditEvent, field string) string {
+		switch field {
+		case "at":
+			return e.At.UTC().Format(time.RFC3339Nano)
+		case "actor":
+			return e.Actor
+		case "action":
+			return e.Action
+		case "target":
+			return e.Target
+		case "result":
+			return e.Result
+		default:
+			return e.IP
+		}
+	}
+	sort.SliceStable(events, func(i, j int) bool {
+		for _, r := range rules {
+			a, b := value(events[i], r.field), value(events[j], r.field)
+			if a == b {
+				continue
+			}
+			if r.desc {
+				return a > b
+			}
+			return a < b
+		}
+		return false
+	})
 }
 
 func (s *Server) parseAuditTime(raw string) time.Time {

@@ -224,6 +224,7 @@ export const api = {
     action?: string;
     from?: string;
     to?: string;
+    sort?: string;
     limit?: number;
     offset?: number;
   } = {}) => {

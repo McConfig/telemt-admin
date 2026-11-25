@@ -5,6 +5,7 @@ import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { api, ApiError, type Me, type ProxyUser, type Summary } from '../api';
 import { formatBytes } from '../format';
+import { useTableSort } from '../tableSort';
 import { useMedia } from '../useMedia';
 
 export default function UsersPage({ me }: { me: Me }) {
@@ -18,10 +19,10 @@ export default function UsersPage({ me }: { me: Me }) {
   const [onlyRisk, setOnlyRisk] = useState(false);
   const [onlyForeign, setOnlyForeign] = useState(false);
   const [onlyNewCountry, setOnlyNewCountry] = useState(false);
-  const [sorting, setSorting] = useState<{ id: string; desc: boolean }[]>([]);
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const isMobile = useMedia('(max-width: 760px)');
+  const { sorting, setSorting, sortHeader, sortRows } = useTableSort();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -63,14 +64,7 @@ export default function UsersPage({ me }: { me: Me }) {
       if (onlyNewCountry && u.newCountries24h === 0) return false;
       return true;
     });
-    if (sorting.length === 0) return list;
-    return [...list].sort((a, b) => {
-      for (const rule of sorting) {
-        const cmp = compareUsers(a, b, rule.id);
-        if (cmp !== 0) return rule.desc ? -cmp : cmp;
-      }
-      return 0;
-    });
+    return sortRows(list, compareUsers);
   }, [users, query, onlyRisk, onlyForeign, onlyNewCountry, sorting]);
   useEffect(() => {
     setPage(1);
@@ -81,37 +75,6 @@ export default function UsersPage({ me }: { me: Me }) {
     () => filtered.slice((page - 1) * pageSize, page * pageSize),
     [filtered, page],
   );
-
-  const toggleSort = (id: string) => {
-    setSorting((prev) => {
-      const index = prev.findIndex((item) => item.id === id);
-      if (index === -1) return [...prev, { id, desc: false }];
-      if (!prev[index].desc) {
-        return prev.map((item, i) => (i === index ? { ...item, desc: true } : item));
-      }
-      return prev.filter((_, i) => i !== index);
-    });
-  };
-  const sortHeader = (id: string, label: string) => {
-    const index = sorting.findIndex((item) => item.id === id);
-    const active = index !== -1;
-    return (
-      <button
-        type="button"
-        className={`th-sort${active ? ' th-sort-active' : ''}`}
-        onClick={() => toggleSort(id)}
-        title="Сортировать: по возрастанию, по убыванию, выключить"
-      >
-        <span>{label}</span>
-        {active && (
-          <span className="th-sort-mark">
-            {sorting[index].desc ? '↓' : '↑'}
-            {sorting.length > 1 ? index + 1 : ''}
-          </span>
-        )}
-      </button>
-    );
-  };
 
   const isAdmin = me.user.role === 'admin';
   const shownNames = shown.map((u) => u.username);
@@ -191,7 +154,7 @@ export default function UsersPage({ me }: { me: Me }) {
     },
     {
       id: 'status',
-      header: 'Статус',
+      header: () => sortHeader('status', 'Статус'),
       cell: ({ row }) => (
         <Label theme={row.original.enabled ? 'success' : 'danger'} size="s">
           {row.original.enabled ? 'включён' : 'заблокирован'}
@@ -470,6 +433,9 @@ export default function UsersPage({ me }: { me: Me }) {
 
 function compareUsers(a: ProxyUser, b: ProxyUser, id: string): number {
   switch (id) {
+    case 'status':
+      if (a.enabled === b.enabled) return 0;
+      return a.enabled ? -1 : 1;
     case 'ips':
       return a.activeUniqueIps - b.activeUniqueIps;
     case 'ips24h':

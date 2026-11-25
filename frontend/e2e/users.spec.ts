@@ -40,6 +40,17 @@ test('сортировка по заголовкам: возрастание, у
   await expect(page.locator('.th-sort-active')).toHaveCount(0);
 });
 
+test('сортировка по статусу', async ({ page }) => {
+  await mockApi(page);
+  await login(page);
+  const firstRow = () => page.locator('tbody tr').first().innerText();
+
+  await page.getByRole('button', { name: /Статус/ }).click();
+  await expect.poll(firstRow).toContain('main');
+  await page.getByRole('button', { name: /Статус/ }).click();
+  await expect.poll(firstRow).toContain('chernyh');
+});
+
 test('несколько сортировок одновременно', async ({ page }) => {
   await mockApi(page);
   await login(page);
