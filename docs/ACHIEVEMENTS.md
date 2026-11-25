@@ -25,8 +25,9 @@
 - Argon2id, TOTP с резервными кодами, CSRF, ограничение попыток входа.
 - Приватные отчёты об уязвимостях через GitHub Security Advisories.
 - Образы подписаны cosign, SBOM и provenance приложены к релизам;
-  подписи есть у всех последних релизов.
-- OpenSSF Scorecard 7,3 на 25 ноября 2026.
+  у всех пяти последних релизов есть SBOM, `.sig` и `.pem`.
+- OpenSSF Scorecard 7,6 на 25 ноября 2026: Branch-Protection 4,
+  Signed-Releases 8 (подписаны все 5 последних релизов), SAST 8, CI-Tests 9.
 - OpenSSF Best Practices: уровень Passing, бейдж в README.
 
 ## Документация
