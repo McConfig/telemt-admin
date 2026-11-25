@@ -94,6 +94,8 @@ jobs:
           subject-digest: ${{ steps.digest.outputs.value }}
           push-to-registry: true
       - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        with:
+          cosign-release: v2.6.1
       - name: Подписать образ
         run: |
           cosign sign --yes \
@@ -116,6 +118,8 @@ jobs:
           name: sbom.spdx.json
           path: .
       - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        with:
+          cosign-release: v2.6.1
       - name: Подписать SBOM
         run: |
           cosign sign-blob --yes \
