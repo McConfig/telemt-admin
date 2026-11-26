@@ -360,6 +360,20 @@ export async function mockApi(
     if (path === '/api/settings/history' && method === 'GET') {
       return json(route, []);
     }
+    if (path === '/api/users/import' && method === 'POST') {
+      const dryRun = new URL(route.request().url()).searchParams.get('dryRun') !== '0';
+      return json(route, {
+        dryRun,
+        total: 2,
+        create: 1,
+        skip: 1,
+        error: 0,
+        rows: [
+          { line: 2, name: 'newuser', status: 'create' },
+          { line: 3, name: 'main', status: 'skip', message: 'клиент уже существует' },
+        ],
+      });
+    }
     if (path === '/api/users/reset-quota' && method === 'POST') {
       return json(route, { total: 2, reset: 2, refused: 0, unknown: 0, notSent: 0, failed: [] });
     }

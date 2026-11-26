@@ -7,6 +7,7 @@ import { api, ApiError, type Me, type ProxyUser, type Summary } from '../api';
 import { formatBytes } from '../format';
 import { useTableSort } from '../tableSort';
 import { useMedia } from '../useMedia';
+import ImportDialog from './ImportDialog';
 
 export default function UsersPage({ me }: { me: Me }) {
   const [users, setUsers] = useState<ProxyUser[]>([]);
@@ -21,6 +22,7 @@ export default function UsersPage({ me }: { me: Me }) {
   const [onlyNewCountry, setOnlyNewCountry] = useState(false);
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetNames, setResetNames] = useState<string[] | null>(null);
   const [resetBusy, setResetBusy] = useState(false);
@@ -243,6 +245,9 @@ export default function UsersPage({ me }: { me: Me }) {
         <div style={{ flex: 1 }} />
         {me.user.role === 'admin' && (
           <>
+            <Button view="outlined" onClick={() => setImportOpen(true)}>
+              Импорт CSV
+            </Button>
             <Button
               view="outlined"
               onClick={() => {
@@ -487,6 +492,11 @@ export default function UsersPage({ me }: { me: Me }) {
           propsButtonApply={{ loading: resetBusy, view: 'outlined-danger' }}
         />
       </Dialog>
+      <ImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => void load()}
+      />
       <CreateUserDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
