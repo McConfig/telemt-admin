@@ -1162,7 +1162,7 @@ git push origin v1.9.0
 Дождаться успешного `release.yml`, проверить, что в GitHub Release есть
 SBOM, подписи и attestation.
 
-- [ ] **Step 4: деплой на pantheon**
+- [ ] **Step 4: деплой на рабочий хост**
 
 Сделать бэкап Valkey и compose, заменить тег на `v1.9.0`, выполнить
 `docker compose pull tgadmin && docker compose up -d tgadmin`, проверить

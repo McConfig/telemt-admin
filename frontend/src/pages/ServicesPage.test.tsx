@@ -46,6 +46,10 @@ describe('ServicesPage', () => {
     expect(await screen.findByText('monitoring')).toBeInTheDocument();
     expect(screen.getByText('Prometheus')).toBeInTheDocument();
 
+    await userEvent.click(screen.getByRole('button', { name: 'Токены monitoring' }));
+    expect(await screen.findByText('Токены: monitoring')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Закрыть' }));
+
     await userEvent.click(screen.getByRole('button', { name: 'Создать сервис' }));
     await userEvent.type(screen.getByPlaceholderText('Имя'), 'ci');
     await userEvent.type(screen.getByPlaceholderText('Описание'), 'CI runner');
@@ -78,14 +82,17 @@ describe('ServicesPage', () => {
     await screen.findByText('monitoring');
 
     await userEvent.click(screen.getByRole('button', { name: 'Изменить monitoring' }));
-    const edit = await screen.findByRole('dialog');
+    let edit = await screen.findByRole('dialog');
+    await userEvent.click(within(edit).getByRole('button', { name: 'Отмена' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Изменить monitoring' }));
+    edit = await screen.findByRole('dialog');
     await userEvent.clear(within(edit).getByPlaceholderText('Описание'));
     await userEvent.type(within(edit).getByPlaceholderText('Описание'), 'Новое описание');
     await userEvent.selectOptions(within(edit).getByLabelText('Права'), 'admin');
     await userEvent.click(within(edit).getByRole('button', { name: 'Сохранить' }));
     expect(await screen.findByText('Новое описание')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Отключить monitoring' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Отключить monitoring' }));
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Включить monitoring' })).toBeInTheDocument(),
     );

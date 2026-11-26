@@ -33,6 +33,11 @@ const issued: IssuedServiceToken = {
 
 describe('ServiceTokensDialog', () => {
   it('выпускает токен и показывает его один раз', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
     let tokens = [token];
     stubFetch({
       '/api/services/monitoring/tokens': (_url: URL, init?: RequestInit) => {
@@ -55,8 +60,29 @@ describe('ServiceTokensDialog', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Выпустить' }));
     expect(await screen.findByText(issued.token)).toBeInTheDocument();
     expect(screen.getByText(/показывается один раз/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Скопировать' }));
+    expect(writeText).toHaveBeenCalledWith(issued.token);
+    expect(await screen.findByText('скопировано')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Готово' }));
     expect(screen.queryByText(issued.token)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Выпустить токен' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Закрыть' }));
+  });
+
+  it('показывает предупреждение для отключённого сервиса', async () => {
+    stubFetch({
+      '/api/services/monitoring/tokens': [],
+    });
+    renderUI(
+      <ServiceTokensDialog
+        service={{ ...service, disabled: true }}
+        open
+        onClose={() => {}}
+        onChanged={() => {}}
+      />,
+    );
+    expect(await screen.findByText(/Сервис отключён/)).toBeInTheDocument();
   });
 
   it('отзывает токен после подтверждения', async () => {
