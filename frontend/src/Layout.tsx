@@ -42,6 +42,7 @@ export default function Layout({
             <NavLink to="/audit">Аудит</NavLink>
             {me.user.role === 'admin' && <NavLink to="/admins">Пользователи UI</NavLink>}
             {me.user.role === 'admin' && <NavLink to="/settings">Настройки</NavLink>}
+            {me.user.role === 'admin' && <NavLink to="/diagnostics">Диагностика</NavLink>}
           </nav>
           <div className="topbar-user">
             <Link to="/account" onClick={close} title={`Аккаунт, роль: ${me.user.role}`}>

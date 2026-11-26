@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/McConfig/telemt-admin/internal/settings"
@@ -28,6 +29,19 @@ type Sender struct {
 	client *http.Client
 	queue  chan job
 	now    func() time.Time
+
+	mu     sync.Mutex
+	status Status
+}
+
+// Status — последняя попытка доставки.
+type Status struct {
+	LastAt     time.Time `json:"lastAt"`
+	LastEvent  string    `json:"lastEvent"`
+	LastStatus int       `json:"lastStatus"`
+	LastError  string    `json:"lastError"`
+	Sent       int64     `json:"sent"`
+	Failed     int64     `json:"failed"`
 }
 
 type job struct {
@@ -52,9 +66,21 @@ func (s *Sender) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case item := <-s.queue:
-			if err := s.sendWithRetry(ctx, item.event, item.payload); err != nil {
+			code, err := s.sendWithRetry(ctx, item.event, item.payload)
+			now := s.now().UTC()
+			s.mu.Lock()
+			s.status.LastAt = now
+			s.status.LastEvent = item.event
+			s.status.LastStatus = code
+			if err != nil {
+				s.status.Failed++
+				s.status.LastError = err.Error()
 				slog.Warn("вебхук не доставлен", "event", item.event, "err", err)
+			} else {
+				s.status.Sent++
+				s.status.LastError = ""
 			}
+			s.mu.Unlock()
 		}
 	}
 }
@@ -89,8 +115,9 @@ func eventEnabled(events []string, event string) bool {
 	return false
 }
 
-func (s *Sender) sendWithRetry(ctx context.Context, event string, payload map[string]any) error {
+func (s *Sender) sendWithRetry(ctx context.Context, event string, payload map[string]any) (int, error) {
 	var last error
+	code := 0
 	for attempt := 0; attempt < 3; attempt++ {
 		if attempt > 0 {
 			delay := time.Second
@@ -104,17 +131,18 @@ func (s *Sender) sendWithRetry(ctx context.Context, event string, payload map[st
 			select {
 			case <-ctx.Done():
 				timer.Stop()
-				return ctx.Err()
+				return code, ctx.Err()
 			case <-timer.C:
 			}
 		}
-		if _, err := s.send(ctx, event, payload); err == nil {
-			return nil
-		} else {
-			last = err
+		status, err := s.send(ctx, event, payload)
+		if err == nil {
+			return status, nil
 		}
+		code = status
+		last = err
 	}
-	return last
+	return code, last
 }
 
 func (s *Sender) send(ctx context.Context, event string, payload map[string]any) (int, error) {
@@ -155,6 +183,13 @@ func (s *Sender) send(ctx context.Context, event string, payload map[string]any)
 		return resp.StatusCode, fmt.Errorf("вебхук ответил %d", resp.StatusCode)
 	}
 	return resp.StatusCode, nil
+}
+
+// Status возвращает последнюю попытку доставки.
+func (s *Sender) Status() Status {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.status
 }
 
 func deliveryID() string {

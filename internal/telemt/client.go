@@ -15,6 +15,7 @@ import (
 // APIError — ошибка Control API.
 type APIError struct {
 	Status  int
+	Code    string
 	Message string
 }
 
@@ -74,7 +75,7 @@ func (c *Client) do(ctx context.Context, method, path string, in, out any) error
 	}
 	resp, err := c.hc.Do(req)
 	if err != nil {
-		return fmt.Errorf("запрос к telemt: %w", err)
+		return transportError(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -88,30 +89,43 @@ func (c *Client) do(ctx context.Context, method, path string, in, out any) error
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		msg := strings.TrimSpace(http.StatusText(resp.StatusCode))
+		upstream := ""
 		if env.Error != nil && env.Error.Message != "" {
 			msg = redact(env.Error.Message)
+			upstream = env.Error.Code
 		}
-		return &APIError{Status: resp.StatusCode, Message: msg}
+		return &APIError{
+			Status: resp.StatusCode, Code: statusCode(resp.StatusCode, upstream), Message: msg,
+		}
 	}
 	if len(raw) == 0 {
 		return nil
 	}
 	if env.Data == nil {
-		return fmt.Errorf("ответ telemt: нет поля data")
+		return &APIError{Code: CodeInvalidResponse, Message: "ответ Control API без поля data"}
 	}
 	if out != nil {
 		if len(env.Data) == 0 {
-			return fmt.Errorf("telemt API: пустой data")
+			return &APIError{Code: CodeInvalidResponse, Message: "пустой ответ Control API"}
 		}
 		if err := json.Unmarshal(env.Data, out); err != nil {
-			return fmt.Errorf("разбор data: %w", err)
+			return &APIError{Code: CodeInvalidResponse, Message: "не удалось разобрать ответ Control API"}
 		}
 	}
 	return nil
 }
 
+// Capabilities проверяет доступность и возвращает сведения Control API.
+func (c *Client) Capabilities(ctx context.Context) (map[string]any, error) {
+	var out map[string]any
+	if err := c.do(ctx, "GET", "/v1/capabilities", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Ready проверяет доступность Control API.
 func (c *Client) Ready(ctx context.Context) error {
-	var out map[string]any
-	return c.do(ctx, "GET", "/v1/capabilities", nil, &out)
+	_, err := c.Capabilities(ctx)
+	return err
 }

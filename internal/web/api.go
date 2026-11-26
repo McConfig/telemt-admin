@@ -23,6 +23,7 @@ const cookieName = "tgadmin_session"
 type errorBody struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
+	Hint    string `json:"hint,omitempty"`
 }
 
 type errorEnvelope struct {
@@ -38,6 +39,12 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 
 func writeError(w http.ResponseWriter, code int, kind, msg string) {
 	writeJSON(w, code, errorEnvelope{Error: errorBody{Code: kind, Message: msg}})
+}
+
+func writeErrorHint(w http.ResponseWriter, code int, kind, msg, hint string) {
+	writeJSON(w, code, errorEnvelope{Error: errorBody{
+		Code: kind, Message: msg, Hint: hint,
+	}})
 }
 
 func (s *Server) withAPISession(next http.Handler) http.Handler {
@@ -117,21 +124,27 @@ func (s *Server) requireAdminAPI(w http.ResponseWriter, r *http.Request) bool {
 func (s *Server) telemtAPIError(w http.ResponseWriter, r *http.Request, err error) {
 	var apiErr *telemt.APIError
 	if errors.As(err, &apiErr) {
-		slog.Warn("telemt API", "method", r.Method, "path", r.URL.Path, "status", apiErr.Status)
-		if apiErr.Status >= http.StatusInternalServerError {
-			writeError(w, http.StatusBadGateway, "telemt_unavailable", "telemt не отвечает")
-			return
+		code := apiErr.Code
+		if code == "" {
+			code = telemt.CodeAPIError
 		}
-		code := http.StatusBadGateway
+		status := http.StatusBadGateway
 		switch apiErr.Status {
-		case http.StatusBadRequest, http.StatusForbidden, http.StatusNotFound, http.StatusConflict:
-			code = apiErr.Status
+		case http.StatusBadRequest, http.StatusUnprocessableEntity:
+			status = http.StatusBadRequest
+		case http.StatusNotFound:
+			status = http.StatusNotFound
+		case http.StatusConflict:
+			status = http.StatusConflict
 		}
-		writeError(w, code, "telemt", apiErr.Message)
+		slog.Warn("telemt API", "method", r.Method, "path", r.URL.Path,
+			"status", apiErr.Status, "code", code)
+		writeErrorHint(w, status, code, apiErr.Message, telemt.Hint(code))
 		return
 	}
 	slog.Warn("telemt недоступен", "method", r.Method, "path", r.URL.Path, "err", err)
-	writeError(w, http.StatusBadGateway, "telemt_unavailable", "telemt не отвечает")
+	writeErrorHint(w, http.StatusBadGateway, telemt.CodeUnreachable,
+		"нет соединения с Control API", telemt.Hint(telemt.CodeUnreachable))
 }
 
 func (s *Server) setCookie(w http.ResponseWriter, token string, ttl time.Duration) {

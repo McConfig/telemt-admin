@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -173,21 +174,19 @@ type backupHost struct {
 	RestoreTest bool   `json:"restoreTest,omitempty"`
 }
 
-func (s *Server) apiBackups(w http.ResponseWriter, r *http.Request) {
-	if !s.requireAdminAPI(w, r) {
-		return
-	}
-	persistence, err := s.store.InfoSection(r.Context(), "persistence")
+type backupStatus struct {
+	Valkey backupValkey `json:"valkey"`
+	Host   backupHost   `json:"host"`
+}
+
+func (s *Server) buildBackupStatus(ctx context.Context) (backupStatus, error) {
+	persistence, err := s.store.InfoSection(ctx, "persistence")
 	if err != nil {
-		s.serverErrorJSON(w, r, err)
-		return
+		return backupStatus{}, err
 	}
-	memory, _ := s.store.InfoSection(r.Context(), "memory")
-	keys, _ := s.store.DBSize(r.Context())
-	out := struct {
-		Valkey backupValkey `json:"valkey"`
-		Host   backupHost   `json:"host"`
-	}{}
+	memory, _ := s.store.InfoSection(ctx, "memory")
+	keys, _ := s.store.DBSize(ctx)
+	out := backupStatus{}
 	out.Valkey = backupValkey{
 		SaveInProgress: persistence["rdb_bgsave_in_progress"] == "1",
 		LastStatus:     persistence["rdb_last_bgsave_status"],
@@ -200,6 +199,18 @@ func (s *Server) apiBackups(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	out.Host = readHostBackup(s.cfg.BackupStatus)
+	return out, nil
+}
+
+func (s *Server) apiBackups(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdminAPI(w, r) {
+		return
+	}
+	out, err := s.buildBackupStatus(r.Context())
+	if err != nil {
+		s.serverErrorJSON(w, r, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, out)
 }
 

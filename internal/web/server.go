@@ -107,6 +107,7 @@ func New(cfg *config.Config, st *store.Store, tc *telemt.Client, metrics http.Ha
 				r.Post("/settings/backups/snapshot", s.apiBackupSnapshot)
 				r.Get("/settings/system", s.apiSystem)
 				r.Get("/settings/history", s.apiSettingsHistory)
+				r.Get("/diagnostics", s.apiDiagnostics)
 				r.Get("/users/{name}/traffic", s.apiUserTraffic)
 				r.Get("/users/{name}/timeline", s.apiUserTimeline)
 				r.Get("/summary", s.apiSummary)

@@ -30,6 +30,11 @@ func (s *Store) InfoSection(ctx context.Context, section string) (map[string]str
 	return out, nil
 }
 
+// Ping проверяет соединение с Valkey.
+func (s *Store) Ping(ctx context.Context) error {
+	return s.rdb.Ping(ctx).Err()
+}
+
 // DBSize возвращает число ключей.
 func (s *Store) DBSize(ctx context.Context) (int64, error) {
 	return s.rdb.DBSize(ctx).Result()
