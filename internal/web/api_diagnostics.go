@@ -144,6 +144,7 @@ func (s *Server) apiDiagnostics(w http.ResponseWriter, r *http.Request) {
 		}
 		out.GeoIP.Loaded = st.GeoIPLoaded
 		if st.GeoIPBuilt > 0 {
+			// #nosec G115 -- время сборки базы заведомо меньше int64.
 			built := time.Unix(int64(st.GeoIPBuilt), 0).UTC()
 			out.GeoIP.Built = built.Format(time.RFC3339)
 			out.GeoIP.AgeDays = int(now.Sub(built).Hours() / 24)
