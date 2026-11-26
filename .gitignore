@@ -5,6 +5,9 @@
 !.env.example
 *.out
 
+# Локальный список недоработок и уязвимостей
+/TODO.md
+
 deploy/telemt/config.toml
 deploy/telemt/secret
 
