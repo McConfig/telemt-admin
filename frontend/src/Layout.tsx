@@ -41,6 +41,7 @@ export default function Layout({
             </NavLink>
             <NavLink to="/audit">Аудит</NavLink>
             {me.user.role === 'admin' && <NavLink to="/admins">Пользователи UI</NavLink>}
+            {me.user.role === 'admin' && <NavLink to="/services">Сервисные аккаунты</NavLink>}
             {me.user.role === 'admin' && <NavLink to="/settings">Настройки</NavLink>}
             {me.user.role === 'admin' && <NavLink to="/diagnostics">Диагностика</NavLink>}
           </nav>

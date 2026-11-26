@@ -55,7 +55,7 @@ type adminCreateRequest struct {
 }
 
 func (s *Server) apiCreateAdmin(w http.ResponseWriter, r *http.Request) {
-	if !s.requireAdminAPI(w, r) {
+	if !s.requireSessionAdmin(w, r) {
 		return
 	}
 	var in adminCreateRequest
@@ -142,7 +142,7 @@ func (s *Server) apiPatchAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.Disabled != nil {
 		if *in.Disabled {
-			if name == s.currentSession(r).User {
+			if name == s.sessionUserName(r) {
 				writeError(w, http.StatusConflict, "self", "нельзя отключить себя")
 				return
 			}
@@ -168,7 +168,7 @@ func (s *Server) apiPatchAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiResetAdminPassword(w http.ResponseWriter, r *http.Request) {
-	if !s.requireAdminAPI(w, r) {
+	if !s.requireSessionAdmin(w, r) {
 		return
 	}
 	name := chi.URLParam(r, "name")
@@ -205,7 +205,7 @@ func (s *Server) apiDeleteAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := chi.URLParam(r, "name")
-	if name == s.currentSession(r).User {
+	if name == s.sessionUserName(r) {
 		writeError(w, http.StatusConflict, "self", "нельзя удалить себя")
 		return
 	}
@@ -234,7 +234,7 @@ func (s *Server) apiRevokeAdminSessions(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	name := chi.URLParam(r, "name")
-	if name == s.currentSession(r).User {
+	if name == s.sessionUserName(r) {
 		writeError(w, http.StatusConflict, "self", "используйте выход из аккаунта")
 		return
 	}

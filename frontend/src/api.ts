@@ -304,6 +304,38 @@ export interface ImportResult {
   rows: ImportRow[];
 }
 
+export type ServiceScope = 'read' | 'write' | 'admin';
+
+export interface ServiceAccount {
+  name: string;
+  description: string;
+  scope: ServiceScope;
+  disabled: boolean;
+  tokens: number;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+}
+
+export interface ServiceToken {
+  id: string;
+  label: string;
+  prefix: string;
+  createdAt: string;
+  createdBy: string;
+  expiresAt?: string;
+  lastUsedAt?: string;
+}
+
+export interface IssuedServiceToken {
+  id: string;
+  token: string;
+  label: string;
+  prefix: string;
+  createdAt: string;
+  expiresAt?: string;
+}
+
 export interface Diagnostics {
   status: 'ok' | 'warn' | 'error' | string;
   checkedAt: string;
@@ -489,6 +521,29 @@ export const api = {
   },
   logout: () => request<void>('POST', '/api/logout'),
   users: () => request<ProxyUser[]>('GET', '/api/users'),
+  services: () => request<ServiceAccount[]>('GET', '/api/services'),
+  createService: (body: { name: string; description?: string; scope: ServiceScope }) =>
+    request<ServiceAccount>('POST', '/api/services', body),
+  updateService: (
+    name: string,
+    body: { description?: string; scope?: ServiceScope; disabled?: boolean },
+  ) =>
+    request<ServiceAccount>('PATCH', `/api/services/${encodeURIComponent(name)}`, body),
+  deleteService: (name: string) =>
+    request<void>('DELETE', `/api/services/${encodeURIComponent(name)}`, { confirm: name }),
+  serviceTokens: (name: string) =>
+    request<ServiceToken[]>('GET', `/api/services/${encodeURIComponent(name)}/tokens`),
+  issueServiceToken: (name: string, body: { label?: string; expiresInDays: number }) =>
+    request<IssuedServiceToken>(
+      'POST',
+      `/api/services/${encodeURIComponent(name)}/tokens`,
+      body,
+    ),
+  revokeServiceToken: (name: string, id: string) =>
+    request<void>(
+      'DELETE',
+      `/api/services/${encodeURIComponent(name)}/tokens/${encodeURIComponent(id)}`,
+    ),
   importUsers: importCSV,
   user: (name: string) => request<ProxyUser>('GET', `/api/users/${encodeURIComponent(name)}`),
   create: (body: {

@@ -274,6 +274,12 @@ export async function mockApi(
     trustedIps: [...u.trustedIps],
   }));
 
+  let serviceList: Array<Record<string, unknown>> = [];
+  let tokenList: Array<Record<string, unknown>> = [];
+  let tokenScope = 'read';
+  const fullServiceToken = 'tgadm_0123456789abcdef_secret';
+  let tokenRevoked = false;
+
   const json = (route: Route, body: unknown, status = 200) =>
     route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
@@ -305,6 +311,77 @@ export async function mockApi(
     }
     if (!loggedIn) {
       return json(route, { error: { code: 'unauthorized', message: 'требуется вход' } }, 401);
+    }
+    const authHeader = route.request().headers()['authorization'] ?? '';
+    if (authHeader.startsWith('Bearer ')) {
+      const value = authHeader.slice('Bearer '.length);
+      if (tokenRevoked || value !== fullServiceToken) {
+        return json(route, { error: { code: 'invalid_token', message: 'неверный или истёкший токен' } }, 401);
+      }
+      if (path === '/api/users' && method === 'GET') {
+        return json(route, userList);
+      }
+      if (path === '/api/users' && method === 'POST') {
+        if (tokenScope !== 'write' && tokenScope !== 'admin') {
+          return json(route, { error: { code: 'forbidden', message: 'нет прав' } }, 403);
+        }
+        const body = route.request().postDataJSON() as { name: string };
+        const created = { ...main, username: body.name, activeIps: [], ipHistory: [] };
+        userList.push(created);
+        return json(route, created, 201);
+      }
+      if (path === '/api/settings' && method === 'GET') {
+        return tokenScope === 'admin' ? json(route, { sections: [] }) : json(route, { error: { code: 'forbidden', message: 'нет прав' } }, 403);
+      }
+      return json(route, { error: { code: 'forbidden', message: 'нет прав' } }, 403);
+    }
+    if (path === '/api/services' && method === 'GET') {
+      return json(route, serviceList);
+    }
+    if (path === '/api/services' && method === 'POST') {
+      const body = route.request().postDataJSON() as { name: string; description: string; scope: string };
+      const created = {
+        name: body.name, description: body.description ?? '', scope: body.scope,
+        disabled: false, tokens: 0, createdAt: now(), updatedAt: now(), createdBy: 'mcconfig',
+      };
+      serviceList = [...serviceList, created];
+      return json(route, created, 201);
+    }
+    const serviceMatch = path.match(/^\/api\/services\/([^/]+)$/);
+    if (serviceMatch && method === 'PATCH') {
+      const body = route.request().postDataJSON() as { scope?: string; disabled?: boolean; description?: string };
+      serviceList = serviceList.map((item) =>
+        item.name === serviceMatch[1] ? { ...item, ...body, updatedAt: now() } : item,
+      );
+      if (body.scope) tokenScope = body.scope;
+      return json(route, serviceList.find((item) => item.name === serviceMatch[1]));
+    }
+    if (serviceMatch && method === 'DELETE') {
+      serviceList = serviceList.filter((item) => item.name !== serviceMatch[1]);
+      tokenList = [];
+      tokenRevoked = true;
+      return route.fulfill({ status: 204, body: '' });
+    }
+    const tokenMatch = path.match(/^\/api\/services\/([^/]+)\/tokens$/);
+    if (tokenMatch && method === 'GET') {
+      return json(route, tokenList);
+    }
+    if (tokenMatch && method === 'POST') {
+      const body = route.request().postDataJSON() as { label?: string };
+      const issued = {
+        id: '0123456789abcdef', token: fullServiceToken, label: body.label ?? '',
+        prefix: 'tgadm_0123456789abcdef', createdAt: now(),
+        expiresAt: '2027-02-24T10:00:00Z',
+      };
+      tokenList = [{ ...issued, token: undefined, createdBy: 'mcconfig' }];
+      tokenRevoked = false;
+      return json(route, issued, 201);
+    }
+    const tokenDelete = path.match(/^\/api\/services\/([^/]+)\/tokens\/([^/]+)$/);
+    if (tokenDelete && method === 'DELETE') {
+      tokenList = [];
+      tokenRevoked = true;
+      return route.fulfill({ status: 204, body: '' });
     }
     if (path === '/api/diagnostics' && method === 'GET') {
       return json(route, {

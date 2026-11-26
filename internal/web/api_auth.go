@@ -22,6 +22,8 @@ type meResponse struct {
 	User       meUser          `json:"user"`
 	CSRF       string          `json:"csrf"`
 	Require2FA *require2FAInfo `json:"require2fa,omitempty"`
+	Service    bool            `json:"service,omitempty"`
+	Scope      string          `json:"scope,omitempty"`
 }
 
 type meUser struct {
@@ -30,12 +32,21 @@ type meUser struct {
 }
 
 func (s *Server) me(r *http.Request) (meResponse, error) {
-	sess := s.currentSession(r)
-	u, err := s.store.GetUser(r.Context(), sess.User)
+	p := s.currentPrincipal(r)
+	if p == nil {
+		return meResponse{}, store.ErrNotFound
+	}
+	if p.Kind == "service" {
+		return meResponse{
+			User:    meUser{Name: p.Name, Role: string(p.Role)},
+			Service: true, Scope: p.Scope,
+		}, nil
+	}
+	u, err := s.store.GetUser(r.Context(), p.Name)
 	if err != nil {
 		return meResponse{}, err
 	}
-	return s.meForUser(r.Context(), *u, sess.CSRF), nil
+	return s.meForUser(r.Context(), *u, p.Session.CSRF), nil
 }
 
 func (s *Server) meForUser(ctx context.Context, u store.User, csrf string) meResponse {

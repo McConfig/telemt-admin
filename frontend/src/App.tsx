@@ -10,6 +10,7 @@ import NewUserPage from './pages/NewUserPage';
 import AuditPage from './pages/AuditPage';
 import AccountPage from './pages/AccountPage';
 import AdminsPage from './pages/AdminsPage';
+import ServicesPage from './pages/ServicesPage';
 import SettingsPage from './pages/SettingsPage';
 import DiagnosticsPage from './pages/DiagnosticsPage';
 
@@ -101,6 +102,12 @@ export default function App() {
           <Route path="/audit" element={<AuditPage />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="/admins" element={<AdminsPage me={me} />} />
+          <Route
+            path="/services"
+            element={
+              me.user.role === 'admin' ? <ServicesPage me={me} /> : <Navigate to="/" replace />
+            }
+          />
           <Route
             path="/settings"
             element={me.user.role === 'admin' ? <SettingsPage /> : <Navigate to="/" replace />}

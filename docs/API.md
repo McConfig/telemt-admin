@@ -7,9 +7,10 @@
 ```
 
 `hint` может отсутствовать. Коды: `bad_request`, `unauthorized`,
-`forbidden`, `csrf`, `origin`, `not_found`, `user_exists`,
-`too_many_attempts`, `bad_totp`, `totp_unavailable`, `totp_required`,
-`webhook_unavailable`, `webhook_error`, `telemt_*`, `internal`.
+`forbidden`, `csrf`, `origin`, `not_found`, `user_exists`, `conflict`,
+`invalid_token`, `session_required`, `too_many`, `too_many_attempts`,
+`bad_totp`, `totp_unavailable`, `totp_required`, `webhook_unavailable`,
+`webhook_error`, `telemt_*`, `internal`.
 
 Коды `telemt_*` описаны в [DIAGNOSTICS.md](DIAGNOSTICS.md): недоступность,
 таймаут, DNS, TLS, авторизация, конфликт, read-only конфигурация и другие.
@@ -66,6 +67,75 @@
 ```
 
 Принимает шестизначный код или резервный код вида `ABCD-EFGH`.
+
+### Bearer-токены
+
+Интерфейс и API управления используют cookie-сессию. Для скриптов и
+интеграций есть сервисные аккаунты и Bearer-токены:
+
+```bash
+curl -H "Authorization: Bearer tgadm_0123456789abcdef_..." \
+  https://tgadmin.example.com/api/users
+```
+
+Если заголовок `Authorization` присутствует, cookie игнорируется. Токен
+не требует CSRF. Ограничение `TGADMIN_ALLOWED_CIDRS` действует и для
+токенов. Ошибка токена — `401 invalid_token` без указания причины.
+
+| Права | Доступ |
+|---|---|
+| `read` | как viewer: список и карточки клиентов без ссылок, сводка, трафик, таймлайн |
+| `write` | все `/api/users*`: создание, импорт, лимиты, блокировка, квоты, риск, заметки, история, ссылки |
+| `admin` | всё как администратор UI, кроме сервисных аккаунтов, токенов, администраторов UI и `/api/account*` |
+
+Управление сервисными аккаунтами и токенами, а также создание
+администраторов UI, сброс их пароля и TOTP доступны только из
+cookie-сессии администратора; по токену возвращается
+`403 session_required`.
+
+## Сервисные аккаунты
+
+| Метод | Путь | Назначение |
+|---|---|---|
+| GET | `/api/services` | список сервисов и число токенов |
+| POST | `/api/services` | `{"name":"...","description":"...","scope":"read"}` |
+| PATCH | `/api/services/{name}` | описание, scope, `disabled` |
+| DELETE | `/api/services/{name}` | тело `{"confirm":"name"}`, удаляет токены |
+| GET | `/api/services/{name}/tokens` | список токенов без секретов |
+| POST | `/api/services/{name}/tokens` | выпуск токена |
+| DELETE | `/api/services/{name}/tokens/{id}` | отзыв токена |
+
+Имя сервиса: строчная латиница, цифры, точка, дефис, подчёркивание, до
+32 символов. Scope: `read`, `write`, `admin`. Смена scope действует на
+все токены сразу. Максимум 50 сервисов и 20 активных токенов на сервис.
+
+### Выпуск токена
+
+```json
+{"label":"ci","expiresInDays":90}
+```
+
+`expiresInDays=0` — бессрочный; если поле не передано, срок 90 дней.
+Ответ `201` содержит полный токен **один раз**:
+
+```json
+{
+  "id":"0123456789abcdef",
+  "token":"tgadm_0123456789abcdef_...",
+  "label":"ci",
+  "prefix":"tgadm_0123456789abcdef",
+  "createdAt":"2026-11-26T10:00:00Z",
+  "expiresAt":"2027-02-24T10:00:00Z"
+}
+```
+
+В Valkey хранится только SHA-256 секрета. Список токенов возвращает ID,
+метку, префикс, даты создания, истечения и последнего использования, но
+не секрет.
+
+Коды ошибок: `400 bad_request`, `401 invalid_token`, `403 forbidden`,
+`403 session_required`, `404 not_found`, `409 conflict`,
+`429 too_many`.
 
 ## Сессия
 
