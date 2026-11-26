@@ -44,3 +44,56 @@ describe('api client', () => {
     } satisfies Partial<ApiError>);
   });
 });
+
+describe('api client — граничные ответы', () => {
+  it('возвращает undefined для 204', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(api.logout()).resolves.toBeUndefined();
+  });
+
+  it('сообщает о неавторизованном запросе', async () => {
+    const listener = vi.fn();
+    window.addEventListener('tgadmin:unauthorized', listener);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: { code: 'unauthorized', message: 'нет входа' } }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    await expect(api.users()).rejects.toMatchObject({ status: 401, message: 'нет входа' });
+    expect(listener).toHaveBeenCalledTimes(1);
+    window.removeEventListener('tgadmin:unauthorized', listener);
+  });
+
+  it('не падает на ответе без JSON', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('не json', { status: 200 })));
+    await expect(api.deleteHistory('main')).resolves.toBeNull();
+  });
+
+  it('использует HTTP-статус, если конверта ошибки нет', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 502 })));
+    await expect(api.diagnostics()).rejects.toMatchObject({
+      status: 502,
+      code: 'http',
+      message: 'HTTP 502',
+    });
+  });
+
+  it('поддерживает вход со вторым фактором', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ totpRequired: true }))
+      .mockResolvedValueOnce(jsonResponse({ user: { name: 'admin', role: 'admin' }, csrf: 'csrf-2' }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(api.login('admin', 'secret')).resolves.toEqual({ totpRequired: true });
+    await expect(api.loginTotp('123456')).resolves.toMatchObject({
+      user: { name: 'admin', role: 'admin' },
+    });
+    const init = fetchMock.mock.calls[1][1] as RequestInit;
+    expect((init.headers as Record<string, string>)['X-CSRF-Token']).toBeUndefined();
+  });
+});

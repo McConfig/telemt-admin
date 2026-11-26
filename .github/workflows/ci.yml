@@ -35,6 +35,12 @@ jobs:
           total=$(awk 'NR > 1 { stmts += $2; if ($3 > 0) covered += $2 } END { printf "%.1f", 100 * covered / stmts }' coverage.out)
           echo "покрытие: ${total}%"
           awk -v t="$total" 'BEGIN { if (t < 80.0) { print "покрытие ниже 80%"; exit 1 } }'
+      - name: Проверить покрытие API не ниже 85%
+        run: |
+          go test -coverprofile=web-coverage.out ./internal/web
+          total=$(go tool cover -func=web-coverage.out | awk '/total:/ {gsub("%","",$3); print $3}')
+          echo "покрытие API: ${total}%"
+          awk -v t="$total" 'BEGIN { if (t < 85.0) { print "покрытие API ниже 85%"; exit 1 } }'
       - run: go vet ./...
       - name: Проверить демо-стек
         run: |
