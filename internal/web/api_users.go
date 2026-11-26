@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"errors"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -508,9 +509,22 @@ func (s *Server) apiResetQuota(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := chi.URLParam(r, "name")
+	locked, err := s.store.TryQuotaLock(r.Context(), name, 30*time.Second)
+	if err != nil {
+		s.serverErrorJSON(w, r, err)
+		return
+	}
+	if !locked {
+		writeError(w, http.StatusConflict, "quota_busy", "сброс квоты уже выполняется")
+		return
+	}
+	defer s.store.UnlockQuota(r.Context(), name)
 	if err := s.telemt.ResetQuota(r.Context(), name); err != nil {
 		s.telemtAPIError(w, r, err)
 		return
+	}
+	if err := s.store.SetQuotaLastRun(r.Context(), name, time.Now().UTC()); err != nil {
+		slog.Warn("не удалось сохранить время сброса квоты", "user", name, "err", err)
 	}
 	s.audit(r, "user.reset_quota", name, "ok")
 	u, err := s.telemt.GetUser(r.Context(), name)

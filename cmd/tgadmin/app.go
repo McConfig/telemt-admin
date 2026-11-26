@@ -10,6 +10,7 @@ import (
 	"github.com/McConfig/telemt-admin/internal/config"
 	"github.com/McConfig/telemt-admin/internal/geoip"
 	"github.com/McConfig/telemt-admin/internal/logging"
+	"github.com/McConfig/telemt-admin/internal/quotarun"
 	"github.com/McConfig/telemt-admin/internal/settings"
 	"github.com/McConfig/telemt-admin/internal/store"
 	"github.com/McConfig/telemt-admin/internal/telemt"
@@ -51,6 +52,8 @@ func newHandler(ctx context.Context, cfg *config.Config) (http.Handler, func() e
 	go col.Run(ctx)
 	notifier := webhook.New(svc)
 	go notifier.Run(ctx)
+	quotaRunner := quotarun.New(st, tc, svc)
+	go quotaRunner.Run(ctx)
 	metrics := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		col.ServeHTTP(w, r)
 		web.WriteHTTPMetrics(w)

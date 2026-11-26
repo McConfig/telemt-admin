@@ -30,6 +30,7 @@ import {
   type LimitTemplate,
   type Me,
   type ProxyUser,
+  type QuotaResetView,
   type RiskIP,
   type RiskReport,
   type TimelineDay,
@@ -90,6 +91,12 @@ export default function UserPage({ me }: { me: Me }) {
   const [riskLoading, setRiskLoading] = useState(false);
   const [riskDay, setRiskDay] = useState('');
   const [chartDays, setChartDays] = useState(30);
+  const [quotaReset, setQuotaReset] = useState<QuotaResetView | null>(null);
+  const [quotaMode, setQuotaMode] = useState('inherit');
+  const [quotaDays, setQuotaDays] = useState('');
+  const [quotaTime, setQuotaTime] = useState('');
+  const [quotaSaved, setQuotaSaved] = useState(false);
+  const [quotaBusy, setQuotaBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -126,6 +133,15 @@ export default function UserPage({ me }: { me: Me }) {
         .userTimeline(name, chartDays)
         .then(setTimeline)
         .catch(() => setTimeline([]));
+      api
+        .quotaReset(name)
+        .then((value) => {
+          setQuotaReset(value);
+          setQuotaMode(value.mode);
+          setQuotaDays(value.days?.toString() ?? '');
+          setQuotaTime(value.time ?? '');
+        })
+        .catch(() => setQuotaReset(null));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'не удалось загрузить пользователя');
     } finally {
@@ -212,6 +228,29 @@ export default function UserPage({ me }: { me: Me }) {
           ? 'yes'
           : 'no',
     );
+  };
+
+  const saveQuotaSchedule = async () => {
+    if (!user) return;
+    setQuotaBusy(true);
+    setError('');
+    setQuotaSaved(false);
+    try {
+      const value = await api.setQuotaReset(user.username, {
+        mode: quotaMode,
+        days: quotaMode === 'custom' ? Number(quotaDays) : undefined,
+        time: quotaMode === 'custom' ? quotaTime : undefined,
+      });
+      setQuotaReset(value);
+      setQuotaMode(value.mode);
+      setQuotaDays(value.days?.toString() ?? '');
+      setQuotaTime(value.time ?? '');
+      setQuotaSaved(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'не удалось сохранить расписание');
+    } finally {
+      setQuotaBusy(false);
+    }
   };
 
   const saveAsTemplate = async () => {
@@ -908,11 +947,69 @@ export default function UserPage({ me }: { me: Me }) {
                 <Button view="action" type="submit" loading={busy}>
                   Сохранить
                 </Button>
-                <Button view="outlined" onClick={() => void run(() => api.resetQuota(user.username))}>
+                <Button
+                  view="outlined"
+                  onClick={() =>
+                    void run(async () => {
+                      await api.resetQuota(user.username);
+                      setQuotaReset(await api.quotaReset(user.username));
+                    })
+                  }
+                >
                   Сбросить квоту
                 </Button>
               </div>
             </form>
+          </Card>
+
+          <Card view="filled" style={{ padding: 16 }}>
+            <div className="stack">
+              <Text variant="header-1">Автосброс квоты</Text>
+              <Text className="muted">
+                Обнуляет только расход квоты в telemt. Лимиты, ссылки, история и трафик
+                сохраняются. {quotaReset?.enabled
+                  ? `Следующий сброс: ${quotaReset.next ? formatTime(quotaReset.next) : 'после первого запуска'}.`
+                  : 'Сейчас выключен.'}
+              </Text>
+              <div className="form-grid">
+                <label className="field">
+                  <span>Режим</span>
+                  <select value={quotaMode} onChange={(e) => setQuotaMode(e.target.value)}>
+                    <option value="inherit">как у всех</option>
+                    <option value="off">не сбрасывать</option>
+                    <option value="custom">своё расписание</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Интервал, дней</span>
+                  <TextInput
+                    placeholder="например, 30"
+                    value={quotaDays}
+                    onUpdate={setQuotaDays}
+                    disabled={quotaMode !== 'custom'}
+                  />
+                </label>
+                <label className="field">
+                  <span>Время</span>
+                  <TextInput
+                    placeholder="04:00"
+                    value={quotaTime}
+                    onUpdate={setQuotaTime}
+                    disabled={quotaMode !== 'custom'}
+                  />
+                </label>
+              </div>
+              <div className="form-actions">
+                <Button
+                  view="action"
+                  loading={quotaBusy}
+                  onClick={() => void saveQuotaSchedule()}
+                >
+                  Сохранить расписание
+                </Button>
+                {quotaSaved && <Text color="positive">сохранено</Text>}
+              </div>
+            </div>
           </Card>
 
           <Card view="filled" style={{ padding: 16 }}>

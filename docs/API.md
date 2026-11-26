@@ -87,7 +87,10 @@
 | POST | `/api/users/{name}/enable` | admin | включить |
 | POST | `/api/users/{name}/disable` | admin | отключить и закрыть сессии |
 | POST | `/api/users/{name}/rename` | admin | `{"newName":"..."}` |
-| POST | `/api/users/{name}/reset-quota` | admin | сбросить квоту |
+| POST | `/api/users/{name}/reset-quota` | admin | сбросить квоту клиента |
+| POST | `/api/users/reset-quota` | admin | массовый сброс квот |
+| GET | `/api/users/{name}/quota-reset` | admin | расписание автосброса |
+| PUT | `/api/users/{name}/quota-reset` | admin | изменить расписание автосброса |
 | GET | `/api/users/{name}/qr.png` | admin | QR ссылки |
 | GET | `/api/users/{name}/history.csv` | admin | история адресов |
 | GET | `/api/users/{name}/risk-report?days=7` | admin | отчёт по риску |
@@ -101,6 +104,77 @@
 | GET | `/api/users/{name}/note` | admin | заметка |
 | PUT | `/api/users/{name}/note` | admin | `{"note":"..."}` |
 | GET | `/api/summary` | обе | сводка и здоровье |
+
+### Массовый сброс квот
+
+`POST /api/users/reset-quota` принимает необязательное тело:
+
+```json
+{"names":["main","other"]}
+```
+
+Пустое тело или `{"names":[]}` означает всех клиентов. За один запрос
+обрабатывается не больше 1000 имён; имена очищаются от пробелов,
+дубликаты и недопустимые значения не отправляются в telemt. Клиенты
+обрабатываются последовательно, запрос отвечает после завершения.
+Каждый сброс защищён блокировкой в Valkey, поэтому ручной и плановый
+сброс одного клиента не выполняются одновременно.
+
+Ответ:
+
+```json
+{
+  "total": 3,
+  "reset": 2,
+  "refused": 0,
+  "unknown": 0,
+  "notSent": 1,
+  "failed": [
+    {"name":"main","status":"not_sent","code":"duplicate","message":"имя повторяется"}
+  ]
+}
+```
+
+- `reset` — квота сброшена;
+- `refused` — Control API ответил 4xx или клиент занят другим сбросом;
+- `unknown` — сеть, таймаут, 5xx или неверный ответ: применился ли сброс,
+  неизвестно;
+- `notSent` — пустое имя, дубликат или недопустимый формат.
+
+Массовый запрос пишет одно событие аудита `quota.reset.bulk` с итогами;
+цель события — `all` или `selected`.
+
+### Расписание автосброса
+
+`GET /api/users/{name}/quota-reset` возвращает действующее расписание
+клиента:
+
+```json
+{
+  "mode":"custom",
+  "days":7,
+  "time":"05:00",
+  "enabled":true,
+  "useDays":7,
+  "useTime":"05:00",
+  "last":"2026-11-26T04:00:00Z",
+  "next":"2026-12-03T05:00:00Z"
+}
+```
+
+`mode` — `inherit` (как у всех), `off` (не сбрасывать) или `custom`
+(свои `days` и `time`). `useDays` и `useTime` — действующие значения с
+учётом глобальных настроек. `last` и `next` появляются после первого
+запуска планировщика; время в UTC.
+
+`PUT /api/users/{name}/quota-reset` принимает те же поля:
+
+```json
+{"mode":"custom","days":7,"time":"05:00"}
+```
+
+Для `inherit` переопределение удаляется. `days` — от 1 до 365, `time` —
+`ЧЧ:ММ`, минуты кратны 5. Ответ — актуальное представление расписания.
 
 `GET /api/users` возвращает массив:
 

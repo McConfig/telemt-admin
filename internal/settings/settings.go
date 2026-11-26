@@ -127,6 +127,7 @@ var sectionDefs = []Section{
 	{ID: "risk", Title: "Риск", Description: "Глобальные пороги и домашняя страна"},
 	{ID: "collect", Title: "Сбор и хранение", Description: "Интервал сбора, срок хранения и сессии"},
 	{ID: "links", Title: "Ссылки", Description: "Режим ссылок tg://"},
+	{ID: "quotas", Title: "Квоты", Description: "Периодический сброс расхода"},
 	{ID: "security", Title: "Безопасность", Description: "Входы, TOTP, пароли и аудит"},
 	{ID: "interface", Title: "Интерфейс", Description: "Параметры отображения"},
 	{ID: "logging", Title: "Логирование", Description: "Уровень логов"},
@@ -660,6 +661,14 @@ func (s *Service) Webhook(ctx context.Context) (url, secret string, events []str
 	return url, secret, events, url != ""
 }
 
+// QuotaResetPolicy возвращает глобальное расписание сброса квот.
+func (s *Service) QuotaResetPolicy(ctx context.Context) (enabled bool, days int, at string) {
+	s.ensure(ctx)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.boolValue("quota.reset_enabled"), s.intValue("quota.reset_days"), s.stringValue("quota.reset_time")
+}
+
 // BackupPolicy возвращает расписание и параметры снимков.
 func (s *Service) BackupPolicy(ctx context.Context) (schedule string, keepDays int, restoreTest bool) {
 	s.ensure(ctx)
@@ -812,6 +821,21 @@ func (s *Service) build() {
 		},
 	})
 
+	add(Definition{
+		Key: "quota.reset_enabled", Section: "quotas", Title: "Автосброс квот",
+		Description: "Периодически обнулять расход квоты у клиентов",
+		Kind:        KindBool, Status: Active, Default: cfg.QuotaResetEnabled,
+	})
+	add(Definition{
+		Key: "quota.reset_days", Section: "quotas", Title: "Интервал, дней",
+		Description: "Как часто сбрасывать расход", Kind: KindInt,
+		Status: Active, Default: cfg.QuotaResetDays, Min: intp(1), Max: intp(365),
+	})
+	add(Definition{
+		Key: "quota.reset_time", Section: "quotas", Title: "Время сброса",
+		Description: "ЧЧ:ММ по часовому поясу процесса (TZ), минуты кратны 5", Kind: KindString,
+		Status: Active, Default: cfg.QuotaResetTime,
+	})
 	add(Definition{
 		Key: "security.require_2fa", Section: "security", Title: "Обязательный 2FA для админов",
 		Description: "После льготного срока доступ без 2FA будет ограничен",
@@ -974,7 +998,7 @@ func parseRaw(d Definition, raw json.RawMessage) (string, any, error) {
 					}
 				}
 			}
-		case "backup.schedule":
+		case "backup.schedule", "quota.reset_time":
 			if !scheduleRe.MatchString(s) {
 				return "", nil, errors.New("время в формате ЧЧ:ММ")
 			}

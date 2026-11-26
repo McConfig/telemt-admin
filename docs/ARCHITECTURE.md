@@ -20,7 +20,8 @@ flowchart LR
 
 - **tgadmin** — один Go-бинарник. Отдаёт JSON API, встроенную SPA и
   `/metrics`; раз в `TGADMIN_COLLECT_INTERVAL` опрашивает Control API
-  telemt.
+  telemt. Фоновый планировщик раз в 30 секунд проверяет расписания
+  автосброса квот.
 - **telemt** — MTProto-прокси с FakeTLS. Единственный компонент, который
   знает секреты клиентов и ходит в Telegram.
 - **Valkey** — пользователи UI, сессии, CSRF, TOTP, аудит, история

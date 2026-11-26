@@ -360,6 +360,15 @@ export async function mockApi(
     if (path === '/api/settings/history' && method === 'GET') {
       return json(route, []);
     }
+    if (path === '/api/users/reset-quota' && method === 'POST') {
+      return json(route, { total: 2, reset: 2, refused: 0, unknown: 0, notSent: 0, failed: [] });
+    }
+    if (/^\/api\/users\/[^/]+\/quota-reset$/.test(path)) {
+      if (method === 'PUT') {
+        return json(route, route.request().postDataJSON());
+      }
+      return json(route, { mode: 'inherit', enabled: true, useDays: 30, useTime: '04:00' });
+    }
     if (path === '/api/users' && method === 'GET') {
       return json(route, userList);
     }

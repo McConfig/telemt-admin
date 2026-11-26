@@ -79,6 +79,12 @@ function renderUser() {
     '/api/users/main/trusted': { countries: [], ips: [] },
     '/api/users/main/note': { note: 'телефон' },
     '/api/users/main/risk-report': riskReport,
+    '/api/users/main/quota-reset': {
+      mode: 'inherit',
+      enabled: true,
+      useDays: 30,
+      useTime: '04:00',
+    },
     '/api/settings/templates': {
       default: 'router',
       templates: [{ name: 'router', maxIps: 5 }],
@@ -170,6 +176,30 @@ describe('UserPage', () => {
       highIps: 8,
       distinct7d: null,
       newCountries: false,
+    });
+  });
+
+  it('настраивает автосброс квоты', async () => {
+    renderUser();
+    await screen.findByText('main');
+    await userEvent.click(screen.getByRole('button', { name: 'Лимиты' }));
+    expect(await screen.findByText('Автосброс квоты')).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText('Режим'), 'custom');
+    await userEvent.type(screen.getByLabelText('Интервал, дней'), '14');
+    await userEvent.type(screen.getByLabelText('Время'), '05:30');
+    await userEvent.click(screen.getByRole('button', { name: 'Сохранить расписание' }));
+    const call = vi
+      .mocked(fetch)
+      .mock.calls.find(
+        ([url, init]) =>
+          String(url).endsWith('/quota-reset') &&
+          (init as RequestInit | undefined)?.method === 'PUT',
+      );
+    expect(call).toBeTruthy();
+    expect(JSON.parse(String((call?.[1] as RequestInit).body))).toMatchObject({
+      mode: 'custom',
+      days: 14,
+      time: '05:30',
     });
   });
 

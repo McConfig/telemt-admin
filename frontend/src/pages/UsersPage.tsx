@@ -21,6 +21,10 @@ export default function UsersPage({ me }: { me: Me }) {
   const [onlyNewCountry, setOnlyNewCountry] = useState(false);
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetNames, setResetNames] = useState<string[] | null>(null);
+  const [resetBusy, setResetBusy] = useState(false);
+  const [notice, setNotice] = useState('');
   const isMobile = useMedia('(max-width: 760px)');
   const { sorting, setSorting, sortHeader, sortRows } = useTableSort();
 
@@ -238,9 +242,20 @@ export default function UsersPage({ me }: { me: Me }) {
         <Text variant="header-2">Пользователи telemt</Text>
         <div style={{ flex: 1 }} />
         {me.user.role === 'admin' && (
-          <Button view="action" onClick={() => setCreateOpen(true)}>
-            Создать пользователя
-          </Button>
+          <>
+            <Button
+              view="outlined"
+              onClick={() => {
+                setResetNames(null);
+                setResetOpen(true);
+              }}
+            >
+              Сбросить все квоты
+            </Button>
+            <Button view="action" onClick={() => setCreateOpen(true)}>
+              Создать пользователя
+            </Button>
+          </>
         )}
         <Button view="outlined" onClick={() => void load()}>
           Обновить
@@ -344,6 +359,17 @@ export default function UsersPage({ me }: { me: Me }) {
             Включить
           </Button>
           {isAdmin && (
+            <Button
+              view="outlined"
+              onClick={() => {
+                setResetNames([...selected]);
+                setResetOpen(true);
+              }}
+            >
+              Сбросить квоты
+            </Button>
+          )}
+          {isAdmin && (
             <Button view="outlined" onClick={exportLinks}>
               Ссылки CSV
             </Button>
@@ -354,6 +380,7 @@ export default function UsersPage({ me }: { me: Me }) {
         </div>
       )}
       {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
+      {notice && <Alert theme="success" message={notice} onClose={() => setNotice('')} />}
       <Card view="filled" style={{ padding: 8 }}>
         {loading ? (
           <Loader size="m" />
@@ -419,6 +446,47 @@ export default function UsersPage({ me }: { me: Me }) {
           </Button>
         </div>
       )}
+      <Dialog open={resetOpen} onOpenChange={(next) => !next && setResetOpen(false)} maxWidth="s">
+        <Dialog.Header caption={resetNames ? 'Сбросить квоты выбранным' : 'Сбросить все квоты'} />
+        <Dialog.Body>
+          <div className="stack">
+            <Text>
+              {resetNames
+                ? `Будет сброшен расход квоты у ${resetNames.length} клиентов.`
+                : 'Будет сброшен расход квоты у всех клиентов.'}
+            </Text>
+            <Text className="muted">
+              Лимиты, сроки, ссылки, история IP и накопленный трафик не изменятся.
+            </Text>
+          </div>
+        </Dialog.Body>
+        <Dialog.Footer
+          onClickButtonCancel={() => setResetOpen(false)}
+          onClickButtonApply={() => {
+            setResetBusy(true);
+            setError('');
+            api
+              .bulkResetQuota(resetNames ?? undefined)
+              .then((result) => {
+                setResetOpen(false);
+                setSelected(new Set());
+                const parts = [`Сброшено квот: ${result.reset} из ${result.total}`];
+                if (result.refused > 0) parts.push(`отказано: ${result.refused}`);
+                if (result.unknown > 0) parts.push(`неизвестно: ${result.unknown}`);
+                if (result.notSent > 0) parts.push(`не отправлено: ${result.notSent}`);
+                setNotice(parts.join(', '));
+                void load();
+              })
+              .catch((err) =>
+                setError(err instanceof ApiError ? err.message : 'не удалось сбросить квоты'),
+              )
+              .finally(() => setResetBusy(false));
+          }}
+          textButtonApply="Сбросить"
+          textButtonCancel="Отмена"
+          propsButtonApply={{ loading: resetBusy, view: 'outlined-danger' }}
+        />
+      </Dialog>
       <CreateUserDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
