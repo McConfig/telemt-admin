@@ -126,14 +126,6 @@ export default function UserPage({ me }: { me: Me }) {
             : 'no',
       );
       api
-        .userTraffic(name, chartDays)
-        .then(setTraffic)
-        .catch(() => setTraffic([]));
-      api
-        .userTimeline(name, chartDays)
-        .then(setTimeline)
-        .catch(() => setTimeline([]));
-      api
         .quotaReset(name)
         .then((value) => {
           setQuotaReset(value);
@@ -147,7 +139,7 @@ export default function UserPage({ me }: { me: Me }) {
     } finally {
       setLoading(false);
     }
-  }, [name, chartDays]);
+  }, [name]);
 
   useEffect(() => {
     api
@@ -164,6 +156,31 @@ export default function UserPage({ me }: { me: Me }) {
     setRiskSaved(false);
     void load();
   }, [load]);
+
+  // Графики зависят только от периода: смена периода не перезагружает
+  // карточку и не перетирает несохранённые поля формы.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .userTraffic(name, chartDays)
+      .then((value) => {
+        if (!cancelled) setTraffic(value);
+      })
+      .catch(() => {
+        if (!cancelled) setTraffic([]);
+      });
+    api
+      .userTimeline(name, chartDays)
+      .then((value) => {
+        if (!cancelled) setTimeline(value);
+      })
+      .catch(() => {
+        if (!cancelled) setTimeline([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [name, chartDays]);
 
   useEffect(() => {
     api
