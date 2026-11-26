@@ -5,6 +5,7 @@ import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { Ban, Key, Pencil, Play, TrashBin } from '@gravity-ui/icons';
 import { api, ApiError, type Me, type ServiceAccount, type ServiceScope } from '../api';
 import { formatTime } from '../format';
+import ServiceTokensDialog from './ServiceTokensDialog';
 
 const scopeTitle: Record<ServiceScope, string> = {
   read: 'Чтение',
@@ -25,6 +26,7 @@ export default function ServicesPage({ me }: { me: Me }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [editFor, setEditFor] = useState<ServiceAccount | null>(null);
   const [deleteFor, setDeleteFor] = useState<ServiceAccount | null>(null);
+  const [tokensFor, setTokensFor] = useState<ServiceAccount | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -94,7 +96,7 @@ export default function ServicesPage({ me }: { me: Me }) {
               view="flat"
               aria-label={`Токены ${row.original.name}`}
               title="Токены"
-              onClick={() => setEditFor(null)}
+              onClick={() => setTokensFor(row.original)}
             >
               <Key width={18} height={18} />
             </Button>
@@ -181,6 +183,12 @@ export default function ServicesPage({ me }: { me: Me }) {
           setEditFor(null);
           load();
         }}
+      />
+      <ServiceTokensDialog
+        service={tokensFor}
+        open={tokensFor !== null}
+        onClose={() => setTokensFor(null)}
+        onChanged={load}
       />
       <DeleteServiceDialog
         service={deleteFor}
