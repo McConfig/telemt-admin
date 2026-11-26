@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import UsersPage from './UsersPage';
@@ -32,6 +32,29 @@ describe('UsersPage', () => {
     expect(screen.getByText('Выбрано: 1')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Отключить' }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  });
+
+  it('сбрасывает квоты всем клиентам', async () => {
+    const fetchMock = stubFetch({
+      '/api/users': [proxyUser, secondUser],
+      '/api/summary': summary,
+      '/api/users/reset-quota': { total: 2, reset: 2, failed: [] },
+    });
+    renderUI(<UsersPage me={me} />);
+    await screen.findByRole('link', { name: 'main' });
+    await userEvent.click(screen.getByRole('button', { name: 'Сбросить все квоты' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Сбросить' }));
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(
+        ([url, init]) =>
+          String(url).endsWith('/api/users/reset-quota') &&
+          (init as RequestInit | undefined)?.method === 'POST',
+      );
+      expect(call).toBeTruthy();
+      expect(JSON.parse(String((call?.[1] as RequestInit).body))).toEqual({});
+    });
+    expect(await screen.findByText(/Сброшено квот: 2 из 2/)).toBeInTheDocument();
   });
 
   it('фильтр только с иностранными IP', async () => {

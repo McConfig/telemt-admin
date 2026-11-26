@@ -14,6 +14,17 @@ test('вход и список клиентов', async ({ page }) => {
   await expect(page.getByText('Нидерланды')).toBeVisible();
 });
 
+test('массовый сброс квот', async ({ page }) => {
+  await mockApi(page);
+  await login(page);
+
+  await page.getByRole('button', { name: 'Сбросить все квоты' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('Будет сброшен расход квоты у всех клиентов.')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Сбросить' }).click();
+  await expect(page.getByText('Сброшено квот: 2 из 2')).toBeVisible();
+});
+
 test('фильтр «только с иностранными IP»', async ({ page }) => {
   await mockApi(page);
   await login(page);

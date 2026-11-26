@@ -47,6 +47,9 @@ type Config struct {
 	BackupKeepDays      int
 	BackupRestoreTest   bool
 	BackupConfig        string
+	QuotaResetEnabled   bool
+	QuotaResetDays      int
+	QuotaResetTime      string
 	GeoIPCity           string
 	GeoIPASN            string
 	BackupStatus        string
@@ -98,8 +101,14 @@ func Load(getenv func(string) string) (*Config, error) {
 	cfg.BackupKeepDays = getInt(get("TGADMIN_BACKUP_KEEP_DAYS", "14"), 14)
 	cfg.BackupRestoreTest = get("TGADMIN_BACKUP_RESTORE_TEST", "true") != "false"
 	cfg.BackupConfig = get("TGADMIN_BACKUP_CONFIG", "")
+	cfg.QuotaResetEnabled = strings.EqualFold(get("TGADMIN_QUOTA_RESET_ENABLED", "false"), "true")
+	cfg.QuotaResetDays = getInt(get("TGADMIN_QUOTA_RESET_DAYS", "30"), 30)
+	cfg.QuotaResetTime = get("TGADMIN_QUOTA_RESET_TIME", "04:00")
 	if cfg.BackupKeepDays < 1 || cfg.BackupKeepDays > 365 {
 		return nil, fmt.Errorf("TGADMIN_BACKUP_KEEP_DAYS: от 1 до 365")
+	}
+	if cfg.QuotaResetDays < 1 || cfg.QuotaResetDays > 365 {
+		return nil, fmt.Errorf("TGADMIN_QUOTA_RESET_DAYS: от 1 до 365")
 	}
 	cfg.LogLevel = strings.ToLower(get("TGADMIN_LOG_LEVEL", "info"))
 	switch cfg.LogLevel {

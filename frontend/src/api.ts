@@ -268,6 +268,26 @@ export interface SettingsSystem {
   counts: { uiUsers: number; auditEvents: number; templates: number };
 }
 
+export interface QuotaResetView {
+  mode: 'inherit' | 'off' | 'custom' | string;
+  days?: number;
+  time?: string;
+  enabled: boolean;
+  useDays?: number;
+  useTime?: string;
+  last?: string;
+  next?: string;
+}
+
+export interface BulkResetResult {
+  total: number;
+  reset: number;
+  refused: number;
+  unknown: number;
+  notSent: number;
+  failed: { name: string; status: string; code?: string; message: string }[];
+}
+
 export interface Diagnostics {
   status: 'ok' | 'warn' | 'error' | string;
   checkedAt: string;
@@ -526,6 +546,12 @@ export const api = {
   system: () => request<SettingsSystem>('GET', '/api/settings/system'),
   settingsHistory: () => request<SettingsHistoryItem[]>('GET', '/api/settings/history'),
   diagnostics: () => request<Diagnostics>('GET', '/api/diagnostics'),
+  bulkResetQuota: (names?: string[]) =>
+    request<BulkResetResult>('POST', '/api/users/reset-quota', names ? { names } : {}),
+  quotaReset: (name: string) =>
+    request<QuotaResetView>('GET', `/api/users/${encodeURIComponent(name)}/quota-reset`),
+  setQuotaReset: (name: string, body: { mode: string; days?: number; time?: string }) =>
+    request<QuotaResetView>('PUT', `/api/users/${encodeURIComponent(name)}/quota-reset`, body),
   setRisk: (name: string, body: RiskThresholds) =>
     request<{ riskThresholds: RiskThresholds; riskDefaults: RiskDefaults }>(
       'PUT',

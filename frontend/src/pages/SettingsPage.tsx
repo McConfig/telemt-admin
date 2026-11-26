@@ -12,6 +12,7 @@ function isDirty(field: SettingField, value: unknown): boolean {
 const tabs = [
   { id: 'risk', label: 'Риск', sections: ['risk'] },
   { id: 'collect', label: 'Сбор и данные', sections: ['collect'] },
+  { id: 'quotas', label: 'Квоты', sections: ['quotas'] },
   { id: 'links', label: 'Ссылки', sections: ['links'] },
   { id: 'templates', label: 'Шаблоны', sections: [] },
   { id: 'security', label: 'Безопасность', sections: ['security', 'interface', 'logging', 'notifications'] },
