@@ -572,6 +572,14 @@ func (s *Service) TOTPPendingTTL(ctx context.Context) time.Duration {
 	return s.durationValue("totp.pending_ttl")
 }
 
+// Require2FAGraceDays — льготный срок требования 2FA.
+func (s *Service) Require2FAGraceDays(ctx context.Context) int {
+	s.ensure(ctx)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.intValue("security.require_2fa_grace_days")
+}
+
 // TOTPMaxAttempts — число неверных кодов до нового входа.
 func (s *Service) TOTPMaxAttempts(ctx context.Context) int {
 	s.ensure(ctx)

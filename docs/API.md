@@ -3,12 +3,16 @@
 Все ответы — JSON. Ошибки имеют вид:
 
 ```json
-{"error":{"code":"forbidden","message":"нет прав"}}
+{"error":{"code":"forbidden","message":"нет прав","hint":"обратитесь к администратору"}}
 ```
 
-Коды: `bad_request`, `unauthorized`, `forbidden`, `csrf`, `origin`,
-`not_found`, `user_exists`, `too_many_attempts`, `bad_totp`,
-`totp_unavailable`, `telemt_error`, `internal`.
+`hint` может отсутствовать. Коды: `bad_request`, `unauthorized`,
+`forbidden`, `csrf`, `origin`, `not_found`, `user_exists`,
+`too_many_attempts`, `bad_totp`, `totp_unavailable`, `totp_required`,
+`webhook_unavailable`, `webhook_error`, `telemt_*`, `internal`.
+
+Коды `telemt_*` описаны в [DIAGNOSTICS.md](DIAGNOSTICS.md): недоступность,
+таймаут, DNS, TLS, авторизация, конфликт, read-only конфигурация и другие.
 
 ## Аутентификация
 
@@ -249,6 +253,7 @@ observations, new, trusted`.
 | POST | `/api/settings/backups/snapshot` | запустить `BGSAVE` |
 | GET | `/api/settings/system` | версия, uptime, сборщик, GeoIP, Valkey |
 | GET | `/api/settings/history` | последние события `settings.*` |
+| GET | `/api/diagnostics` | состояние Control API, Valkey, сборщика и предупреждения |
 
 Каждое поле каталога содержит `key`, `title`, `description`, `kind`
 (`int`, `bool`, `duration`, `string`, `enum`), `status`

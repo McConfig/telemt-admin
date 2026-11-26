@@ -111,3 +111,51 @@ func TestEventEnabled(t *testing.T) {
 		t.Fatal("wildcard должен включать всё")
 	}
 }
+
+func TestRunDeliversAndFilters(t *testing.T) {
+	events := make(chan string, 2)
+	sender, _, _ := testSender(t, func(w http.ResponseWriter, r *http.Request) {
+		events <- r.Header.Get("X-TeleMT-Event")
+		w.WriteHeader(http.StatusNoContent)
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go sender.Run(ctx)
+
+	sender.Emit(ctx, "user.create", map[string]any{"target": "phone"})
+	select {
+	case event := <-events:
+		if event != "user.create" {
+			t.Fatalf("событие %s", event)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("событие не доставлено")
+	}
+	deadline := time.Now().Add(time.Second)
+	for {
+		if status := sender.Status(); status.Sent == 1 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("статус: %+v", sender.Status())
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	sender.Emit(ctx, "user.delete", nil)
+	select {
+	case event := <-events:
+		t.Fatalf("отфильтрованное событие доставлено: %s", event)
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
+func TestSendNowServerError(t *testing.T) {
+	sender, _, _ := testSender(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	status, err := sender.SendNow(context.Background(), "test", nil)
+	if err == nil || status != http.StatusInternalServerError {
+		t.Fatalf("статус %d, ошибка %v", status, err)
+	}
+}

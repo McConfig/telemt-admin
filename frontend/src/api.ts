@@ -268,6 +268,46 @@ export interface SettingsSystem {
   counts: { uiUsers: number; auditEvents: number; templates: number };
 }
 
+export interface Diagnostics {
+  status: 'ok' | 'warn' | 'error' | string;
+  checkedAt: string;
+  version: string;
+  uptime: string;
+  telemt: {
+    url: string;
+    ok: boolean;
+    latencyMs: number;
+    version?: string;
+    code?: string;
+    error?: string;
+    hint?: string;
+  };
+  collector: { up: boolean; lastSuccess?: string; lastError?: string };
+  geoip: { loaded: boolean; built?: string; ageDays: number };
+  valkey: { ok: boolean; latencyMs: number; keys: number; memory?: string; error?: string };
+  webhooks: {
+    configured: boolean;
+    events: string[];
+    secretSet: boolean;
+    lastAt?: string;
+    lastEvent?: string;
+    lastStatus?: number;
+    lastError?: string;
+    sent: number;
+    failed: number;
+  };
+  backups: BackupStatus;
+  security: {
+    require2fa: boolean;
+    graceDays: number;
+    deadline?: string;
+    daysLeft: number;
+    totpKeySet: boolean;
+    adminsWithoutTotp: string[];
+  };
+  warnings: string[];
+}
+
 export interface SettingsHistoryItem {
   At: string;
   Actor: string;
@@ -485,6 +525,7 @@ export const api = {
     request<{ sent: boolean; status: number }>('POST', '/api/settings/webhook/test'),
   system: () => request<SettingsSystem>('GET', '/api/settings/system'),
   settingsHistory: () => request<SettingsHistoryItem[]>('GET', '/api/settings/history'),
+  diagnostics: () => request<Diagnostics>('GET', '/api/diagnostics'),
   setRisk: (name: string, body: RiskThresholds) =>
     request<{ riskThresholds: RiskThresholds; riskDefaults: RiskDefaults }>(
       'PUT',

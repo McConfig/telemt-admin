@@ -314,7 +314,7 @@ func TestAPITelemtDown(t *testing.T) {
 		t.Fatalf("код %d", rr.Code)
 	}
 	var env errorEnvelope
-	if err := json.Unmarshal(rr.Body.Bytes(), &env); err != nil || env.Error.Code != "telemt_unavailable" {
+	if err := json.Unmarshal(rr.Body.Bytes(), &env); err != nil || env.Error.Code != "telemt_api_error" {
 		t.Fatalf("ответ: %s", rr.Body.String())
 	}
 }

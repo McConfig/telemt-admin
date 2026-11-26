@@ -11,6 +11,7 @@ import AuditPage from './pages/AuditPage';
 import AccountPage from './pages/AccountPage';
 import AdminsPage from './pages/AdminsPage';
 import SettingsPage from './pages/SettingsPage';
+import DiagnosticsPage from './pages/DiagnosticsPage';
 
 export default function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
@@ -103,6 +104,10 @@ export default function App() {
           <Route
             path="/settings"
             element={me.user.role === 'admin' ? <SettingsPage /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/diagnostics"
+            element={me.user.role === 'admin' ? <DiagnosticsPage /> : <Navigate to="/" replace />}
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

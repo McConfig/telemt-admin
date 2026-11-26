@@ -306,6 +306,31 @@ export async function mockApi(
     if (!loggedIn) {
       return json(route, { error: { code: 'unauthorized', message: 'требуется вход' } }, 401);
     }
+    if (path === '/api/diagnostics' && method === 'GET') {
+      return json(route, {
+        status: 'warn',
+        checkedAt: new Date().toISOString(),
+        version: 'v1.5.1-e2e',
+        uptime: '1h',
+        telemt: { url: 'http://telemt:9091', ok: true, latencyMs: 3, version: '3.5.17' },
+        collector: { up: true, lastSuccess: new Date().toISOString() },
+        geoip: { loaded: true, built: new Date().toISOString(), ageDays: 2 },
+        valkey: { ok: true, latencyMs: 1, keys: 100, memory: '1M' },
+        webhooks: { configured: false, events: [], secretSet: false, sent: 0, failed: 0 },
+        backups: {
+          valkey: { saveInProgress: false, lastStatus: 'ok', keys: 100, memory: '1M' },
+          host: { available: false },
+        },
+        security: {
+          require2fa: false,
+          graceDays: 7,
+          daysLeft: 0,
+          totpKeySet: true,
+          adminsWithoutTotp: [],
+        },
+        warnings: ['статус хостовых бэкапов недоступен'],
+      });
+    }
     if (path === '/api/settings' && method === 'GET') {
       return json(route, settingsCatalog);
     }
