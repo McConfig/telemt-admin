@@ -14,6 +14,7 @@ import (
 var (
 	ErrNotFound = errors.New("не найдено")
 	ErrExists   = errors.New("уже существует")
+	ErrLimit    = errors.New("превышен лимит")
 )
 
 // Store — обёртка над Valkey.
