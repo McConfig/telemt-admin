@@ -28,7 +28,7 @@ func TestServicePathAllowed(t *testing.T) {
 		{"write", "/api/admins", false},
 		{"write", "/api/services", false},
 		{"admin", "/api/settings", true},
-		{"admin", "/api/admins", true},
+		{"admin", "/api/admins", false},
 		{"admin", "/api/audit", true},
 		{"admin", "/api/audit.csv", true},
 		{"admin", "/api/diagnostics", true},

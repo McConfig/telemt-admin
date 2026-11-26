@@ -24,6 +24,15 @@ func (s *Server) currentPrincipal(r *http.Request) *principal {
 	return p
 }
 
+// sessionUserName возвращает имя только для cookie-сессии; сервисный
+// токен не является пользователем UI и не может ссылаться на себя.
+func (s *Server) sessionUserName(r *http.Request) string {
+	if p := s.currentPrincipal(r); p != nil && p.Kind == "session" {
+		return p.Name
+	}
+	return ""
+}
+
 func (s *Server) actor(r *http.Request) string {
 	if p := s.currentPrincipal(r); p != nil {
 		return p.Name
@@ -51,8 +60,7 @@ func servicePathAllowed(scope, path string) bool {
 	}
 	return path == "/api/audit" || path == "/api/audit.csv" ||
 		path == "/api/diagnostics" ||
-		strings.HasPrefix(path, "/api/settings") ||
-		strings.HasPrefix(path, "/api/admins")
+		strings.HasPrefix(path, "/api/settings")
 }
 
 func (s *Server) requireSessionAdmin(w http.ResponseWriter, r *http.Request) bool {

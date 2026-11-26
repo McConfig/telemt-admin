@@ -360,7 +360,7 @@ func (s *Server) verifyCurrentTOTP(u *store.User, raw string) (int64, bool) {
 /* ---------- сброс администратором ---------- */
 
 func (s *Server) apiResetAdminTOTP(w http.ResponseWriter, r *http.Request) {
-	if !s.requireAdminAPI(w, r) {
+	if !s.requireSessionAdmin(w, r) {
 		return
 	}
 	name := chi.URLParam(r, "name")
@@ -368,8 +368,7 @@ func (s *Server) apiResetAdminTOTP(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", "недопустимое имя")
 		return
 	}
-	sess := s.currentSession(r)
-	if sess.User == name {
+	if s.sessionUserName(r) == name {
 		writeError(w, http.StatusBadRequest, "bad_request", "свой второй фактор отключается в аккаунте с паролем и кодом")
 		return
 	}
