@@ -227,3 +227,83 @@ describe('UsersPage — расширенные сценарии', () => {
     expect(screen.queryByRole('button', { name: 'Создать пользователя' })).not.toBeInTheDocument();
   });
 });
+
+describe('UsersPage — импорт CSV', () => {
+  const preview = {
+    dryRun: true,
+    total: 3,
+    create: 1,
+    skip: 1,
+    error: 1,
+    rows: [
+      { line: 2, name: 'newuser', status: 'create' },
+      { line: 3, name: 'main', status: 'skip', message: 'клиент уже существует' },
+      { line: 4, name: 'bad name', status: 'error', message: 'имя: недопустимое' },
+    ],
+  };
+  const applied = {
+    ...preview,
+    dryRun: false,
+  };
+
+  function importRoutes() {
+    stubFetch({
+      '/api/users': [proxyUser],
+      '/api/summary': summary,
+      '/api/users/import': (url: URL) =>
+        url.searchParams.get('dryRun') === '0' ? applied : preview,
+    });
+  }
+
+  it('проверяет файл и создаёт валидных клиентов', async () => {
+    importRoutes();
+    renderUI(<UsersPage me={me} />);
+    await screen.findByRole('link', { name: 'main' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Импорт CSV' }));
+    expect(await screen.findByText('Импорт клиентов')).toBeInTheDocument();
+
+    const input = screen.getByLabelText('CSV-файл');
+    await userEvent.upload(
+      input,
+      new File(['name\nnewuser\nmain\n'], 'clients.csv', { type: 'text/csv' }),
+    );
+    expect(await screen.findByText(/clients\.csv/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Проверить' }));
+    expect(await screen.findByText(/будет создано: 1/)).toBeInTheDocument();
+    expect(screen.getByText('клиент уже существует')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Создать 1' }));
+    expect(await screen.findByText(/Создано: 1/)).toBeInTheDocument();
+
+    const calls = vi
+      .mocked(fetch)
+      .mock.calls.filter(([url]) => String(url).includes('/api/users/import'));
+    expect(calls).toHaveLength(2);
+    expect(String(calls[0][0])).toContain('dryRun=1');
+    expect(String(calls[1][0])).toContain('dryRun=0');
+    expect(calls[1][1]?.body).toBe('name\nnewuser\nmain\n');
+  });
+
+  it('показывает ошибку разбора CSV', async () => {
+    stubFetch({
+      '/api/users': [proxyUser],
+      '/api/summary': summary,
+      '/api/users/import': () =>
+        new Response(JSON.stringify({ error: { code: 'bad_request', message: 'нет колонки name' } }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    });
+    renderUI(<UsersPage me={me} />);
+    await screen.findByRole('link', { name: 'main' });
+    await userEvent.click(screen.getByRole('button', { name: 'Импорт CSV' }));
+    await userEvent.upload(
+      screen.getByLabelText('CSV-файл'),
+      new File(['secret\nx\n'], 'bad.csv', { type: 'text/csv' }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Проверить' }));
+    expect(await screen.findByText('нет колонки name')).toBeInTheDocument();
+  });
+});

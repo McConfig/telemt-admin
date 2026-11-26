@@ -83,6 +83,7 @@ func New(cfg *config.Config, st *store.Store, tc *telemt.Client, metrics http.Ha
 				r.Post("/logout", s.apiLogout)
 				r.Get("/users", s.apiUsers)
 				r.Post("/users", s.apiCreateUser)
+				r.Post("/users/import", s.apiImportUsers)
 				r.Post("/users/reset-quota", s.apiBulkResetQuota)
 				r.Get("/users/{name}", s.apiUser)
 				r.Patch("/users/{name}", s.apiUpdateLimits)

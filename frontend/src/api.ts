@@ -288,6 +288,22 @@ export interface BulkResetResult {
   failed: { name: string; status: string; code?: string; message: string }[];
 }
 
+export interface ImportRow {
+  line: number;
+  name: string;
+  status: 'create' | 'skip' | 'error';
+  message?: string;
+}
+
+export interface ImportResult {
+  dryRun: boolean;
+  total: number;
+  create: number;
+  skip: number;
+  error: number;
+  rows: ImportRow[];
+}
+
 export interface Diagnostics {
   status: 'ok' | 'warn' | 'error' | string;
   checkedAt: string;
@@ -404,16 +420,7 @@ function emitUnauthorized() {
   window.dispatchEvent(new CustomEvent('tgadmin:unauthorized'));
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const headers: Record<string, string> = {};
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (method !== 'GET' && csrf) headers['X-CSRF-Token'] = csrf;
-  const res = await fetch(path, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-    credentials: 'same-origin',
-  });
+async function readResponse<T>(res: Response): Promise<T> {
   if (res.status === 401) {
     emitUnauthorized();
   }
@@ -432,6 +439,31 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     throw new ApiError(res.status, err?.code ?? 'http', err?.message ?? `HTTP ${res.status}`);
   }
   return data as T;
+}
+
+async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (method !== 'GET' && csrf) headers['X-CSRF-Token'] = csrf;
+  const res = await fetch(path, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+    credentials: 'same-origin',
+  });
+  return readResponse<T>(res);
+}
+
+async function importCSV(csv: string, dryRun: boolean): Promise<ImportResult> {
+  const headers: Record<string, string> = { 'Content-Type': 'text/csv; charset=utf-8' };
+  if (csrf) headers['X-CSRF-Token'] = csrf;
+  const res = await fetch(`/api/users/import?dryRun=${dryRun ? 1 : 0}`, {
+    method: 'POST',
+    headers,
+    body: csv,
+    credentials: 'same-origin',
+  });
+  return readResponse<ImportResult>(res);
 }
 
 export const api = {
@@ -457,6 +489,7 @@ export const api = {
   },
   logout: () => request<void>('POST', '/api/logout'),
   users: () => request<ProxyUser[]>('GET', '/api/users'),
+  importUsers: importCSV,
   user: (name: string) => request<ProxyUser>('GET', `/api/users/${encodeURIComponent(name)}`),
   create: (body: {
     name: string;

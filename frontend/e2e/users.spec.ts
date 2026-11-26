@@ -14,6 +14,22 @@ test('вход и список клиентов', async ({ page }) => {
   await expect(page.getByText('Нидерланды')).toBeVisible();
 });
 
+test('импорт клиентов из CSV', async ({ page }) => {
+  await mockApi(page);
+  await login(page);
+
+  await page.getByRole('button', { name: 'Импорт CSV' }).click();
+  await page.locator('input[aria-label="CSV-файл"]').setInputFiles({
+    name: 'clients.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from('name,max_unique_ips\nnewuser,5\nmain,1\n'),
+  });
+  await page.getByRole('button', { name: 'Проверить' }).click();
+  await expect(page.getByText(/будет создано: 1/)).toBeVisible();
+  await page.getByRole('button', { name: 'Создать 1' }).click();
+  await expect(page.getByText(/Создано: 1/)).toBeVisible();
+});
+
 test('массовый сброс квот', async ({ page }) => {
   await mockApi(page);
   await login(page);
