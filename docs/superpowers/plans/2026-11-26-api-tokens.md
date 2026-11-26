@@ -3,7 +3,7 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > superpowers:subagent-driven-development (recommended) или
 > superpowers:executing-plans, чтобы выполнять план по задачам. Шаги
-> отмечены чекбоксами (`- [ ]`).
+> отмечены чекбоксами (`- [x]`).
 
 **Goal:** добавить сервисные аккаунты и Bearer-токены с правами
 `read / write / admin`, управлением из UI, отзывом, сроком жизни и
@@ -106,7 +106,7 @@ TypeScript, Gravity UI 8, Vitest, Playwright.
   - `func VerifyServiceSecret(secret, hash string) bool`
 - Формат: `tgadm_<16 hex>_<43 base64url>`.
 
-- [ ] **Step 1: написать падающий тест**
+- [x] **Step 1: написать падающий тест**
 
 ```go
 func TestNewServiceTokenRoundTrip(t *testing.T) {
@@ -139,12 +139,12 @@ func TestParseServiceTokenRejectsBadFormat(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: запустить и убедиться, что тест падает**
+- [x] **Step 2: запустить и убедиться, что тест падает**
 
 Run: `go test ./internal/auth -run TestNewServiceToken -v`
 Expected: FAIL, `undefined: NewServiceToken`.
 
-- [ ] **Step 3: реализовать**
+- [x] **Step 3: реализовать**
 
 ```go
 const serviceTokenPrefix = "tgadm_"
@@ -187,12 +187,12 @@ func VerifyServiceSecret(secret, hash string) bool {
 }
 ```
 
-- [ ] **Step 4: запустить тесты**
+- [x] **Step 4: запустить тесты**
 
 Run: `go test ./internal/auth -v`
 Expected: PASS.
 
-- [ ] **Step 5: коммит**
+- [x] **Step 5: коммит**
 
 ```bash
 git add internal/auth/token.go internal/auth/token_test.go
@@ -222,7 +222,7 @@ git commit -m "feat(auth): формат и хеширование сервисн
   - `func (s *Store) UpdateService(ctx context.Context, name string, upd ServiceUpdate) (*ServiceAccount, error)`
   - `func (s *Store) DeleteService(ctx context.Context, name string) error`
 
-- [ ] **Step 1: написать падающие тесты**
+- [x] **Step 1: написать падающие тесты**
 
 ```go
 func TestServiceCRUD(t *testing.T) {
@@ -273,12 +273,12 @@ func TestServiceLimit(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: запустить и убедиться, что тесты падают**
+- [x] **Step 2: запустить и убедиться, что тесты падают**
 
 Run: `go test ./internal/store -run 'TestService' -v`
 Expected: FAIL, `undefined: ServiceAccount`.
 
-- [ ] **Step 3: реализовать**
+- [x] **Step 3: реализовать**
 
 Ключи: `auth:services`, `auth:service:<name>`.
 `CreateService` — `HSETNX` по полю `created_at`, затем `HSet` остальных
@@ -292,12 +292,12 @@ Expected: FAIL, `undefined: ServiceAccount`.
 `auth:token:<id>`, затем hash, множество имён и множество токенов в
 одном pipeline.
 
-- [ ] **Step 4: запустить тесты**
+- [x] **Step 4: запустить тесты**
 
 Run: `go test ./internal/store -run 'TestService' -v`
 Expected: PASS.
 
-- [ ] **Step 5: коммит**
+- [x] **Step 5: коммит**
 
 ```bash
 git add internal/store/services.go internal/store/services_test.go internal/store/store.go
@@ -324,7 +324,7 @@ git commit -m "feat(store): сервисные аккаунты"
   - `func (s *Store) AuthenticateServiceToken(ctx context.Context, raw string) (*ServiceAuth, error)`
   - `ErrInvalidToken = errors.New("неверный или истёкший токен")`
 
-- [ ] **Step 1: написать падающие тесты**
+- [x] **Step 1: написать падающие тесты**
 
 ```go
 func TestCreateAndAuthenticateToken(t *testing.T) {
@@ -450,12 +450,12 @@ func mustService(t *testing.T, st *Store, name string, scope ServiceScope) {
 каскада используется `DeleteService`; после него
 `AuthenticateServiceToken` обязан вернуть `ErrInvalidToken`.
 
-- [ ] **Step 2: запустить и убедиться, что тесты падают**
+- [x] **Step 2: запустить и убедиться, что тесты падают**
 
 Run: `go test ./internal/store -run 'TestCreateAndAuthenticateToken|TestTokenExpiry' -v`
 Expected: FAIL, `undefined: CreateServiceToken`.
 
-- [ ] **Step 3: реализовать**
+- [x] **Step 3: реализовать**
 
 `CreateServiceToken`:
 
@@ -481,12 +481,12 @@ Expected: FAIL, `undefined: CreateServiceToken`.
 `ListServiceTokens` чистит осиротевшие ID, сортирует по `created_at`.
 `DeleteServiceToken` удаляет ключ и ID; неизвестный ID → `ErrNotFound`.
 
-- [ ] **Step 4: запустить тесты**
+- [x] **Step 4: запустить тесты**
 
 Run: `go test ./internal/store -run 'Token|Service' -v`
 Expected: PASS.
 
-- [ ] **Step 5: коммит**
+- [x] **Step 5: коммит**
 
 ```bash
 git add internal/store/service_tokens.go internal/store/service_tokens_test.go
@@ -514,7 +514,7 @@ git commit -m "feat(store): выпуск и проверка сервисных 
   - `func servicePathAllowed(scope string, path string) bool`
   - `func roleForScope(scope store.ServiceScope) store.Role`
 
-- [ ] **Step 1: написать падающие тесты**
+- [x] **Step 1: написать падающие тесты**
 
 ```go
 func TestServicePathAllowed(t *testing.T) {
@@ -546,12 +546,12 @@ func TestServicePathAllowed(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: запустить и убедиться, что тест падает**
+- [x] **Step 2: запустить и убедиться, что тест падает**
 
 Run: `go test ./internal/web -run TestServicePathAllowed -v`
 Expected: FAIL, `undefined: servicePathAllowed`.
 
-- [ ] **Step 3: реализовать principal и allowlist**
+- [x] **Step 3: реализовать principal и allowlist**
 
 ```go
 const principalCtxKey ctxKey = 2
@@ -590,7 +590,7 @@ func servicePathAllowed(scope, path string) bool {
 }
 ```
 
-- [ ] **Step 4: встроить Bearer в `withAPISession`**
+- [x] **Step 4: встроить Bearer в `withAPISession`**
 
 Порядок:
 
@@ -616,7 +616,7 @@ func servicePathAllowed(scope, path string) bool {
 csrf:"", service:true, scope}`. `apiLogout` для service — `204` без
 действий.
 
-- [ ] **Step 5: добавить тесты middleware**
+- [x] **Step 5: добавить тесты middleware**
 
 ```go
 func TestBearerScopes(t *testing.T) {
@@ -692,12 +692,12 @@ func TestBearerWinsOverCookie(t *testing.T) {
 `seedServiceToken` — тестовый помощник: создать сервис, выпустить
 токен, вернуть полный токен.
 
-- [ ] **Step 6: запустить тесты**
+- [x] **Step 6: запустить тесты**
 
 Run: `go test ./internal/web -run 'TestServicePathAllowed|TestBearer' -v`
 Expected: PASS.
 
-- [ ] **Step 7: коммит**
+- [x] **Step 7: коммит**
 
 ```bash
 git add internal/web/principal.go internal/web/principal_test.go internal/web/api.go internal/web/api_auth.go
@@ -717,7 +717,7 @@ git commit -m "feat(web): Bearer-токены и единый principal"
 - Consumes: store methods из Task 2–3, `requireSessionAdmin`.
 - Produces JSON-контракты из раздела 7 спецификации.
 
-- [ ] **Step 1: написать падающие тесты**
+- [x] **Step 1: написать падающие тесты**
 
 ```go
 func TestServiceAPICRUD(t *testing.T) {
@@ -792,12 +792,12 @@ func mustServiceAPI(t *testing.T, s *Server, tok, csrf, name, scope string) {
 }
 ```
 
-- [ ] **Step 2: запустить и убедиться, что тесты падают**
+- [x] **Step 2: запустить и убедиться, что тесты падают**
 
 Run: `go test ./internal/web -run 'TestServiceAPI|TestIssueToken' -v`
 Expected: FAIL, 404 на `/api/services`.
 
-- [ ] **Step 3: реализовать обработчики и маршруты**
+- [x] **Step 3: реализовать обработчики и маршруты**
 
 Маршруты внутри CSRF-группы:
 
@@ -824,7 +824,7 @@ r.Delete("/services/{name}/tokens/{id}", s.apiRevokeServiceToken)
 `204` удаление. Ошибки: `400`, `404`, `409`, `429`, `403
 session_required`.
 
-- [ ] **Step 4: добавить тесты прав**
+- [x] **Step 4: добавить тесты прав**
 
 Проверить:
 
@@ -835,12 +835,12 @@ session_required`.
 - неизвестный сервис — `404`;
 - секрет отсутствует в аудите.
 
-- [ ] **Step 5: запустить тесты**
+- [x] **Step 5: запустить тесты**
 
 Run: `go test ./internal/web -run 'Service|Token' -v`
 Expected: PASS.
 
-- [ ] **Step 6: коммит**
+- [x] **Step 6: коммит**
 
 ```bash
 git add internal/web/api_services.go internal/web/api_services_test.go internal/web/server.go
@@ -866,7 +866,7 @@ git commit -m "feat(web): API сервисных аккаунтов и токе�
     `api.deleteService(name, confirm)`
 - Consumes: `request<T>`.
 
-- [ ] **Step 1: написать падающий тест страницы**
+- [x] **Step 1: написать падающий тест страницы**
 
 Тестовые данные:
 
@@ -897,12 +897,12 @@ it('показывает список и создаёт сервис', async () 
 });
 ```
 
-- [ ] **Step 2: запустить и убедиться, что тест падает**
+- [x] **Step 2: запустить и убедиться, что тест падает**
 
 Run: `cd frontend && npx vitest run src/pages/ServicesPage.test.tsx`
 Expected: FAIL, модуль не найден.
 
-- [ ] **Step 3: добавить типы и методы в `api.ts`**
+- [x] **Step 3: добавить типы и методы в `api.ts`**
 
 ```ts
 export type ServiceScope = 'read' | 'write' | 'admin';
@@ -930,7 +930,7 @@ deleteService: (name: string) =>
   request<void>('DELETE', `/api/services/${encodeURIComponent(name)}`, { confirm: name }),
 ```
 
-- [ ] **Step 4: реализовать страницу**
+- [x] **Step 4: реализовать страницу**
 
 `ServicesPage`:
 
@@ -945,12 +945,12 @@ deleteService: (name: string) =>
 
 Добавить маршрут `/services` и пункт меню для admin.
 
-- [ ] **Step 5: запустить тест и typecheck**
+- [x] **Step 5: запустить тест и typecheck**
 
 Run: `npx vitest run src/pages/ServicesPage.test.tsx && npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 6: коммит**
+- [x] **Step 6: коммит**
 
 ```bash
 git add frontend/src/api.ts frontend/src/pages/ServicesPage.tsx frontend/src/pages/ServicesPage.test.tsx frontend/src/App.tsx frontend/src/Layout.tsx
@@ -975,7 +975,7 @@ git commit -m "feat(ui): страница сервисных аккаунтов"
   - `api.issueServiceToken(name, body: { label?: string; expiresInDays: number })`
   - `api.revokeServiceToken(name, id)`
 
-- [ ] **Step 1: написать падающий тест**
+- [x] **Step 1: написать падающий тест**
 
 ```tsx
 const token: ServiceToken = {
@@ -1009,12 +1009,12 @@ it('выпускает токен и показывает его один раз
 });
 ```
 
-- [ ] **Step 2: запустить и убедиться, что тест падает**
+- [x] **Step 2: запустить и убедиться, что тест падает**
 
 Run: `npx vitest run src/pages/ServiceTokensDialog.test.tsx`
 Expected: FAIL, модуль не найден.
 
-- [ ] **Step 3: реализовать диалог**
+- [x] **Step 3: реализовать диалог**
 
 - Таблица токенов: метка, ID, создан, срок, последнее использование,
   «Отозвать».
@@ -1026,17 +1026,17 @@ Expected: FAIL, модуль не найден.
 - Отзыв с подтверждением.
 - Для отключённого сервиса — предупреждение, что токены не работают.
 
-- [ ] **Step 4: подключить диалог к странице**
+- [x] **Step 4: подключить диалог к странице**
 
 Кнопка «Токены» открывает `ServiceTokensDialog` с выбранным сервисом;
 после закрытия — `load()`.
 
-- [ ] **Step 5: запустить тесты**
+- [x] **Step 5: запустить тесты**
 
 Run: `npx vitest run src/pages/ServiceTokensDialog.test.tsx src/pages/ServicesPage.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 6: коммит**
+- [x] **Step 6: коммит**
 
 ```bash
 git add frontend/src/api.ts frontend/src/pages/ServiceTokensDialog.tsx frontend/src/pages/ServiceTokensDialog.test.tsx frontend/src/pages/ServicesPage.tsx
@@ -1056,7 +1056,7 @@ git commit -m "feat(ui): выпуск и отзыв сервисных токе�
 - Create: `docs/adr/0009-api-tokens.md`
 - Modify: приватный `docs/tgproxy.md`
 
-- [ ] **Step 1: написать e2e**
+- [x] **Step 1: написать e2e**
 
 Сценарий:
 
@@ -1067,12 +1067,12 @@ git commit -m "feat(ui): выпуск и отзыв сервисных токе�
 5. Меняет scope на write, тем же токеном создаёт клиента — 201.
 6. Отзывает токен, `GET /api/users` — 401.
 
-- [ ] **Step 2: запустить e2e и убедиться, что падает**
+- [x] **Step 2: запустить e2e и убедиться, что падает**
 
 Run: `cd frontend && npx playwright test e2e/services.spec.ts`
 Expected: FAIL, маршруты и моки отсутствуют.
 
-- [ ] **Step 3: добавить моки и пройти e2e**
+- [x] **Step 3: добавить моки и пройти e2e**
 
 В `mock.ts`:
 
@@ -1082,7 +1082,7 @@ Expected: FAIL, маршруты и моки отсутствуют.
 - проверка `Authorization` для `/api/users`;
 - фиксированный выпущенный токен.
 
-- [ ] **Step 4: документация**
+- [x] **Step 4: документация**
 
 `docs/API.md`: сервисные аккаунты, токены, матрица прав, коды ошибок,
 пример:
@@ -1100,7 +1100,7 @@ curl -H "Authorization: Bearer tgadm_..." https://tgadmin.example.com/api/users
 Приватный `docs/tgproxy.md`: создать сервис, выпустить токен, пример
 вызова, отозвать, проверить 401.
 
-- [ ] **Step 5: полный прогон**
+- [x] **Step 5: полный прогон**
 
 ```bash
 go test ./...
@@ -1117,7 +1117,7 @@ npm run e2e
 
 Ожидание: всё зелёное, покрытие не ниже порогов.
 
-- [ ] **Step 6: коммит**
+- [x] **Step 6: коммит**
 
 ```bash
 git add frontend/e2e/services.spec.ts frontend/e2e/mock.ts README.md docs
@@ -1135,13 +1135,13 @@ git commit -m "test(e2e): сервисные токены и документа�
 - Modify: `deploy/demo/.env.example`
 - Modify: `deploy/demo/README.md`
 
-- [ ] **Step 1: зафиксировать версию**
+- [x] **Step 1: зафиксировать версию**
 
 В `CHANGELOG.md` добавить `## [1.9.0] — 2026-11-26` и перенести
 содержимое Unreleased в этот раздел. В deploy-файлах заменить
 `v1.8.0` на `v1.9.0`.
 
-- [ ] **Step 2: прогнать проверки и создать release PR**
+- [x] **Step 2: прогнать проверки и создать release PR**
 
 ```bash
 go test ./...
@@ -1151,7 +1151,7 @@ cd frontend && npm run typecheck && npm run coverage && npm run build && npm run
 
 Создать PR `release: v1.9.0`, дождаться зелёного CI, смержить squash.
 
-- [ ] **Step 3: тег и release workflow**
+- [x] **Step 3: тег и release workflow**
 
 ```bash
 git checkout main && git pull --ff-only
@@ -1162,19 +1162,19 @@ git push origin v1.9.0
 Дождаться успешного `release.yml`, проверить, что в GitHub Release есть
 SBOM, подписи и attestation.
 
-- [ ] **Step 4: деплой на рабочий хост**
+- [x] **Step 4: деплой на рабочий хост**
 
 Сделать бэкап Valkey и compose, заменить тег на `v1.9.0`, выполнить
 `docker compose pull tgadmin && docker compose up -d tgadmin`, проверить
 `healthy`, `/api/meta` с версией `v1.9.0` и HTTPS `200`.
 
-- [ ] **Step 5: приватная документация**
+- [x] **Step 5: приватная документация**
 
 Обновить `docs/tgproxy.md`: образ `v1.9.0`, раздел про сервисные
 аккаунты, выпуск токена, пример `curl`, отзыв и проверку `401`.
 Создать PR в `McConfig/private`, дождаться проверок и смержить.
 
-- [ ] **Step 6: коммит**
+- [x] **Step 6: коммит**
 
 ```bash
 git add CHANGELOG.md deploy
