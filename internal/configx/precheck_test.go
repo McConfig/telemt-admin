@@ -75,3 +75,15 @@ func TestPrecheckDeletions(t *testing.T) {
 	}
 	_ = store.RoleAdmin
 }
+
+func TestPrecheckRejectsSecretsWithoutFlag(t *testing.T) {
+	svc, _ := testService(t)
+	b := &Bundle{
+		APIVersion: APIVersion, Kind: Kind,
+		Metadata: Metadata{Name: "demo", Secrets: SecretsNone},
+		Spec:     Spec{Clients: []Client{{Username: "main", Secret: "0123456789abcdef0123456789abcdef"}}},
+	}
+	if _, err := svc.Precheck(context.Background(), PrecheckOptions{Bundle: b}); err == nil {
+		t.Fatal("ожидалась ошибка секрета без флага")
+	}
+}

@@ -1,6 +1,9 @@
 package configx
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestDecodeRejectsUnknownField(t *testing.T) {
 	_, err := Decode([]byte("apiVersion: tgadmin.telemt/v1\nkind: InstallationBundle\nmetadata: {name: x, secrets: none}\nspec: {}\nunknown: 1\n"))
@@ -43,5 +46,15 @@ func TestRoundTrip(t *testing.T) {
 	got, err := Decode(raw)
 	if err != nil || got.Spec.Settings["risk"]["warn_ips"] != 3 {
 		t.Fatalf("%+v %v", got, err)
+	}
+}
+
+func TestDecodeRejectsDeepNesting(t *testing.T) {
+	raw := "apiVersion: tgadmin.telemt/v1\nkind: InstallationBundle\nmetadata: {name: x, secrets: none}\nspec:\n  settings:\n"
+	for i := 0; i < 80; i++ {
+		raw += "    " + strings.Repeat(" ", i) + "a:\n"
+	}
+	if _, err := Decode([]byte(raw)); err == nil {
+		t.Fatal("ожидалась ошибка глубины")
 	}
 }
