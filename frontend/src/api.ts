@@ -107,6 +107,7 @@ export interface ConfigBlockResult {
 
 export interface ProxySchemaField {
   path: string;
+  description?: string;
   value: Record<string, unknown>;
   api: { config_read: boolean; config_write: boolean };
   apply: { watcher: string; reload: string; effect: string };

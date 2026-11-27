@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import ProxyPanel from './ProxyPanel';
@@ -153,5 +153,162 @@ describe('ProxyPanel — ошибка применения', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: 'Подтвердить опасные изменения' }));
     await userEvent.click(screen.getByRole('button', { name: 'Применить' }));
     expect(await screen.findByText('нет связи')).toBeInTheDocument();
+  });
+});
+
+const jsonSchema = {
+  version: 1,
+  fields: [
+    {
+      path: 'general.links.public_host',
+      value: { type: 'string' },
+      api: { config_read: true, config_write: true },
+      apply: { watcher: 'supported', reload: 'supported', effect: 'links' },
+    },
+    {
+      path: 'upstreams',
+      value: { type: 'array', items: { type: 'object' } },
+      api: { config_read: true, config_write: true },
+      apply: { watcher: 'supported', reload: 'supported', effect: 'routing' },
+    },
+    {
+      path: 'server.port',
+      value: { type: 'integer' },
+      api: { config_read: false, config_write: false },
+      apply: { watcher: 'unsupported', reload: 'unsupported', effect: 'restart' },
+      non_editable_reason: 'process_owned',
+    },
+  ],
+};
+
+describe('ProxyPanel — таблица и JSON', () => {
+  it('показывает колонки и чекбокс для boolean', async () => {
+    stubFetch({
+      '/api/proxy/schema': extendedSchema,
+      '/api/proxy/config': {
+        revision: 'rev1',
+        config: {
+          general: { links: { public_host: 'old', public_port: 443 } },
+          censorship: { mask: true },
+        },
+      },
+    });
+    renderUI(<ProxyPanel />);
+    expect((await screen.findAllByText('Параметр')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Значение').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Включено').length).toBeGreaterThan(0);
+    expect(screen.getByRole('checkbox', { name: 'censorship.mask' })).toBeChecked();
+  });
+
+  it('редактирует JSON с валидацией и применяет массив', async () => {
+    stubFetch({
+      '/api/proxy/schema': jsonSchema,
+      '/api/proxy/config': {
+        revision: 'rev1',
+        config: {
+          general: { links: { public_host: 'old' } },
+          upstreams: [{ address: '1.1.1.1:443' }],
+        },
+      },
+      '/api/proxy/apply': { revision: 'rev2', changedPaths: ['upstreams'], reloadId: 0 },
+      '/api/proxy/reload/0': { reload_id: 0, state: 'succeeded' },
+    });
+    renderUI(<ProxyPanel />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Изменить JSON' }));
+    const dialog = await screen.findByRole('dialog');
+    const editor = within(dialog).getByLabelText('JSON');
+    fireEvent.change(editor, { target: { value: '{{' } });
+    expect(await within(dialog).findByText(/Expected|ожидается|Unexpected|property name/)).toBeInTheDocument();
+    fireEvent.change(editor, { target: { value: '[{"address":"2.2.2.2:443"}]' } });
+    await within(dialog).getByRole('button', { name: 'Применить' }).click();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await userEvent.click(screen.getByRole('button', { name: 'Применить' }));
+    await waitFor(() => expect(calls('POST', '/api/proxy/apply')).toHaveLength(1));
+    const init = calls('POST', '/api/proxy/apply')[0][1] as RequestInit;
+    expect(JSON.parse(String(init.body)).patch).toMatchObject({
+      upstreams: [{ address: '2.2.2.2:443' }],
+    });
+  });
+
+  it('фильтрует параметры поиском', async () => {
+    stubFetch({
+      '/api/proxy/schema': extendedSchema,
+      '/api/proxy/config': {
+        revision: 'rev1',
+        config: {
+          general: { links: { public_host: 'old', public_port: 443 } },
+          censorship: { mask: true },
+        },
+      },
+    });
+    renderUI(<ProxyPanel />);
+    await screen.findByText('general.links.public_host');
+    await userEvent.type(screen.getByLabelText('Поиск по параметру'), 'censorship');
+    expect(screen.queryByText('general.links.public_host')).not.toBeInTheDocument();
+    expect(screen.getByText('censorship.mask')).toBeInTheDocument();
+  });
+});
+
+const objectSchema = {
+  version: 1,
+  fields: [
+    {
+      path: 'dc_overrides',
+      value: { type: 'object' },
+      api: { config_read: true, config_write: true },
+      apply: { watcher: 'supported', reload: 'supported', effect: 'routing' },
+    },
+    {
+      path: 'general.log_level',
+      value: { type: 'string', enum: ['info', 'debug'] },
+      api: { config_read: true, config_write: true },
+      apply: { watcher: 'supported', reload: 'supported', effect: 'logging' },
+    },
+    {
+      path: 'server.metrics',
+      value: { type: 'boolean' },
+      api: { config_read: false, config_write: false },
+      apply: { watcher: 'unsupported', reload: 'unsupported', effect: 'restart' },
+      non_editable_reason: 'process_owned',
+    },
+  ],
+};
+
+describe('ProxyPanel — объект, enum и read-only', () => {
+  it('валидирует тип объекта, форматирует и переключает enum', async () => {
+    stubFetch({
+      '/api/proxy/schema': objectSchema,
+      '/api/proxy/config': {
+        revision: 'rev1',
+        config: { dc_overrides: { '203': ['1.1.1.1:443'] }, general: { log_level: 'info' } },
+      },
+    });
+    renderUI(<ProxyPanel />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Изменить JSON' }));
+    const dialog = await screen.findByRole('dialog');
+    const editor = within(dialog).getByLabelText('JSON');
+    fireEvent.change(editor, { target: { value: '[]' } });
+    expect(await within(dialog).findByText('ожидается JSON-объект')).toBeInTheDocument();
+    await within(dialog).getByRole('button', { name: 'Форматировать' }).click();
+    fireEvent.change(editor, { target: { value: '{"204":["2.2.2.2:443"]}' } });
+    await within(dialog).getByRole('button', { name: 'Применить' }).click();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await userEvent.click(screen.getByLabelText('general.log_level'));
+    await userEvent.click(await screen.findByText('debug'));
+    expect(screen.getAllByText('general.log_level').length).toBeGreaterThan(0);
+  });
+
+  it('показывает неактивный чекбокс для read-only boolean', async () => {
+    stubFetch({
+      '/api/proxy/schema': objectSchema,
+      '/api/proxy/config': { revision: 'rev1', config: { server: { metrics: true } } },
+    });
+    renderUI(<ProxyPanel />);
+    await screen.findByText('Только через файл или перезапуск');
+    await userEvent.click(screen.getByText('Только через файл или перезапуск'));
+    const checkbox = await screen.findByRole('checkbox', { name: 'server.metrics' });
+    expect(checkbox).toBeDisabled();
+    expect(checkbox).toBeChecked();
   });
 });
