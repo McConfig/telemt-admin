@@ -44,7 +44,7 @@ type Spec struct {
 	LimitTemplates []LimitTemplate           `yaml:"limitTemplates,omitempty" json:"limitTemplates,omitempty"`
 	Proxy          *Proxy                    `yaml:"proxy,omitempty" json:"proxy,omitempty"`
 	Users          []User                    `yaml:"users,omitempty" json:"users,omitempty"`
-	Services       []Service                 `yaml:"services,omitempty" json:"services,omitempty"`
+	Services       []ServiceAccount          `yaml:"services,omitempty" json:"services,omitempty"`
 	Clients        []Client                  `yaml:"clients,omitempty" json:"clients,omitempty"`
 }
 
@@ -81,8 +81,8 @@ type User struct {
 	PasswordHash string `yaml:"passwordHash,omitempty" json:"passwordHash,omitempty"`
 }
 
-// Service — сервисный аккаунт.
-type Service struct {
+// ServiceAccount — сервисный аккаунт.
+type ServiceAccount struct {
 	Name        string  `yaml:"name" json:"name"`
 	Description string  `yaml:"description,omitempty" json:"description,omitempty"`
 	Scope       string  `yaml:"scope" json:"scope"`

@@ -214,3 +214,65 @@ func decodeServiceToken(id string, m map[string]string) ServiceToken {
 	}
 	return tok
 }
+
+// ServiceTokenSecret — токен с хешем для экспорта.
+type ServiceTokenSecret struct {
+	ID         string
+	Service    string
+	Label      string
+	CreatedBy  string
+	SecretHash string
+	CreatedAt  time.Time
+	ExpiresAt  *time.Time
+}
+
+// ExportServiceTokens возвращает токены сервиса вместе с хешами.
+func (s *Store) ExportServiceTokens(ctx context.Context, service string) ([]ServiceTokenSecret, error) {
+	ids, err := s.rdb.SMembers(ctx, serviceTokensKey(service)).Result()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ServiceTokenSecret, 0, len(ids))
+	for _, id := range ids {
+		m, err := s.rdb.HGetAll(ctx, tokenKey(id)).Result()
+		if err != nil || len(m) == 0 {
+			continue
+		}
+		t := ServiceTokenSecret{
+			ID: id, Service: service, Label: m["label"], CreatedBy: m["created_by"],
+			SecretHash: m["secret_hash"],
+		}
+		t.CreatedAt, _ = time.Parse(time.RFC3339, m["created_at"])
+		if raw := m["expires_at"]; raw != "" {
+			if exp, err := time.Parse(time.RFC3339, raw); err == nil {
+				t.ExpiresAt = &exp
+			}
+		}
+		out = append(out, t)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out, nil
+}
+
+// ImportServiceToken добавляет токен с готовым хешем, если ID ещё нет.
+func (s *Store) ImportServiceToken(ctx context.Context, t ServiceTokenSecret) error {
+	ok, err := s.rdb.HSetNX(ctx, tokenKey(t.ID), "secret_hash", t.SecretHash).Result()
+	if err != nil || !ok {
+		return err
+	}
+	if _, err := s.rdb.HSet(ctx, tokenKey(t.ID), map[string]any{
+		"service": t.Service, "label": t.Label, "created_by": t.CreatedBy,
+		"created_at": t.CreatedAt.UTC().Format(time.RFC3339),
+	}).Result(); err != nil {
+		return err
+	}
+	if t.ExpiresAt != nil {
+		if _, err := s.rdb.HSet(ctx, tokenKey(t.ID), "expires_at", t.ExpiresAt.UTC().Format(time.RFC3339)).Result(); err != nil {
+			return err
+		}
+		if err := s.rdb.PExpireAt(ctx, tokenKey(t.ID), *t.ExpiresAt).Err(); err != nil {
+			return err
+		}
+	}
+	return s.rdb.SAdd(ctx, serviceTokensKey(t.Service), t.ID).Err()
+}
