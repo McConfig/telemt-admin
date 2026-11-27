@@ -1013,7 +1013,7 @@ func (s *Service) prepare(
 	values map[string]json.RawMessage, reset []string,
 ) (map[string]string, []Change, error) {
 	set := make(map[string]string, len(values))
-	changes := make([]Change, 0, len(values)+len(reset))
+	changes := make([]Change, 0)
 	for key, raw := range values {
 		d, ok := s.by[key]
 		if !ok {
