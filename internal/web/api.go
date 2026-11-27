@@ -96,16 +96,13 @@ func (s *Server) withAPISession(next http.Handler) http.Handler {
 	})
 }
 
-// bearerToken возвращает токен из Authorization. present=true и пустой
-// токен означает, что заголовок есть, но имеет неверную схему.
+// bearerToken возвращает токен только для схемы Bearer. Другие схемы
+// игнорируются, чтобы Basic-auth от прокси не ломал cookie-сессию.
 func bearerToken(r *http.Request) (string, bool) {
 	raw := strings.TrimSpace(r.Header.Get("Authorization"))
-	if raw == "" {
-		return "", false
-	}
 	const prefix = "bearer "
 	if len(raw) <= len(prefix) || !strings.EqualFold(raw[:len(prefix)], prefix) {
-		return "", true
+		return "", false
 	}
 	return strings.TrimSpace(raw[len(prefix):]), true
 }

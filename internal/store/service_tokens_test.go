@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -139,5 +140,43 @@ func TestTokenStoresOnlyHash(t *testing.T) {
 	}
 	if m["secret_hash"] == "" || strings.Contains(full, m["secret_hash"]) {
 		t.Fatal("секрет хранится некорректно")
+	}
+}
+
+func TestTokenOrphanIndexRejected(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newTestStore(t)
+	mustService(t, st, "svc", ScopeRead)
+	full, tok, err := st.CreateServiceToken(ctx, "svc", "", "admin", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.rdb.SRem(ctx, serviceTokensKey("svc"), tok.ID).Err(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.AuthenticateServiceToken(ctx, full); !errors.Is(err, ErrInvalidToken) {
+		t.Fatalf("осиротевший токен: %v", err)
+	}
+}
+
+func TestCreateTokenConcurrentLimit(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newTestStore(t)
+	mustService(t, st, "svc", ScopeRead)
+	var wg sync.WaitGroup
+	for i := 0; i < MaxServiceTokens+10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _, _ = st.CreateServiceToken(ctx, "svc", "", "admin", nil)
+		}()
+	}
+	wg.Wait()
+	list, err := st.ListServiceTokens(ctx, "svc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) > MaxServiceTokens {
+		t.Fatalf("токенов %d, лимит %d", len(list), MaxServiceTokens)
 	}
 }

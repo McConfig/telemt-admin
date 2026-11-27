@@ -41,10 +41,12 @@ func (s *Server) actor(r *http.Request) string {
 }
 
 func roleForScope(scope store.ServiceScope) store.Role {
-	if scope == store.ScopeRead {
+	switch scope {
+	case store.ScopeAdmin, store.ScopeWrite:
+		return store.RoleAdmin
+	default:
 		return store.RoleViewer
 	}
-	return store.RoleAdmin
 }
 
 func servicePathAllowed(scope, path string) bool {

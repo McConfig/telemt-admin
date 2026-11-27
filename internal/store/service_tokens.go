@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/McConfig/telemt-admin/internal/auth"
+	"github.com/redis/go-redis/v9"
 )
 
 // MaxServiceTokens — максимум активных токенов на сервис.
@@ -14,6 +16,20 @@ const MaxServiceTokens = 20
 
 // ErrInvalidToken — неверный, истёкший или отозванный токен.
 var ErrInvalidToken = errors.New("неверный или истёкший токен")
+
+var createServiceTokenScript = redis.NewScript(`
+local count = redis.call('SCARD', KEYS[1])
+if count >= tonumber(ARGV[1]) then return -1 end
+redis.call('HSET', KEYS[2],
+  'service', ARGV[2], 'label', ARGV[4], 'secret_hash', ARGV[5],
+  'created_at', ARGV[6], 'created_by', ARGV[7])
+if ARGV[8] ~= '' then
+  redis.call('HSET', KEYS[2], 'expires_at', ARGV[8])
+  redis.call('PEXPIREAT', KEYS[2], ARGV[9])
+end
+redis.call('SADD', KEYS[1], ARGV[3])
+return 1
+`)
 
 // ServiceToken — метаданные токена без секрета.
 type ServiceToken struct {
@@ -62,23 +78,23 @@ func (s *Store) CreateServiceToken(
 		exp := expiresAt.UTC()
 		tok.ExpiresAt = &exp
 	}
-	fields := map[string]any{
-		"service": service, "label": label,
-		"secret_hash": auth.HashServiceSecret(secret),
-		"created_at":  now.Format(time.RFC3339),
-		"created_by":  createdBy,
-	}
+	expires := ""
+	ttl := ""
 	if tok.ExpiresAt != nil {
-		fields["expires_at"] = tok.ExpiresAt.Format(time.RFC3339)
+		expires = tok.ExpiresAt.Format(time.RFC3339)
+		ttl = strconv.FormatInt(tok.ExpiresAt.UnixMilli(), 10)
 	}
-	pipe := s.rdb.TxPipeline()
-	pipe.HSet(ctx, tokenKey(id), fields)
-	if tok.ExpiresAt != nil {
-		pipe.ExpireAt(ctx, tokenKey(id), *tok.ExpiresAt)
-	}
-	pipe.SAdd(ctx, serviceTokensKey(service), id)
-	if _, err := pipe.Exec(ctx); err != nil {
+	res, err := createServiceTokenScript.Run(ctx, s.rdb,
+		[]string{serviceTokensKey(service), tokenKey(id)},
+		MaxServiceTokens, service, id, label,
+		auth.HashServiceSecret(secret), now.Format(time.RFC3339),
+		createdBy, expires, ttl,
+	).Int()
+	if err != nil {
 		return "", ServiceToken{}, err
+	}
+	if res < 0 {
+		return "", ServiceToken{}, ErrLimit
 	}
 	return full, tok, nil
 }
@@ -141,6 +157,10 @@ func (s *Store) AuthenticateServiceToken(ctx context.Context, raw string) (*Serv
 	}
 	svc, err := s.GetService(ctx, m["service"])
 	if err != nil || svc.Disabled {
+		return nil, ErrInvalidToken
+	}
+	inIndex, err := s.rdb.SIsMember(ctx, serviceTokensKey(svc.Name), id).Result()
+	if err != nil || !inIndex {
 		return nil, ErrInvalidToken
 	}
 	now := time.Now().UTC()

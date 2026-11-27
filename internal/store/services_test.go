@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 )
 
@@ -64,5 +65,28 @@ func TestUpdateMissingService(t *testing.T) {
 	}
 	if err := st.DeleteService(ctx, "missing"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("delete missing: %v", err)
+	}
+}
+
+func TestCreateServiceConcurrentLimit(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newTestStore(t)
+	var wg sync.WaitGroup
+	for i := 0; i < MaxServiceAccounts+10; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			_ = st.CreateService(ctx, ServiceAccount{
+				Name: fmt.Sprintf("svc%02d", i), Scope: ScopeRead,
+			})
+		}(i)
+	}
+	wg.Wait()
+	list, err := st.ListServices(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) > MaxServiceAccounts {
+		t.Fatalf("сервисов %d, лимит %d", len(list), MaxServiceAccounts)
 	}
 }
