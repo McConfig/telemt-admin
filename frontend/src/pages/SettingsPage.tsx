@@ -3,6 +3,7 @@ import { Alert, Button, Card, Checkbox, Label, Loader, Select, Text, TextInput }
 import { api, ApiError, type SettingField, type SettingsCatalog } from '../api';
 import { BackupsPanel, HistoryPanel, SystemPanel, TemplatesPanel } from './SettingsExtras';
 import ConfigExchange from './ConfigExchange';
+import ProxyPanel from './ProxyPanel';
 
 function isDirty(field: SettingField, value: unknown): boolean {
   if (field.status !== 'active') return false;
@@ -336,6 +337,7 @@ export default function SettingsPage() {
         );
       })}
       {tab === 'templates' && <TemplatesPanel />}
+      {tab === 'proxy' && <ProxyPanel />}
       {tab === 'backups' && (
         <>
           <ConfigExchange />
