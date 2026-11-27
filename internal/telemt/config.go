@@ -13,9 +13,10 @@ type ConfigData struct {
 
 // SchemaField — описание одного пути конфигурации.
 type SchemaField struct {
-	Path  string         `json:"path"`
-	Value map[string]any `json:"value"`
-	API   struct {
+	Path        string         `json:"path"`
+	Description string         `json:"description,omitempty"`
+	Value       map[string]any `json:"value"`
+	API         struct {
 		ConfigRead  bool `json:"config_read"`
 		ConfigWrite bool `json:"config_write"`
 	} `json:"api"`

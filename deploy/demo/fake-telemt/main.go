@@ -450,12 +450,12 @@ func (s *server) handleConfigSchema(w http.ResponseWriter, _ *http.Request) {
 	writeOK(w, map[string]any{
 		"schema_version": 1,
 		"fields": []map[string]any{
-			{"path": "general.links.public_host", "value": map[string]any{"type": "string"}, "api": map[string]any{"config_read": true, "config_write": true}},
-			{"path": "general.links.public_port", "value": map[string]any{"type": "integer"}, "api": map[string]any{"config_read": true, "config_write": true}},
-			{"path": "general.modes.tls", "value": map[string]any{"type": "boolean"}, "api": map[string]any{"config_read": true, "config_write": true}},
-			{"path": "censorship.tls_domain", "value": map[string]any{"type": "string"}, "api": map[string]any{"config_read": true, "config_write": true}},
-			{"path": "censorship.mask", "value": map[string]any{"type": "boolean"}, "api": map[string]any{"config_read": true, "config_write": true}},
-			{"path": "upstreams", "value": map[string]any{"type": "array", "items": map[string]any{"type": "object"}}, "api": map[string]any{"config_read": true, "config_write": true}},
+			{"path": "general.links.public_host", "description": "Публичный адрес в ссылках tg://", "value": map[string]any{"type": "string"}, "api": map[string]any{"config_read": true, "config_write": true}},
+			{"path": "general.links.public_port", "description": "Порт в ссылках tg://", "value": map[string]any{"type": "integer"}, "api": map[string]any{"config_read": true, "config_write": true}},
+			{"path": "general.modes.tls", "description": "Разрешить режим FakeTLS", "value": map[string]any{"type": "boolean"}, "api": map[string]any{"config_read": true, "config_write": true}},
+			{"path": "censorship.tls_domain", "description": "Домен-прикрытие для FakeTLS", "value": map[string]any{"type": "string"}, "api": map[string]any{"config_read": true, "config_write": true}},
+			{"path": "censorship.mask", "description": "Маскировать неизвестные соединения", "value": map[string]any{"type": "boolean"}, "api": map[string]any{"config_read": true, "config_write": true}},
+			{"path": "upstreams", "description": "Прямые апстримы telemt", "value": map[string]any{"type": "array", "items": map[string]any{"type": "object"}}, "api": map[string]any{"config_read": true, "config_write": true}},
 			{"path": "server.port", "value": map[string]any{"type": "integer"}, "api": map[string]any{"config_read": false, "config_write": false}, "non_editable_reason": "process_owned"},
 		},
 	})

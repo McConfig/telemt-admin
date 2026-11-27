@@ -85,9 +85,12 @@ table a:hover, .user-card a:hover { text-decoration: underline; text-underline-o
 }
 
 .proxy-table { display: flex; flex-direction: column; gap: 8px; }
+.proxy-group { display: flex; flex-direction: column; gap: 8px; }
+.proxy-group-toggle { align-self: flex-start; padding-left: 0; }
+.proxy-group-title { display: inline-flex; align-items: center; gap: 8px; }
 .proxy-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.1fr) minmax(0, 2fr) 150px;
+  grid-template-columns: minmax(260px, 1.2fr) minmax(0, 2fr) 120px;
   border: 1px solid var(--g-color-line-generic);
   border-radius: 10px;
   background: var(--g-color-base-generic);
@@ -97,7 +100,14 @@ table a:hover, .user-card a:hover { text-decoration: underline; text-underline-o
   background: var(--g-color-base-generic-alt);
   font-weight: 600;
 }
-.proxy-cell { padding: 10px 12px; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+.proxy-cell { padding: 10px 12px; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; overflow-wrap: anywhere; }
+.proxy-name-line { display: flex; align-items: flex-start; gap: 6px; flex-wrap: wrap; }
+.proxy-name-line .g-text { overflow-wrap: anywhere; }
+.proxy-help { min-width: 22px; height: 22px; padding: 0; border-radius: 50%; font-weight: 600; }
+.proxy-help-text { display: block; max-width: 320px; }
+.proxy-value input, .proxy-value textarea { min-width: 0; }
+.proxy-value input:focus, .proxy-value textarea:focus { background-color: #fff; }
+.proxy-row_changed { border-color: var(--g-color-line-warning); box-shadow: 0 0 0 1px var(--g-color-line-warning); }
 .proxy-cell + .proxy-cell { border-left: 1px solid var(--g-color-line-generic); }
 .proxy-description { font-size: 12px; }
 .proxy-json { align-items: flex-start; gap: 8px; }
@@ -114,7 +124,11 @@ table a:hover, .user-card a:hover { text-decoration: underline; text-underline-o
   word-break: break-all;
 }
 .proxy-json-editor textarea { font-family: monospace; font-size: 13px; line-height: 1.45; }
-.proxy-json-dialog { min-height: 360px; }
+.proxy-json-dialog { min-height: 540px; }
+.proxy-json-error { min-height: 56px; max-height: 96px; overflow: auto; display: flex; align-items: flex-start; }
+.proxy-json-editor { flex: 1; }
+.proxy-json-editor textarea { height: 400px; resize: vertical; }
+.proxy-json-editor.g-text-area, .proxy-json-editor .g-text-area__control { height: 400px; }
 @media (max-width: 760px) {
   .proxy-row { grid-template-columns: 1fr; }
   .proxy-cell + .proxy-cell { border-left: 0; border-top: 1px solid var(--g-color-line-generic); }
