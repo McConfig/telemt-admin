@@ -181,3 +181,24 @@ func TestServiceMeAndAuditActor(t *testing.T) {
 		t.Fatalf("аудит: %+v", events)
 	}
 }
+
+func TestBasicAuthFallsBackToCookie(t *testing.T) {
+	s, tok, _ := coverageServer(t)
+	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
+	req.AddCookie(&http.Cookie{Name: cookieName, Value: tok})
+	req.Header.Set("Authorization", "Basic dXNlcjpwYXNz")
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Basic + cookie: %d", rr.Code)
+	}
+}
+
+func TestRoleForScopeSafeDefault(t *testing.T) {
+	if roleForScope("broken") != store.RoleViewer {
+		t.Fatal("неизвестный scope не должен давать admin")
+	}
+	if roleForScope(store.ScopeWrite) != store.RoleAdmin || roleForScope(store.ScopeAdmin) != store.RoleAdmin {
+		t.Fatal("write/admin должны давать admin")
+	}
+}

@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strconv"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // ServiceScope — уровень прав сервисного аккаунта.
@@ -43,15 +45,19 @@ func serviceKey(name string) string       { return "auth:service:" + name }
 func serviceTokensKey(name string) string { return "auth:service_tokens:" + name }
 func tokenKey(id string) string           { return "auth:token:" + id }
 
+var createServiceScript = redis.NewScript(`
+local count = redis.call('SCARD', KEYS[1])
+if count >= tonumber(ARGV[1]) then return -1 end
+if redis.call('HSETNX', KEYS[2], 'created_at', ARGV[2]) == 0 then return 0 end
+redis.call('HSET', KEYS[2],
+  'description', ARGV[3], 'scope', ARGV[4], 'disabled', ARGV[5],
+  'updated_at', ARGV[6], 'created_by', ARGV[7])
+redis.call('SADD', KEYS[1], ARGV[8])
+return 1
+`)
+
 // CreateService создаёт сервисный аккаунт.
 func (s *Store) CreateService(ctx context.Context, svc ServiceAccount) error {
-	count, err := s.rdb.SCard(ctx, servicesIndex()).Result()
-	if err != nil {
-		return err
-	}
-	if count >= MaxServiceAccounts {
-		return ErrLimit
-	}
 	now := time.Now().UTC()
 	if svc.CreatedAt.IsZero() {
 		svc.CreatedAt = now
@@ -59,24 +65,23 @@ func (s *Store) CreateService(ctx context.Context, svc ServiceAccount) error {
 	if svc.UpdatedAt.IsZero() {
 		svc.UpdatedAt = svc.CreatedAt
 	}
-	key := serviceKey(svc.Name)
-	ok, err := s.rdb.HSetNX(ctx, key, "created_at", svc.CreatedAt.Format(time.RFC3339)).Result()
+	res, err := createServiceScript.Run(ctx, s.rdb,
+		[]string{servicesIndex(), serviceKey(svc.Name)},
+		MaxServiceAccounts, svc.CreatedAt.Format(time.RFC3339),
+		svc.Description, string(svc.Scope), strconv.FormatBool(svc.Disabled),
+		svc.UpdatedAt.Format(time.RFC3339), svc.CreatedBy, svc.Name,
+	).Int()
 	if err != nil {
 		return err
 	}
-	if !ok {
+	switch res {
+	case -1:
+		return ErrLimit
+	case 0:
 		return ErrExists
+	default:
+		return nil
 	}
-	if _, err := s.rdb.HSet(ctx, key, map[string]any{
-		"description": svc.Description,
-		"scope":       string(svc.Scope),
-		"disabled":    strconv.FormatBool(svc.Disabled),
-		"updated_at":  svc.UpdatedAt.Format(time.RFC3339),
-		"created_by":  svc.CreatedBy,
-	}).Result(); err != nil {
-		return err
-	}
-	return s.rdb.SAdd(ctx, servicesIndex(), svc.Name).Err()
 }
 
 // GetService возвращает сервисный аккаунт или ErrNotFound.
