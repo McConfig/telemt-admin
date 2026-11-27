@@ -18,3 +18,4 @@
 | [0009](0009-api-tokens.md) | Сервисные аккаунты и API-токены | Принято |
 | [0010](0010-aside-header-and-themes.md) | AsideHeader и полный набор тем | Принято |
 | [0011](0011-webauthn-passkeys.md) | WebAuthn/passkeys как второй фактор | Принято |
+| [0012](0012-config-exchange.md) | Обмен конфигурацией и редактор прокси | Принято |

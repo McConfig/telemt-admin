@@ -530,6 +530,82 @@ export async function mockApi(
       const found = userList.find((u) => u.username === rotateMatch[1]);
       return json(route, found ?? { ok: true });
     }
+    if (path === '/api/config/blocks' && method === 'GET') {
+      return json(route, [
+        { id: 'settings', title: 'Системные настройки' },
+        { id: 'limitTemplates', title: 'Шаблоны лимитов' },
+        { id: 'proxy', title: 'Конфигурация прокси' },
+        { id: 'users', title: 'Пользователи UI' },
+        { id: 'services', title: 'Сервисные аккаунты' },
+        { id: 'clients', title: 'Клиенты telemt' },
+      ]);
+    }
+    if (path === '/api/config/export' && method === 'POST') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/yaml',
+        headers: { 'Content-Disposition': 'attachment; filename="demo.tgadmin.yaml"' },
+        body: 'apiVersion: tgadmin.telemt/v1\nkind: InstallationBundle\nmetadata:\n  name: demo\n  secrets: none\nspec:\n  settings: {}\n',
+      });
+    }
+    if (path === '/api/config/precheck' && method === 'POST') {
+      return json(route, {
+        id: 'plan-1',
+        fileName: 'demo.tgadmin.yaml',
+        blocks: [{ id: 'settings', title: 'Системные настройки', changes: 1, warnings: [] }],
+        diff: { settings: [{ path: 'risk.warn_ips', before: 3, after: 4 }] },
+        conflicts: { users: [{ name: 'mcconfig', action: 'keep', changes: ['role'] }] },
+        deletions: {},
+        expiresAt: '2026-11-27T15:00:00Z',
+      });
+    }
+    if (path === '/api/config/apply' && method === 'POST') {
+      return json(route, { results: [{ block: 'settings', status: 'applied', applied: 1 }] });
+    }
+    if (path === '/api/proxy/schema' && method === 'GET') {
+      return json(route, {
+        version: 1,
+        fields: [
+          {
+            path: 'general.links.public_host',
+            value: { type: 'string' },
+            api: { config_read: true, config_write: true },
+            apply: { watcher: 'supported', reload: 'supported', effect: 'links' },
+          },
+          {
+            path: 'censorship.tls_domain',
+            value: { type: 'string' },
+            api: { config_read: true, config_write: true },
+            apply: { watcher: 'supported', reload: 'supported', effect: 'links' },
+          },
+        ],
+      });
+    }
+    if (path === '/api/proxy/config' && method === 'GET') {
+      return json(route, {
+        revision: 'rev1',
+        config: {
+          general: { links: { public_host: 'demo.example.com' } },
+          censorship: { tls_domain: 'demo.example.com' },
+        },
+      });
+    }
+    if (path === '/api/proxy/validate' && method === 'POST') {
+      return json(route, { ok: true, changedPaths: ['general.links.public_host'] });
+    }
+    if (path === '/api/proxy/apply' && method === 'POST') {
+      return json(route, {
+        revision: 'rev2',
+        changedPaths: ['general.links.public_host'],
+        reloadId: 1,
+        runtimeReloadRequired: true,
+        processRestartRequired: false,
+        deferredProcessFields: [],
+      });
+    }
+    if (path === '/api/proxy/reload/1' && method === 'GET') {
+      return json(route, { reload_id: 1, state: 'succeeded', phase: 'succeeded' });
+    }
     if (path === '/api/account/webauthn') {
       return json(route, []);
     }

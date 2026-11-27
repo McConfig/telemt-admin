@@ -291,55 +291,11 @@ func (s *Service) Save(
 ) (Catalog, []Change, error) {
 	s.ensure(ctx)
 
-	set := make(map[string]string, len(values))
-	changes := make([]Change, 0, len(values)+len(reset))
-
+	var set map[string]string
+	var changes []Change
 	var prepareErr error
 	s.mu.RLock()
-	prepareErr = func() error {
-		for key, raw := range values {
-			d, ok := s.by[key]
-			if !ok {
-				return &ValidationError{Key: key, Message: "неизвестная настройка"}
-			}
-			if d.Status != Active {
-				return &ValidationError{Key: key, Message: "настройка недоступна для изменения"}
-			}
-			canonical, value, err := parseRaw(d, raw)
-			if err != nil {
-				return &ValidationError{Key: key, Message: err.Error()}
-			}
-			old, _ := s.effectiveLocked(d)
-			oldCanonical, _ := canonicalValue(d, old)
-			set[key] = canonical
-			if d.Secret {
-				changes = append(changes, Change{Key: key, Old: "***", New: "***"})
-			} else {
-				changes = append(changes, Change{Key: key, Old: oldCanonical, New: canonicalString(d, value)})
-			}
-		}
-		for _, key := range reset {
-			d, ok := s.by[key]
-			if !ok {
-				return &ValidationError{Key: key, Message: "неизвестная настройка"}
-			}
-			if d.Status != Active {
-				return &ValidationError{Key: key, Message: "настройка недоступна для сброса"}
-			}
-			if _, exists := s.override[key]; !exists {
-				continue
-			}
-			old, _ := s.effectiveLocked(d)
-			oldCanonical, _ := canonicalValue(d, old)
-			defaultCanonical, _ := canonicalValue(d, d.Default)
-			if d.Secret {
-				changes = append(changes, Change{Key: key, Old: "***", New: "***"})
-			} else {
-				changes = append(changes, Change{Key: key, Old: oldCanonical, New: defaultCanonical})
-			}
-		}
-		return s.validateRiskLocked(set, reset)
-	}()
+	set, changes, prepareErr = s.prepare(values, reset)
 	s.mu.RUnlock()
 	if prepareErr != nil {
 		return Catalog{}, nil, prepareErr
@@ -1042,6 +998,110 @@ func canonicalValue(d Definition, value any) (string, bool) {
 		return "", false
 	}
 	return canonicalString(d, value), true
+}
+
+// ExportField — значение настройки для выгрузки.
+type ExportField struct {
+	Key     string
+	Section string
+	Value   any
+	Secret  bool
+}
+
+// prepare проверяет и канонизирует значения. Вызывать под s.mu.RLock.
+func (s *Service) prepare(
+	values map[string]json.RawMessage, reset []string,
+) (map[string]string, []Change, error) {
+	set := make(map[string]string, len(values))
+	changes := make([]Change, 0)
+	for key, raw := range values {
+		d, ok := s.by[key]
+		if !ok {
+			return nil, nil, &ValidationError{Key: key, Message: "неизвестная настройка"}
+		}
+		if d.Status != Active {
+			return nil, nil, &ValidationError{Key: key, Message: "настройка недоступна для изменения"}
+		}
+		canonical, value, err := parseRaw(d, raw)
+		if err != nil {
+			return nil, nil, &ValidationError{Key: key, Message: err.Error()}
+		}
+		old, _ := s.effectiveLocked(d)
+		oldCanonical, _ := canonicalValue(d, old)
+		set[key] = canonical
+		if d.Secret {
+			changes = append(changes, Change{Key: key, Old: "***", New: "***"})
+		} else {
+			changes = append(changes, Change{Key: key, Old: oldCanonical, New: canonicalString(d, value)})
+		}
+	}
+	for _, key := range reset {
+		d, ok := s.by[key]
+		if !ok {
+			return nil, nil, &ValidationError{Key: key, Message: "неизвестная настройка"}
+		}
+		if d.Status != Active {
+			return nil, nil, &ValidationError{Key: key, Message: "настройка недоступна для сброса"}
+		}
+		if _, exists := s.override[key]; !exists {
+			continue
+		}
+		old, _ := s.effectiveLocked(d)
+		oldCanonical, _ := canonicalValue(d, old)
+		defaultCanonical, _ := canonicalValue(d, d.Default)
+		if d.Secret {
+			changes = append(changes, Change{Key: key, Old: "***", New: "***"})
+		} else {
+			changes = append(changes, Change{Key: key, Old: oldCanonical, New: defaultCanonical})
+		}
+	}
+	if err := s.validateRiskLocked(set, reset); err != nil {
+		return nil, nil, err
+	}
+	return set, changes, nil
+}
+
+// Validate проверяет значения без записи.
+func (s *Service) Validate(
+	ctx context.Context, values map[string]json.RawMessage, reset []string,
+) ([]Change, error) {
+	s.ensure(ctx)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	_, changes, err := s.prepare(values, reset)
+	return changes, err
+}
+
+// ExportValues возвращает действующие значения активных настроек.
+func (s *Service) ExportValues(ctx context.Context) []ExportField {
+	s.ensure(ctx)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]ExportField, 0, len(s.defs))
+	for _, d := range s.defs {
+		if d.Status != Active {
+			continue
+		}
+		value, _ := s.effectiveLocked(d)
+		if d.Kind == KindDuration {
+			if dur, ok := value.(time.Duration); ok {
+				value = dur.String()
+			}
+		}
+		out = append(out, ExportField{Key: d.Key, Section: d.Section, Value: value, Secret: d.Secret})
+	}
+	return out
+}
+
+// ActiveKeys возвращает ключи активных настроек раздела.
+func (s *Service) ActiveKeys(section string) []string {
+	out := make([]string, 0, 16)
+	for _, d := range s.defs {
+		if d.Status == Active && d.Section == section {
+			out = append(out, d.Key)
+		}
+	}
+	return out
 }
 
 type backupPolicyFile struct {

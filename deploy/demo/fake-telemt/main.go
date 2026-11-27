@@ -15,6 +15,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -53,12 +54,16 @@ type User struct {
 }
 
 type server struct {
-	mu     sync.Mutex
-	token  string
-	domain string
-	users  map[string]*User
-	order  []string
-	rots   int
+	mu        sync.Mutex
+	token     string
+	domain    string
+	users     map[string]*User
+	order     []string
+	rots      int
+	config    map[string]any
+	revision  string
+	reloads   map[int64]string
+	reloadSeq int64
 }
 
 func main() {
@@ -84,7 +89,19 @@ func env(key, def string) string {
 }
 
 func newServer(token, domain string) *server {
-	s := &server{token: token, domain: domain, users: map[string]*User{}}
+	s := &server{
+		token: token, domain: domain, users: map[string]*User{},
+		reloads: map[int64]string{},
+		config: map[string]any{
+			"general": map[string]any{
+				"links": map[string]any{"public_host": domain, "public_port": 443.0},
+				"modes": map[string]any{"classic": true, "secure": true, "tls": true},
+			},
+			"censorship": map[string]any{"tls_domain": domain, "mask": true},
+			"server":     map[string]any{"listeners": []any{map[string]any{"ip": "0.0.0.0"}}},
+		},
+	}
+	s.revision = configRevision(s.config)
 	s.seed()
 	return s
 }
@@ -207,6 +224,11 @@ func (s *server) routes() http.Handler {
 		_, _ = w.Write([]byte("ok"))
 	})
 	mux.HandleFunc("GET /v1/capabilities", s.handleCapabilities)
+	mux.HandleFunc("GET /v1/config", s.handleConfig)
+	mux.HandleFunc("GET /v1/config/schema", s.handleConfigSchema)
+	mux.HandleFunc("POST /v1/config/validate", s.handleConfigValidate)
+	mux.HandleFunc("PATCH /v1/config", s.handleConfigPatch)
+	mux.HandleFunc("GET /v1/system/reload/{id}", s.handleReloadStatus)
 	mux.HandleFunc("GET /v1/users", s.handleList)
 	mux.HandleFunc("POST /v1/users", s.handleCreate)
 	mux.HandleFunc("GET /v1/users/{name}", s.handleGet)
@@ -415,6 +437,120 @@ func (s *server) mutate(w http.ResponseWriter, r *http.Request, fn func(*User)) 
 	}
 	fn(u)
 	writeOK(w, u)
+}
+
+func (s *server) handleConfig(w http.ResponseWriter, _ *http.Request) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	writeEnvelope(w, s.config, s.revision)
+}
+
+func (s *server) handleConfigSchema(w http.ResponseWriter, _ *http.Request) {
+	writeOK(w, map[string]any{
+		"schema_version": 1,
+		"fields": []map[string]any{
+			{"path": "general.links.public_host", "value": map[string]any{"type": "string"}, "api": map[string]any{"config_read": true, "config_write": true}},
+			{"path": "general.links.public_port", "value": map[string]any{"type": "integer"}, "api": map[string]any{"config_read": true, "config_write": true}},
+			{"path": "general.modes.tls", "value": map[string]any{"type": "boolean"}, "api": map[string]any{"config_read": true, "config_write": true}},
+			{"path": "censorship.tls_domain", "value": map[string]any{"type": "string"}, "api": map[string]any{"config_read": true, "config_write": true}},
+			{"path": "censorship.mask", "value": map[string]any{"type": "boolean"}, "api": map[string]any{"config_read": true, "config_write": true}},
+			{"path": "server.port", "value": map[string]any{"type": "integer"}, "api": map[string]any{"config_read": false, "config_write": false}, "non_editable_reason": "process_owned"},
+		},
+	})
+}
+
+func (s *server) handleConfigValidate(w http.ResponseWriter, r *http.Request) {
+	var patch map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON")
+		return
+	}
+	if access, ok := patch["access"]; ok && access != nil {
+		writeError(w, http.StatusBadRequest, "access_not_editable", "access is managed via users API")
+		return
+	}
+	writeOK(w, map[string]any{})
+}
+
+func (s *server) handleConfigPatch(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if ifMatch := r.Header.Get("If-Match"); ifMatch != "" && ifMatch != s.revision {
+		writeError(w, http.StatusConflict, "revision_conflict", "revision changed")
+		return
+	}
+	var patch map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON")
+		return
+	}
+	mergeConfig(s.config, patch)
+	s.revision = configRevision(s.config)
+	s.reloadSeq++
+	reloadID := s.reloadSeq
+	s.reloads[reloadID] = "succeeded"
+	data := map[string]any{
+		"revision":      s.revision,
+		"changed_paths": flattenPaths("", patch),
+		"reload":        map[string]any{"reload_id": reloadID, "state": "accepted"},
+	}
+	writeEnvelope(w, data, s.revision)
+}
+
+func (s *server) handleReloadStatus(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var id int64
+	_, _ = fmt.Sscanf(r.PathValue("id"), "%d", &id)
+	state, ok := s.reloads[id]
+	if !ok {
+		writeError(w, http.StatusNotFound, "not_found", "reload not found")
+		return
+	}
+	writeOK(w, map[string]any{"reload_id": id, "state": state, "phase": state})
+}
+
+func writeEnvelope(w http.ResponseWriter, data any, revision string) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "revision": revision, "data": data})
+}
+
+func configRevision(config map[string]any) string {
+	raw, _ := json.Marshal(config)
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:])
+}
+
+func mergeConfig(dst, patch map[string]any) {
+	for key, value := range patch {
+		if child, ok := value.(map[string]any); ok {
+			existing, _ := dst[key].(map[string]any)
+			if existing == nil {
+				existing = map[string]any{}
+				dst[key] = existing
+			}
+			mergeConfig(existing, child)
+			continue
+		}
+		dst[key] = value
+	}
+}
+
+func flattenPaths(prefix string, value map[string]any) []string {
+	out := []string{}
+	for key, child := range value {
+		path := key
+		if prefix != "" {
+			path = prefix + "." + key
+		}
+		if nested, ok := child.(map[string]any); ok {
+			out = append(out, flattenPaths(path, nested)...)
+			continue
+		}
+		out = append(out, path)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func writeOK(w http.ResponseWriter, data any) {

@@ -102,3 +102,28 @@ describe('api client — граничные ответы', () => {
     expect((init.headers as Record<string, string>)['X-CSRF-Token']).toBeUndefined();
   });
 });
+
+describe('api client — обмен конфигурацией', () => {
+  it('скачивает YAML с CSRF', async () => {
+    setCSRF('csrf');
+    const blob = new Blob(['apiVersion: tgadmin.telemt/v1\n']);
+    const fetchMock = vi.fn().mockResolvedValue(new Response(blob, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const out = await api.exportConfig({ blocks: ['settings'] });
+    expect(out.size).toBeGreaterThan(0);
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect((init.headers as Record<string, string>)['X-CSRF-Token']).toBe('csrf');
+  });
+
+  it('проверяет импорт и применяет план', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ id: 'p1', blocks: [] }))
+      .mockResolvedValueOnce(jsonResponse({ results: [{ block: 'settings', status: 'applied' }] }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(api.configPrecheck('yaml')).resolves.toMatchObject({ id: 'p1' });
+    await expect(api.configApply({ planId: 'p1', blocks: ['settings'] })).resolves.toMatchObject({
+      results: [{ block: 'settings', status: 'applied' }],
+    });
+  });
+});

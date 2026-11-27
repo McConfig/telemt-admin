@@ -75,6 +75,21 @@ try {
     }
     await shot(name);
   }
+  await page.goto(`${baseURL}/settings`, { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: /^Бэкапы/ }).click();
+  await page.waitForTimeout(800);
+  await shot('config-export');
+
+  await page.getByLabel('Текст YAML').fill(
+    'apiVersion: tgadmin.telemt/v1\nkind: InstallationBundle\nmetadata:\n  name: demo\n  secrets: none\nspec:\n  settings:\n    risk:\n      warn_ips: 4\n',
+  );
+  await page.getByRole('button', { name: 'Проверить' }).click();
+  await page.waitForTimeout(1200);
+  await shot('config-precheck');
+
+  await page.getByRole('button', { name: /^Прокси/ }).click();
+  await page.waitForTimeout(1200);
+  await shot('proxy');
 } finally {
   await browser.close();
 }

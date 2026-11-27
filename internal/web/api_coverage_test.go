@@ -56,6 +56,30 @@ func coverageServer(t *testing.T) (*Server, string, string) {
 				return
 			}
 			env(w, u)
+		case r.Method == http.MethodGet && p == "/v1/config":
+			_, _ = w.Write([]byte(`{"ok":true,"revision":"rev1","data":{"general":{"links":{"public_host":"demo.example.com"}},"censorship":{"tls_domain":"demo.example.com"}}}`))
+		case r.Method == http.MethodGet && p == "/v1/config/schema":
+			env(w, map[string]any{"schema_version": 1, "fields": []map[string]any{
+				{"path": "general.links.public_host", "api": map[string]any{"config_read": true, "config_write": true}},
+			}})
+		case r.Method == http.MethodPost && p == "/v1/config/validate":
+			var patch map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&patch)
+			if patch["access"] != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(`{"ok":false,"error":{"code":"access_not_editable","message":"no"}}`))
+				return
+			}
+			env(w, map[string]any{})
+		case r.Method == http.MethodPatch && p == "/v1/config":
+			if r.Header.Get("If-Match") != "rev1" {
+				w.WriteHeader(http.StatusConflict)
+				_, _ = w.Write([]byte(`{"ok":false,"error":{"code":"revision_conflict","message":"stale"}}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"ok":true,"revision":"rev2","data":{"changed_paths":["censorship.tls_domain"],"reload":{"reload_id":7,"state":"accepted"}}}`))
+		case r.Method == http.MethodGet && strings.HasPrefix(p, "/v1/system/reload/"):
+			env(w, map[string]any{"reload_id": 7, "state": "succeeded"})
 		case r.Method == http.MethodPost && p == "/v1/users":
 			var in telemt.CreateInput
 			_ = json.NewDecoder(r.Body).Decode(&in)

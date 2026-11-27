@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Card, Checkbox, Label, Loader, Select, Text, TextInput } from '@gravity-ui/uikit';
 import { api, ApiError, type SettingField, type SettingsCatalog } from '../api';
 import { BackupsPanel, HistoryPanel, SystemPanel, TemplatesPanel } from './SettingsExtras';
+import ConfigExchange from './ConfigExchange';
+import ProxyPanel from './ProxyPanel';
 
 function isDirty(field: SettingField, value: unknown): boolean {
   if (field.status !== 'active') return false;
@@ -17,6 +19,7 @@ const tabs = [
   { id: 'templates', label: 'Шаблоны', sections: [] },
   { id: 'security', label: 'Безопасность', sections: ['security', 'interface', 'logging', 'notifications'] },
   { id: 'backups', label: 'Бэкапы', sections: ['backups'] },
+  { id: 'proxy', label: 'Прокси', sections: [] },
   { id: 'system', label: 'Система', sections: [] },
   { id: 'infrastructure', label: 'Инфраструктура', sections: ['infrastructure'] },
   { id: 'history', label: 'История', sections: [] },
@@ -334,7 +337,13 @@ export default function SettingsPage() {
         );
       })}
       {tab === 'templates' && <TemplatesPanel />}
-      {tab === 'backups' && <BackupsPanel />}
+      {tab === 'proxy' && <ProxyPanel />}
+      {tab === 'backups' && (
+        <>
+          <ConfigExchange />
+          <BackupsPanel />
+        </>
+      )}
       {tab === 'system' && <SystemPanel />}
       {tab === 'history' && <HistoryPanel />}
 

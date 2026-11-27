@@ -40,9 +40,10 @@ func New(baseURL, token string, timeout time.Duration) *Client {
 }
 
 type envelope struct {
-	OK    bool            `json:"ok"`
-	Data  json.RawMessage `json:"data"`
-	Error *struct {
+	OK       bool            `json:"ok"`
+	Revision string          `json:"revision"`
+	Data     json.RawMessage `json:"data"`
+	Error    *struct {
 		Code    string `json:"code"`
 		Message string `json:"message"`
 	} `json:"error"`
@@ -55,17 +56,24 @@ func redact(s string) string {
 }
 
 func (c *Client) do(ctx context.Context, method, path string, in, out any) error {
+	_, _, err := c.doMeta(ctx, method, path, in, out, nil)
+	return err
+}
+
+func (c *Client) doMeta(
+	ctx context.Context, method, path string, in, out any, headers map[string]string,
+) (revision string, status int, err error) {
 	var body io.Reader
 	if in != nil {
 		raw, err := json.Marshal(in)
 		if err != nil {
-			return err
+			return "", 0, err
 		}
 		body = bytes.NewReader(raw)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, c.base+path, body)
 	if err != nil {
-		return err
+		return "", 0, err
 	}
 	if in != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -73,15 +81,18 @@ func (c *Client) do(ctx context.Context, method, path string, in, out any) error
 	if c.token != "" {
 		req.Header.Set("Authorization", c.token)
 	}
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
 	resp, err := c.hc.Do(req)
 	if err != nil {
-		return transportError(err)
+		return "", 0, transportError(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if err != nil {
-		return err
+		return "", resp.StatusCode, err
 	}
 	var env envelope
 	if len(raw) > 0 {
@@ -94,25 +105,25 @@ func (c *Client) do(ctx context.Context, method, path string, in, out any) error
 			msg = redact(env.Error.Message)
 			upstream = env.Error.Code
 		}
-		return &APIError{
+		return "", resp.StatusCode, &APIError{
 			Status: resp.StatusCode, Code: statusCode(resp.StatusCode, upstream), Message: msg,
 		}
 	}
 	if len(raw) == 0 {
-		return nil
+		return env.Revision, resp.StatusCode, nil
 	}
 	if env.Data == nil {
-		return &APIError{Code: CodeInvalidResponse, Message: "ответ Control API без поля data"}
+		return env.Revision, resp.StatusCode, &APIError{Code: CodeInvalidResponse, Message: "ответ Control API без поля data"}
 	}
 	if out != nil {
 		if len(env.Data) == 0 {
-			return &APIError{Code: CodeInvalidResponse, Message: "пустой ответ Control API"}
+			return env.Revision, resp.StatusCode, &APIError{Code: CodeInvalidResponse, Message: "пустой ответ Control API"}
 		}
 		if err := json.Unmarshal(env.Data, out); err != nil {
-			return &APIError{Code: CodeInvalidResponse, Message: "не удалось разобрать ответ Control API"}
+			return env.Revision, resp.StatusCode, &APIError{Code: CodeInvalidResponse, Message: "не удалось разобрать ответ Control API"}
 		}
 	}
-	return nil
+	return env.Revision, resp.StatusCode, nil
 }
 
 // Capabilities проверяет доступность и возвращает сведения Control API.
