@@ -3,7 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Alert } from '@gravity-ui/uikit';
 import { AsideHeader, FooterItem } from '@gravity-ui/navigation';
 import {
+  ArrowLeftToLine,
   ArrowRightFromSquare,
+  ArrowRightToLine,
   FileText,
   Gear,
   Key,
@@ -12,12 +14,8 @@ import {
   Server,
   ShieldCheck,
   Stethoscope,
-  Sun,
 } from '@gravity-ui/icons';
 import type { Me } from './api';
-import type { AppTheme } from './theme';
-import { ThemeSelect } from './components/ThemeSelect';
-import { ThemeDialog } from './components/ThemeDialog';
 import Footer from './Footer';
 import { useMedia } from './useMedia';
 
@@ -33,19 +31,14 @@ const MENU_PATHS: Record<string, string> = {
 export default function Layout({
   me,
   onLogout,
-  theme,
-  onThemeChange,
   children,
 }: {
   me: Me;
   onLogout: () => void;
-  theme: AppTheme;
-  onThemeChange: (theme: AppTheme) => void;
   children: ReactNode;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [themeDialogOpen, setThemeDialogOpen] = useState(false);
   const isMobile = useMedia('(max-width: 960px)');
   const [compact, setCompact] = useState(() => {
     const saved = localStorage.getItem('tgadmin-sidebar-compact');
@@ -104,16 +97,22 @@ export default function Layout({
         }}
         compact={effectiveCompact}
         onChangeCompact={(next) => !isMobile && setCompact(next)}
+        hideCollapseButton
+        subheaderItems={
+          isMobile
+            ? []
+            : [
+                {
+                  id: 'collapse',
+                  title: effectiveCompact ? 'Развернуть меню' : 'Свернуть меню',
+                  icon: effectiveCompact ? ArrowRightToLine : ArrowLeftToLine,
+                  onItemClick: () => setCompact(!compact),
+                },
+              ]
+        }
         menuItems={menuItems}
         menuDensity="compact"
         menuOverflow="scroll"
-        aboveMenuContent={
-          effectiveCompact ? null : (
-            <div style={{ padding: '8px 12px' }}>
-              <ThemeSelect theme={theme} onThemeChange={onThemeChange} />
-            </div>
-          )
-        }
         renderFooter={() => (
           <>
             <FooterItem
@@ -123,15 +122,6 @@ export default function Layout({
               compact={effectiveCompact}
               onItemClick={() => navigate('/account')}
             />
-            {effectiveCompact && (
-              <FooterItem
-                id="theme"
-                title="Тема"
-                icon={Sun}
-                compact={effectiveCompact}
-                onItemClick={() => setThemeDialogOpen(true)}
-              />
-            )}
             <FooterItem
               id="logout"
               title="Выйти"
@@ -143,26 +133,22 @@ export default function Layout({
         )}
         renderContent={() => (
           <main className="page">
-            {me.require2fa?.enabled && !me.require2fa.enforced && (
-              <Alert
-                theme="warning"
-                message={
-                  me.require2fa.daysLeft > 0
-                    ? `2FA не включена. Через ${me.require2fa.daysLeft} дн. доступ к интерфейсу будет ограничен до её включения. Настройте её в разделе «Аккаунт».`
-                    : '2FA не включена. Сегодня истекает льготный срок, после чего доступ будет ограничен. Настройте её в разделе «Аккаунт».'
-                }
-              />
-            )}
-            {children}
+            <div className="page-body">
+              {me.require2fa?.enabled && !me.require2fa.enforced && (
+                <Alert
+                  theme="warning"
+                  message={
+                    me.require2fa.daysLeft > 0
+                      ? `2FA не включена. Через ${me.require2fa.daysLeft} дн. доступ к интерфейсу будет ограничен до её включения. Настройте её в разделе «Аккаунт».`
+                      : '2FA не включена. Сегодня истекает льготный срок, после чего доступ будет ограничен. Настройте её в разделе «Аккаунт».'
+                  }
+                />
+              )}
+              {children}
+            </div>
             <Footer />
           </main>
         )}
-      />
-      <ThemeDialog
-        open={themeDialogOpen}
-        theme={theme}
-        onThemeChange={onThemeChange}
-        onClose={() => setThemeDialogOpen(false)}
       />
     </>
   );

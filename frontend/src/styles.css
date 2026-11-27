@@ -1,7 +1,9 @@
 body { margin: 0; }
 #root { min-height: 100vh; }
 .app-shell { display: flex; flex-direction: column; min-height: 100vh; }
-.page { flex: 1 0 auto; max-width: 1180px; width: 100%; box-sizing: border-box; margin: 0 auto; padding: 24px; }
+.page { flex: 1 0 auto; max-width: 1180px; width: 100%; box-sizing: border-box; margin: 0 auto; padding: 24px; min-height: 100vh; display: flex; flex-direction: column; gap: 16px; }
+.page-body { flex: 1 0 auto; }
+.page > .footer { margin-top: auto; }
 .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .stack { display: flex; flex-direction: column; gap: 16px; }
 .qr { background: #fff; padding: 8px; width: 264px; border-radius: 8px; }
@@ -53,7 +55,9 @@ table a:hover, .user-card a:hover { text-decoration: underline; text-underline-o
 .traffic-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; min-width: 0; }
 .traffic-bar { width: 100%; max-width: 26px; border-radius: 3px 3px 0 0; background: var(--g-color-base-brand); min-height: 2px; }
 .traffic-label { font-size: 10px; color: var(--g-color-text-secondary); white-space: nowrap; }
-.table-scroll { overflow-x: auto; }
+.table-scroll { overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+.table-scroll::-webkit-scrollbar { height: 8px; }
+.table-scroll::-webkit-scrollbar-thumb { background: var(--g-color-line-generic); border-radius: 999px; }
 .icon-actions { display: flex; align-items: center; gap: 2px; flex-wrap: nowrap; }
 .link-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: start; }
 .link-box { padding: 10px 12px; border-radius: 8px; background: var(--g-color-base-generic); font-family: monospace; word-break: break-all; }

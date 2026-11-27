@@ -12,6 +12,8 @@ import {
 import { formatTime } from '../format';
 import { useTableSort } from '../tableSort';
 import { useMedia } from '../useMedia';
+import { ThemeSelect } from '../components/ThemeSelect';
+import type { AppTheme } from '../theme';
 
 function compareSessions(a: SessionItem, b: SessionItem, id: string): number {
   switch (id) {
@@ -24,7 +26,15 @@ function compareSessions(a: SessionItem, b: SessionItem, id: string): number {
   }
 }
 
-export default function AccountPage({ onMeChange }: { onMeChange?: () => void } = {}) {
+export default function AccountPage({
+  onMeChange,
+  theme = 'system',
+  onThemeChange = () => {},
+}: {
+  onMeChange?: () => void;
+  theme?: AppTheme;
+  onThemeChange?: (theme: AppTheme) => void;
+} = {}) {
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -98,6 +108,16 @@ export default function AccountPage({ onMeChange }: { onMeChange?: () => void } 
   return (
     <div className="stack">
       <Text variant="header-2">Аккаунт</Text>
+      <Card view="filled" style={{ padding: 16 }}>
+        <div className="stack">
+          <Text variant="header-1">Тема оформления</Text>
+          <Text className="muted">
+            Светлая, тёмная или контрастная тема. Режим «Как в системе» следует настройке
+            операционной системы.
+          </Text>
+          <ThemeSelect theme={theme} onThemeChange={onThemeChange} />
+        </div>
+      </Card>
       {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
       {message && <Alert theme="success" message={message} onClose={() => setMessage('')} />}
       <Card view="filled" style={{ padding: 16 }}>

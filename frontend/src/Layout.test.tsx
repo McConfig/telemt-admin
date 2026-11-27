@@ -13,8 +13,6 @@ describe('Layout', () => {
       <Layout
         me={{ ...me, require2fa: { enabled: true, enforced: false, daysLeft: 3 } }}
         onLogout={() => {}}
-        theme="system"
-        onThemeChange={() => {}}
       >
         <div>содержимое</div>
       </Layout>,
@@ -26,7 +24,7 @@ describe('Layout', () => {
     stubFetch({ '/api/meta': { version: 'v9.9.9', repo: 'https://example.com/repo' } });
     const onLogout = vi.fn();
     renderUI(
-      <Layout me={me} onLogout={onLogout} theme="system" onThemeChange={() => {}}>
+      <Layout me={me} onLogout={onLogout}>
         <div>содержимое</div>
       </Layout>,
     );
@@ -46,8 +44,6 @@ describe('Layout', () => {
       <Layout
         me={{ ...me, user: { ...me.user, role: 'viewer' } }}
         onLogout={() => {}}
-        theme="system"
-        onThemeChange={() => {}}
       >
         <div>содержимое</div>
       </Layout>,
@@ -71,23 +67,12 @@ describe('Layout', () => {
     } as unknown as MediaQueryList);
     stubFetch({ '/api/meta': { version: 'v9.9.9', repo: 'https://example.com/repo' } });
     renderUI(
-      <Layout me={me} onLogout={() => {}} theme="system" onThemeChange={() => {}}>
+      <Layout me={me} onLogout={() => {}}>
         <div>содержимое</div>
       </Layout>,
     );
     expect(screen.queryByRole('combobox', { name: 'Тема' })).not.toBeInTheDocument();
   });
 
-  it('переключает тему на контрастную', async () => {
-    stubFetch({ '/api/meta': { version: 'v9.9.9', repo: 'https://example.com/repo' } });
-    const onThemeChange = vi.fn();
-    renderUI(
-      <Layout me={me} onLogout={() => {}} theme="dark" onThemeChange={onThemeChange}>
-        <div>содержимое</div>
-      </Layout>,
-    );
-    await userEvent.click(screen.getByRole('combobox', { name: 'Тема' }));
-    await userEvent.click(screen.getByRole('option', { name: 'Тёмная контрастная' }));
-    expect(onThemeChange).toHaveBeenCalledWith('dark-hc');
-  });
+
 });

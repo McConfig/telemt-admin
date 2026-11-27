@@ -4,6 +4,8 @@ import { login, mockApi } from './mock';
 test('переключает все темы Gravity UI', async ({ page }) => {
   await mockApi(page);
   await login(page);
+  await page.getByText('mcconfig').first().click();
+  await expect(page.getByRole('combobox', { name: 'Тема' })).toBeVisible();
 
   for (const [label, cls] of [
     ['Светлая', 'g-root_theme_light'],
@@ -31,12 +33,13 @@ test('переключает все темы Gravity UI', async ({ page }) => {
 test('системная тема и сворачивание сайдбара', async ({ page }) => {
   await mockApi(page);
   await login(page);
+  await page.getByText('mcconfig').first().click();
   expect(await page.evaluate(() => localStorage.getItem('tgadmin-theme'))).toBe('system');
   await expect
     .poll(() => page.evaluate(() => document.body.className))
     .toMatch(/g-root_theme_(light|dark)/);
 
-  await page.locator('[data-gn-aside-collapse-layer] button').first().click({ force: true });
+  await page.getByRole('button', { name: 'Свернуть меню' }).click();
   expect(await page.evaluate(() => localStorage.getItem('tgadmin-sidebar-compact'))).toBe(
     'true',
   );

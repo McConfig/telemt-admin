@@ -80,7 +80,7 @@ export default function App() {
               title="Требуется двухфакторная аутентификация"
               message="Льготный срок истёк. Доступ к интерфейсу ограничен, пока вы не включите 2FA. Настройте её ниже и сохраните резервные коды."
             />
-            <AccountPage onMeChange={refreshMe} />
+            <AccountPage onMeChange={refreshMe} theme={theme} onThemeChange={setTheme} />
             <div>
               <Button view="outlined" onClick={() => void logout()}>
                 Выйти
@@ -95,13 +95,13 @@ export default function App() {
   return (
     <AppProviders theme={theme}>
     <BrowserRouter>
-      <Layout me={me} onLogout={logout} theme={theme} onThemeChange={setTheme}>
+      <Layout me={me} onLogout={logout}>
         <Routes>
           <Route path="/" element={<UsersPage me={me} />} />
           <Route path="/users/new" element={<NewUserPage me={me} />} />
           <Route path="/users/:name" element={<UserPage me={me} />} />
           <Route path="/audit" element={<AuditPage />} />
-          <Route path="/account" element={<AccountPage />} />
+          <Route path="/account" element={<AccountPage theme={theme} onThemeChange={setTheme} />} />
           <Route path="/admins" element={<AdminsPage me={me} />} />
           <Route
             path="/services"
