@@ -19,6 +19,8 @@
   через 30 секунд (с 1.7.0);
 - `auth:services`, `auth:service:*`, `auth:service_tokens:*`,
   `auth:token:*` — сервисные аккаунты и токены (с 1.9.0);
+- `auth:webauthn:*`, `auth:webauthn_cred:*`, `auth:webauthn_register:*`,
+  `auth:webauthn_login:*` — passkeys и challenge (с 1.11.0);
 - `iphist:geo:*` — последние агрегаты GeoIP.
 
 При переходе между версиями внутри `0.x`/`1.x` миграции не требуются.
@@ -45,6 +47,11 @@
 `TGADMIN_BACKUP_RESTORE_TEST=true`, `TGADMIN_BACKUP_CONFIG` и
 `TGADMIN_BACKUP_STATUS`. Их можно переопределить на странице «Настройки»;
 поведение по умолчанию не меняется.
+
+В 1.11.0 добавлены passkeys WebAuthn как второй фактор. Новых переменных
+окружения нет; используется `TGADMIN_BASE_URL`, причём для WebAuthn нужен
+HTTPS или localhost. Откат на 1.10.x безопасен: passkeys игнорируются,
+TOTP продолжает работать.
 
 В 1.9.0 добавлены сервисные аккаунты и Bearer-токены. Новых переменных
 окружения нет, миграции не нужны. После отката на 1.8.0 токены перестают

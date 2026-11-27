@@ -1,6 +1,9 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { startAuthentication } from '@simplewebauthn/browser';
+
+vi.mock('@simplewebauthn/browser', () => ({ startAuthentication: vi.fn() }));
 import LoginPage from './LoginPage';
 import { me } from '../test/data';
 import { renderUI } from '../test/render';
@@ -15,6 +18,22 @@ describe('LoginPage', () => {
     await userEvent.type(screen.getByPlaceholderText('Пароль'), 'secret');
     await userEvent.click(screen.getByRole('button', { name: 'Войти' }));
     expect(onLogin).toHaveBeenCalledWith(me);
+  });
+
+  it('пускает по passkey после пароля', async () => {
+    vi.mocked(startAuthentication).mockResolvedValue({ id: 'cred' } as never);
+    const onLogin = vi.fn();
+    stubFetch({
+      '/api/login': { mfaRequired: true, passkey: true, totp: true, totpRequired: true },
+      '/api/login/webauthn/begin': {},
+      '/api/login/webauthn/finish': me,
+    });
+    renderUI(<LoginPage onLogin={onLogin} />);
+    await userEvent.type(screen.getByPlaceholderText('Имя'), 'admin');
+    await userEvent.type(screen.getByPlaceholderText('Пароль'), 'secret');
+    await userEvent.click(screen.getByRole('button', { name: 'Войти' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Войти с passkey' }));
+    await waitFor(() => expect(onLogin).toHaveBeenCalledWith(me));
   });
 
   it('показывает второй фактор и принимает код', async () => {
@@ -104,5 +123,23 @@ describe('LoginPage — ошибки', () => {
     expect(await screen.findByText('резервный код неверный')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Код из приложения' }));
     expect(screen.getByPlaceholderText('000000')).toBeInTheDocument();
+  });
+});
+
+describe('LoginPage passkey error', () => {
+  it('показывает ошибку passkey', async () => {
+    vi.mocked(startAuthentication).mockRejectedValue(new Error('denied'));
+    stubFetch({
+      '/api/login': { mfaRequired: true, passkey: true, totp: false },
+      '/api/login/webauthn/begin': {},
+    });
+    renderUI(<LoginPage onLogin={vi.fn()} />);
+    await userEvent.type(screen.getByPlaceholderText('Имя'), 'admin');
+    await userEvent.type(screen.getByPlaceholderText('Пароль'), 'secret');
+    await userEvent.click(screen.getByRole('button', { name: 'Войти' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Войти с passkey' }));
+    expect(await screen.findByText('passkey не сработал')).toBeInTheDocument();
+    const close = document.querySelector('.g-alert__close-btn') as HTMLElement;
+    await userEvent.click(close);
   });
 });

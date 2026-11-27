@@ -530,6 +530,12 @@ export async function mockApi(
       const found = userList.find((u) => u.username === rotateMatch[1]);
       return json(route, found ?? { ok: true });
     }
+    if (path === '/api/account/webauthn') {
+      return json(route, []);
+    }
+    if (path === '/api/account/webauthn/register/begin') {
+      return json(route, {});
+    }
     if (path === '/api/account/totp') {
       return json(route, { available: true, enabled: false, recoveryLeft: 0 });
     }

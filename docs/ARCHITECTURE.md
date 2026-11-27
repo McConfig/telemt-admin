@@ -49,6 +49,13 @@ SPA построена на Gravity UI: `Provider` задаёт тему и ру
 `Select`, `Checkbox`, `TextArea`, `DateField`, таблицы данных —
 `@gravity-ui/table`.
 
+## Второй фактор
+
+Кроме TOTP поддерживаются passkeys WebAuthn. Публичные credential records
+хранятся в Valkey, приватные ключи остаются на устройстве. RP ID и origin
+берутся из `TGADMIN_BASE_URL`; passkey считается полноценной 2FA и не
+обходит allowlist CIDR.
+
 ## Границы доверия
 
 1. **Браузер ↔ reverse-proxy** — HTTPS, HSTS, cookie `Secure`/`HttpOnly`,

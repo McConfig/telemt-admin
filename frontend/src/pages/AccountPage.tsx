@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Loader, Text, TextInput } from '@gravity-ui/uikit';
+import { startRegistration } from '@simplewebauthn/browser';
+import { Alert, Button, Card, Dialog, Loader, Text, TextInput } from '@gravity-ui/uikit';
 import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import {
   api,
   ApiError,
+  type Passkey,
   type SessionItem,
   type TOTPSetup,
   type TOTPStatus,
@@ -57,6 +59,14 @@ export default function AccountPage({
   const [totpPassword, setTotpPassword] = useState('');
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [totpBusy, setTotpBusy] = useState(false);
+  const [passkeys, setPasskeys] = useState<Passkey[]>([]);
+  const [passkeyOpen, setPasskeyOpen] = useState(false);
+  const [passkeyName, setPasskeyName] = useState('');
+  const [passkeyPassword, setPasskeyPassword] = useState('');
+  const [passkeyError, setPasskeyError] = useState('');
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const [deletePasskey, setDeletePasskey] = useState<Passkey | null>(null);
+  const [deletePassword, setDeletePassword] = useState('');
   const isMobile = useMedia('(max-width: 760px)');
 
   const load = () => {
@@ -65,6 +75,10 @@ export default function AccountPage({
       .totpStatus()
       .then(setTotp)
       .catch(() => setTotp(null));
+    api
+      .passkeys()
+      .then((list) => setPasskeys(Array.isArray(list) ? list : []))
+      .catch(() => setPasskeys([]));
     api
       .sessions()
       .then(setSessions)
@@ -137,6 +151,38 @@ export default function AccountPage({
             операционной системы.
           </Text>
           <ThemeSelect theme={theme} onThemeChange={onThemeChange} />
+        </div>
+      </Card>
+      <Card view="filled" style={{ padding: 16 }}>
+        <div className="stack">
+          <Text variant="header-1">Passkeys</Text>
+          <Text className="muted">
+            Вход по отпечатку, Face ID или ключу безопасности вместо кода TOTP.
+          </Text>
+          {passkeys.length === 0 ? (
+            <Text className="muted">Passkeys пока нет.</Text>
+          ) : (
+            <div className="stack">
+              {passkeys.map((item) => (
+                <div className="row" key={item.id}>
+                  <Text>{item.name}</Text>
+                  <Text className="muted">создан {formatTime(item.createdAt)}</Text>
+                  {item.lastUsedAt && (
+                    <Text className="muted">последний вход {formatTime(item.lastUsedAt)}</Text>
+                  )}
+                  <div style={{ flex: 1 }} />
+                  <Button view="flat-danger" onClick={() => setDeletePasskey(item)}>
+                    Удалить
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div>
+            <Button view="outlined" onClick={() => setPasskeyOpen(true)}>
+              Добавить passkey
+            </Button>
+          </div>
         </div>
       </Card>
       {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
@@ -360,6 +406,72 @@ export default function AccountPage({
           <Table table={table} emptyContent="Других сессий нет" />
         )}
       </Card>
+      <Dialog open={passkeyOpen} onOpenChange={(next) => !next && setPasskeyOpen(false)} maxWidth="s">
+        <Dialog.Header caption="Новый passkey" />
+        <Dialog.Body>
+          <div className="stack">
+            {passkeyError && <Alert theme="danger" message={passkeyError} onClose={() => setPasskeyError('')} />}
+            <TextInput placeholder="Название, например MacBook" value={passkeyName} onUpdate={setPasskeyName} />
+            <TextInput placeholder="Текущий пароль" type="password" value={passkeyPassword} onUpdate={setPasskeyPassword} />
+          </div>
+        </Dialog.Body>
+        <Dialog.Footer
+          onClickButtonCancel={() => setPasskeyOpen(false)}
+          onClickButtonApply={() => {
+            setPasskeyBusy(true);
+            setPasskeyError('');
+            api
+              .passkeyRegisterBegin(passkeyPassword, passkeyName)
+              .then((options) => startRegistration({ optionsJSON: options as never }))
+              .then((credential) => api.passkeyRegisterFinish(credential))
+              .then(() => {
+                setPasskeyOpen(false);
+                setPasskeyName('');
+                setPasskeyPassword('');
+                load();
+              })
+              .catch((err) =>
+                setPasskeyError(err instanceof ApiError ? err.message : 'не удалось добавить passkey'),
+              )
+              .finally(() => setPasskeyBusy(false));
+          }}
+          textButtonApply="Добавить"
+          textButtonCancel="Отмена"
+          propsButtonApply={{ loading: passkeyBusy, disabled: !passkeyName.trim() || !passkeyPassword }}
+        />
+      </Dialog>
+      <Dialog open={deletePasskey !== null} onOpenChange={(next) => !next && setDeletePasskey(null)} maxWidth="s">
+        <Dialog.Header caption="Удалить passkey" />
+        <Dialog.Body>
+          <div className="stack">
+            {passkeyError && <Alert theme="danger" message={passkeyError} onClose={() => setPasskeyError('')} />}
+            <Text>Введите текущий пароль для подтверждения.</Text>
+            <TextInput placeholder="Текущий пароль" type="password" value={deletePassword} onUpdate={setDeletePassword} />
+          </div>
+        </Dialog.Body>
+        <Dialog.Footer
+          onClickButtonCancel={() => setDeletePasskey(null)}
+          onClickButtonApply={() => {
+            if (!deletePasskey) return;
+            setPasskeyBusy(true);
+            setPasskeyError('');
+            api
+              .passkeyDelete(deletePasskey.id, deletePassword)
+              .then(() => {
+                setDeletePasskey(null);
+                setDeletePassword('');
+                load();
+              })
+              .catch((err) =>
+                setPasskeyError(err instanceof ApiError ? err.message : 'не удалось удалить passkey'),
+              )
+              .finally(() => setPasskeyBusy(false));
+          }}
+          textButtonApply="Удалить"
+          textButtonCancel="Отмена"
+          propsButtonApply={{ loading: passkeyBusy, view: 'outlined-danger', disabled: !deletePassword }}
+        />
+      </Dialog>
     </div>
   );
 }

@@ -234,8 +234,16 @@ func (s *Server) serverErrorJSON(w http.ResponseWriter, r *http.Request, err err
 	writeError(w, http.StatusInternalServerError, "internal", "внутренняя ошибка")
 }
 
+func (s *Server) hasSecondFactor(ctx context.Context, u store.User) bool {
+	if u.TOTPEnabled {
+		return true
+	}
+	n, err := s.store.CountPasskeys(ctx, u.Name)
+	return err == nil && n > 0
+}
+
 func (s *Server) totpRestricted(ctx context.Context, u store.User) bool {
-	if u.Role != store.RoleAdmin || u.TOTPEnabled {
+	if u.Role != store.RoleAdmin || s.hasSecondFactor(ctx, u) {
 		return false
 	}
 	enabled, deadline, _ := s.settings.Require2FA(ctx)

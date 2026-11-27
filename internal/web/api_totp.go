@@ -377,7 +377,7 @@ func (s *Server) apiResetAdminTOTP(w http.ResponseWriter, r *http.Request) {
 		s.serverErrorJSON(w, r, err)
 		return
 	}
-	if !u.TOTPEnabled {
+	if !s.hasSecondFactor(r.Context(), *u) {
 		writeError(w, http.StatusBadRequest, "bad_request", "у пользователя не включена 2FA")
 		return
 	}
@@ -385,7 +385,11 @@ func (s *Server) apiResetAdminTOTP(w http.ResponseWriter, r *http.Request) {
 		s.serverErrorJSON(w, r, err)
 		return
 	}
+	if err := s.store.DeleteAllPasskeys(r.Context(), name); err != nil {
+		s.serverErrorJSON(w, r, err)
+		return
+	}
 	_ = s.store.DeleteUserSessions(r.Context(), name, "")
-	s.audit(r, "admin.totp.reset", name, "ok")
+	s.audit(r, "admin.mfa_reset", name, "ok")
 	w.WriteHeader(http.StatusNoContent)
 }

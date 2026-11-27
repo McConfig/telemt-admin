@@ -42,7 +42,21 @@ export interface TOTPSetup {
   qr: string;
 }
 
-export type LoginResult = Me | { totpRequired: true };
+export interface MFARequired {
+  mfaRequired: true;
+  passkey: boolean;
+  totp: boolean;
+  totpRequired?: true;
+}
+
+export type LoginResult = Me | MFARequired;
+
+export interface Passkey {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt?: string;
+}
 
 export interface IPHistoryItem {
   ip: string;
@@ -506,11 +520,18 @@ export const api = {
     return me;
   },
   async login(username: string, password: string): Promise<LoginResult> {
-    const result = await request<Me & { totpRequired?: boolean }>('POST', '/api/login', {
+    const result = await request<Me & Partial<MFARequired>>('POST', '/api/login', {
       username,
       password,
     });
-    if (result.totpRequired) return { totpRequired: true };
+    if (result.mfaRequired || result.totpRequired) {
+      return {
+        mfaRequired: true,
+        passkey: Boolean(result.passkey),
+        totp: Boolean(result.totp || result.totpRequired),
+        totpRequired: result.totpRequired,
+      };
+    }
     setCSRF(result.csrf);
     return result;
   },
@@ -520,6 +541,17 @@ export const api = {
     return me;
   },
   logout: () => request<void>('POST', '/api/logout'),
+  passkeys: () => request<Passkey[]>('GET', '/api/account/webauthn'),
+  passkeyRegisterBegin: (password: string, name: string) =>
+    request<unknown>('POST', '/api/account/webauthn/register/begin', { password, name }),
+  passkeyRegisterFinish: (credential: unknown) =>
+    request<Passkey>('POST', '/api/account/webauthn/register/finish', credential),
+  passkeyDelete: (id: string, password: string) =>
+    request<void>('DELETE', `/api/account/webauthn/${encodeURIComponent(id)}`, { password }),
+  passkeyLoginBegin: () =>
+    request<unknown>('POST', '/api/login/webauthn/begin', {}),
+  passkeyLoginFinish: (credential: unknown) =>
+    request<Me>('POST', '/api/login/webauthn/finish', credential),
   users: () => request<ProxyUser[]>('GET', '/api/users'),
   services: () => request<ServiceAccount[]>('GET', '/api/services'),
   createService: (body: { name: string; description?: string; scope: ServiceScope }) =>

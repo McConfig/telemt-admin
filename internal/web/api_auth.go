@@ -51,7 +51,7 @@ func (s *Server) me(r *http.Request) (meResponse, error) {
 
 func (s *Server) meForUser(ctx context.Context, u store.User, csrf string) meResponse {
 	out := meResponse{User: meUser{Name: u.Name, Role: string(u.Role)}, CSRF: csrf}
-	if u.Role != store.RoleAdmin || u.TOTPEnabled {
+	if u.Role != store.RoleAdmin || s.hasSecondFactor(ctx, u) {
 		return out
 	}
 	enabled, deadline, daysLeft := s.settings.Require2FA(ctx)
@@ -116,8 +116,9 @@ func (s *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "unauthorized", "неверное имя или пароль")
 		return
 	}
-	if u.TOTPEnabled {
-		if len(s.cfg.TOTPKey) != 32 {
+	passkeyCount, _ := s.store.CountPasskeys(r.Context(), username)
+	if u.TOTPEnabled || passkeyCount > 0 {
+		if u.TOTPEnabled && passkeyCount == 0 && len(s.cfg.TOTPKey) != 32 {
 			writeError(w, http.StatusServiceUnavailable, "totp_unavailable", "2FA включена, но на сервере не задан TGADMIN_TOTP_KEY")
 			return
 		}
@@ -129,10 +130,18 @@ func (s *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = s.store.ResetLoginFailures(r.Context(), addr.String(), username)
 		_ = s.store.Audit(r.Context(), store.AuditEvent{
-			Actor: username, Action: "login.totp.required", Target: username, Result: "ok", IP: addr.String(),
+			Actor: username, Action: "login.mfa.required", Target: username, Result: "ok", IP: addr.String(),
 		})
 		s.setCookie(w, pending, pendingTTL)
-		writeJSON(w, http.StatusOK, map[string]any{"totpRequired": true})
+		resp := map[string]any{
+			"mfaRequired": true,
+			"passkey":     passkeyCount > 0,
+			"totp":        u.TOTPEnabled,
+		}
+		if u.TOTPEnabled {
+			resp["totpRequired"] = true
+		}
+		writeJSON(w, http.StatusOK, resp)
 		return
 	}
 	ttl := s.settings.SessionTTL(r.Context())

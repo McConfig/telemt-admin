@@ -93,6 +93,31 @@ curl -H "Authorization: Bearer tgadm_0123456789abcdef_..." \
 cookie-сессии администратора; по токену возвращается
 `403 session_required`.
 
+## Passkeys WebAuthn
+
+Passkey — второй фактор после пароля. Если у пользователя есть passkey
+или TOTP, `POST /api/login` возвращает:
+
+```json
+{"mfaRequired":true,"passkey":true,"totp":true}
+```
+
+`totpRequired` сохраняется для совместимости, если включён TOTP.
+
+| Метод | Путь | Назначение |
+|---|---|---|
+| GET | `/api/account/webauthn` | список passkeys |
+| POST | `/api/account/webauthn/register/begin` | начать регистрацию, тело `{"password":"...","name":"MacBook"}` |
+| POST | `/api/account/webauthn/register/finish` | завершить регистрацию, тело credential |
+| DELETE | `/api/account/webauthn/{id}` | удалить, тело `{"password":"..."}` |
+| POST | `/api/login/webauthn/begin` | начать вход по passkey |
+| POST | `/api/login/webauthn/finish` | завершить вход, тело assertion |
+
+Регистрация и удаление требуют cookie-сессию и текущий пароль.
+Сервисный токен получает `403 session_required`. Удаление последнего
+второго фактора при включённой обязательной 2FA запрещено (`409 last_factor`).
+WebAuthn требует HTTPS или localhost; иначе `503 webauthn_unavailable`.
+
 ## Сервисные аккаунты
 
 | Метод | Путь | Назначение |

@@ -1,6 +1,9 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { startRegistration } from '@simplewebauthn/browser';
+
+vi.mock('@simplewebauthn/browser', () => ({ startRegistration: vi.fn() }));
 import AccountPage from './AccountPage';
 import { renderUI } from '../test/render';
 import { stubFetch } from '../test/stubFetch';
@@ -241,8 +244,96 @@ describe('AccountPage', () => {
     renderUI(<AccountPage />);
     const alert = await screen.findByText('ошибка сессий');
     expect(alert).toBeInTheDocument();
-    const close = within(alert.closest('.alert') ?? document.body).getAllByRole('button')[0];
-    if (close) await userEvent.click(close);
+    const close = document.querySelector('.g-alert__close-btn') as HTMLElement;
+    await userEvent.click(close);
     expect(screen.queryByText('ошибка сессий')).not.toBeInTheDocument();
   });
+
+
+
+
+  it('удаляет passkey после пароля', async () => {
+    let keys = [{ id: '0123456789abcdef', name: 'MacBook', createdAt: '2026-11-27T10:00:00Z' }];
+    stubFetch({
+      '/api/account/webauthn': (_url: URL, init?: RequestInit) => {
+        if (init?.method === 'DELETE') {
+          keys = [];
+          return new Response(null, { status: 204 });
+        }
+        return keys;
+      },
+      '/api/account/sessions': [],
+      '/api/account/totp': { available: true, enabled: false, recoveryLeft: 0 },
+    });
+    renderUI(<AccountPage />);
+    expect(await screen.findByText('MacBook')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Удалить' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(within(dialog).getByPlaceholderText('Текущий пароль'), 'secret');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Удалить' }));
+    await waitFor(() => expect(screen.queryByText('MacBook')).not.toBeInTheDocument());
+  });
+
+
+  it('показывает ошибку добавления passkey', async () => {
+    vi.mocked(startRegistration).mockRejectedValue(new Error('denied'));
+    stubFetch({
+      '/api/account/webauthn': [],
+      '/api/account/webauthn/register/begin': {},
+      '/api/account/sessions': [],
+      '/api/account/totp': { available: true, enabled: false, recoveryLeft: 0 },
+    });
+    renderUI(<AccountPage />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Добавить passkey' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(within(dialog).getByPlaceholderText('Название, например MacBook'), 'MacBook');
+    await userEvent.type(within(dialog).getByPlaceholderText('Текущий пароль'), 'secret');
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Добавить' })).toBeEnabled());
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Добавить' }));
+    expect(await screen.findByText('не удалось добавить passkey')).toBeInTheDocument();
+  });
+
+
+  it('отменяет добавление и удаление passkey', async () => {
+    stubFetch({
+      '/api/account/webauthn': [{ id: '0123456789abcdef', name: 'MacBook', createdAt: '2026-11-27T10:00:00Z' }],
+      '/api/account/sessions': [],
+      '/api/account/totp': { available: true, enabled: false, recoveryLeft: 0 },
+    });
+    renderUI(<AccountPage />);
+    await screen.findByText('MacBook');
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить passkey' }));
+    let dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Отмена' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await userEvent.click(screen.getByRole('button', { name: 'Удалить' }));
+    dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Отмена' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+
+  it('добавляет passkey', async () => {
+    vi.mocked(startRegistration).mockResolvedValue({ id: 'cred' } as never);
+    let keys: Array<{ id: string; name: string; createdAt: string }> = [];
+    stubFetch({
+      '/api/account/webauthn': () => keys,
+      '/api/account/webauthn/register/begin': {},
+      '/api/account/webauthn/register/finish': () => {
+        keys = [{ id: '0123456789abcdef', name: 'MacBook', createdAt: '2026-11-27T10:00:00Z' }];
+        return keys[0];
+      },
+      '/api/account/sessions': [],
+      '/api/account/totp': { available: true, enabled: false, recoveryLeft: 0 },
+    });
+    renderUI(<AccountPage />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Добавить passkey' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(within(dialog).getByPlaceholderText('Название, например MacBook'), 'MacBook');
+    await userEvent.type(within(dialog).getByPlaceholderText('Текущий пароль'), 'secret');
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Добавить' })).toBeEnabled());
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Добавить' }));
+    expect(await screen.findByText('MacBook')).toBeInTheDocument();
+  });
+
 });
