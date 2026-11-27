@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Dialog, Text } from '@gravity-ui/uikit';
+import { Alert, Button, Dialog, Text, useFileInput } from '@gravity-ui/uikit';
 import { api, ApiError, type ImportResult } from '../api';
 
 const importHeader =
@@ -40,8 +40,7 @@ export default function ImportDialog({
     setBusy(false);
   }, [open]);
 
-  const chooseFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const chooseFile = async (file: File | undefined) => {
     if (!file) return;
     setFileName(file.name);
     setResult(null);
@@ -51,10 +50,11 @@ export default function ImportDialog({
     } catch {
       setCsv('');
       setError('не удалось прочитать файл');
-    } finally {
-      event.target.value = '';
     }
   };
+  const { controlProps, triggerProps } = useFileInput({
+    onUpdate: (files) => void chooseFile(files[0]),
+  });
 
   const check = async () => {
     setBusy(true);
@@ -112,15 +112,10 @@ export default function ImportDialog({
             означают «не задано».
           </Text>
           <div className="row">
-            <label className="field">
-              <span>Файл CSV</span>
-              <input
-                type="file"
-                aria-label="CSV-файл"
-                accept=".csv,text/csv"
-                onChange={(event) => void chooseFile(event)}
-              />
-            </label>
+            <input {...controlProps} aria-label="CSV-файл" accept=".csv,text/csv" />
+            <Button view="outlined" {...triggerProps}>
+              Выбрать файл
+            </Button>
             <Button view="outlined" onClick={downloadTemplate}>
               Скачать шаблон
             </Button>

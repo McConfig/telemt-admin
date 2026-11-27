@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Loader, Text, TextInput } from '@gravity-ui/uikit';
+import { Alert, Button, Card, Loader, Select, Text, TextInput } from '@gravity-ui/uikit';
 import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { api, ApiError, type AuditItem } from '../api';
 import { formatTime } from '../format';
+import { DateFormField } from '../components/DateFormField';
 import { useTableSort } from '../tableSort';
 import { useMedia } from '../useMedia';
 
@@ -80,25 +81,15 @@ export default function AuditPage() {
       {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
       <div className="row">
         <TextInput placeholder="Поиск по имени, цели, IP" value={q} onUpdate={setQ} />
-        <select
-          className="select"
-          value={action}
-          onChange={(event) => setAction(event.target.value)}
-        >
-          {actions.map((item) => (
-            <option value={item} key={item || 'all'}>
-              {item || 'все действия'}
-            </option>
-          ))}
-        </select>
-        <label className="field field-inline">
-          <span>с</span>
-          <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
-        </label>
-        <label className="field field-inline">
-          <span>по</span>
-          <input type="date" value={to} onChange={(event) => setTo(event.target.value)} />
-        </label>
+        <Select
+          aria-label="Действие"
+          value={[action]}
+          options={actions.map((item) => ({ value: item, content: item || 'все действия' }))}
+          onUpdate={([value]) => setAction(value ?? '')}
+          width={220}
+        />
+        <DateFormField label="С" value={from} onUpdate={setFrom} />
+        <DateFormField label="По" value={to} onUpdate={setTo} />
       </div>
       <Card view="filled" style={{ padding: 8 }}>
         {loading ? (

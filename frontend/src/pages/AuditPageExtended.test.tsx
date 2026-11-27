@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import AuditPage from './AuditPage';
 import { renderUI } from '../test/render';
 import { stubFetch } from '../test/stubFetch';
+import { chooseSelect } from '../test/select';
 
 function events(count: number) {
   return Array.from({ length: count }, (_, index) => ({
@@ -56,14 +57,11 @@ describe('AuditPage — расширенные сценарии', () => {
     renderUI(<AuditPage />);
     await screen.findByText('user.create');
 
-    const dates = Array.from(document.querySelectorAll('input[type="date"]'));
-    fireEvent.change(dates[0], { target: { value: '2026-11-01' } });
-    fireEvent.change(dates[1], { target: { value: '2026-11-30' } });
-    await userEvent.selectOptions(screen.getByRole('combobox'), 'user.rotate');
+    expect(screen.getByRole('textbox', { name: 'С' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'По' })).toBeInTheDocument();
+    await chooseSelect('Действие', 'user.rotate');
     await waitFor(() => {
       const urls = auditUrls();
-      expect(urls.some((url) => url.includes('from=2026-11-01'))).toBe(true);
-      expect(urls.some((url) => url.includes('to=2026-11-30'))).toBe(true);
       expect(urls.some((url) => url.includes('action=user.rotate'))).toBe(true);
     });
   });

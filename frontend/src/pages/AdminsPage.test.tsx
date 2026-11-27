@@ -5,6 +5,7 @@ import AdminsPage from './AdminsPage';
 import { me } from '../test/data';
 import { renderUI } from '../test/render';
 import { stubFetch } from '../test/stubFetch';
+import { chooseSelect } from '../test/select';
 
 const admin = (overrides: Record<string, unknown> = {}) => ({
   name: 'other',
@@ -107,7 +108,8 @@ describe('AdminsPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Создать' }));
     const dialog = await screen.findByRole('dialog');
     await userEvent.type(within(dialog).getByPlaceholderText('Имя'), 'newbie');
-    await userEvent.selectOptions(within(dialog).getByRole('combobox'), 'admin');
+    await userEvent.click(within(dialog).getByRole('combobox', { name: 'Роль' }));
+    await userEvent.click(screen.getByRole('option', { name: 'admin' }));
     await userEvent.type(
       within(dialog).getByPlaceholderText('Пароль (пусто — сгенерировать)'),
       'secret-pass',
