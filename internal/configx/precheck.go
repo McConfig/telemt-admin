@@ -166,8 +166,8 @@ func (s *Service) precheckUsers(ctx context.Context, b *Bundle, plan *Plan, curr
 		if u.Role != string(store.RoleAdmin) && u.Role != string(store.RoleViewer) {
 			return fmt.Errorf("bad_request: роль %q должна быть admin или viewer", u.Role)
 		}
-		if u.PasswordHash != "" && !strings.HasPrefix(u.PasswordHash, "$2") {
-			return fmt.Errorf("bad_request: passwordHash для %q не bcrypt", u.Name)
+		if u.PasswordHash != "" && !strings.HasPrefix(u.PasswordHash, "$argon2id$") {
+			return fmt.Errorf("bad_request: passwordHash для %q не argon2id", u.Name)
 		}
 		seen[u.Name] = true
 		old, exists := byName[u.Name]

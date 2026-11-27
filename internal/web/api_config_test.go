@@ -301,3 +301,27 @@ func TestConfigApplyForeignPlan(t *testing.T) {
 		t.Fatalf("%d %s", rr.Code, rr.Body.String())
 	}
 }
+
+func TestConfigPlanCorrupted(t *testing.T) {
+	s, tok, csrf := coverageServer(t)
+	yaml := "apiVersion: tgadmin.telemt/v1\nkind: InstallationBundle\nmetadata:\n  name: demo\n  secrets: none\nspec:\n  settings: {}\n"
+	body, _ := json.Marshal(map[string]any{"yaml": yaml})
+	rr := call(t, s, "POST", "/api/config/precheck", string(body), tok, csrf)
+	var plan struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal(rr.Body.Bytes(), &plan)
+	sess, err := s.store.GetSession(context.Background(), tok)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.store.PutConfigPlan(context.Background(), store.ConfigPlan{
+		ID: plan.ID, Owner: sess.User, Session: sess.ID, Payload: []byte("{"), CreatedAt: time.Now(),
+	}, time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	rr = call(t, s, "GET", "/api/config/plan/"+plan.ID, "", tok, "")
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("%d %s", rr.Code, rr.Body.String())
+	}
+}

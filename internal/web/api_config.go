@@ -255,9 +255,13 @@ func (s *Server) apiConfigPlan(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "plan_not_found", "план истёк или не найден")
 		return
 	}
+	var payload any
+	if err := json.Unmarshal(p.Payload, &payload); err != nil {
+		writeError(w, http.StatusBadRequest, "plan_not_found", "план повреждён")
+		return
+	}
 	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_, _ = w.Write(p.Payload)
+	writeJSON(w, http.StatusOK, payload)
 }
 
 type applyRequest struct {

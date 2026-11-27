@@ -39,11 +39,14 @@ func testService(t *testing.T) (*Service, *store.Store) {
 	}
 	svc := settings.New(cfg, st)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1/users" {
+		switch r.URL.Path {
+		case "/v1/users":
+			_, _ = w.Write([]byte(`{"ok":true,"data":[{"username":"main","enabled":true,"links":{"tls":["tg://proxy?server=demo.example.com&port=443&secret=ee0123456789abcdef0123456789abcdefdemo.example.com"]}}]}`))
+		case "/v1/config":
+			_, _ = w.Write([]byte(`{"ok":true,"revision":"rev1","data":{"general":{"links":{"public_host":"demo.example.com"}}}}`))
+		default:
 			http.NotFound(w, r)
-			return
 		}
-		_, _ = w.Write([]byte(`{"ok":true,"data":[{"username":"main","enabled":true,"links":{"tls":["tg://proxy?server=demo.example.com&port=443&secret=ee0123456789abcdef0123456789abcdefdemo.example.com"]}}]}`))
 	}))
 	t.Cleanup(ts.Close)
 	return New(st, svc, telemt.New(ts.URL, "", time.Second), time.Now), st
