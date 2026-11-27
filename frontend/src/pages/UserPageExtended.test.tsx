@@ -508,7 +508,7 @@ describe('UserPage — расширенные сценарии', () => {
 
   it('скрывает административные вкладки от viewer', async () => {
     const viewer = { ...me, user: { name: 'viewer', role: 'viewer' as const } };
-    stubFetch({ ...baseRoutes(), '/api/users/main': { ...riskyUser, link: undefined, note: undefined } });
+    stubFetch({ ...baseRoutes(), '/api/users/main': { ...riskyUser, link: undefined, note: 'секретная заметка' } });
     renderUI(
       <Routes>
         <Route path="/users/:name" element={<UserPage me={viewer} />} />
@@ -518,6 +518,7 @@ describe('UserPage — расширенные сценарии', () => {
     expect(await screen.findByText('main')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Лимиты' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Перевыпустить секрет' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/секретная заметка/)).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Устройства' }));
     expect(screen.getAllByText('Устройства').length).toBeGreaterThan(0);
   });

@@ -128,7 +128,7 @@ WebAuthn требует HTTPS или localhost; иначе `503 webauthn_unavail
 | DELETE | `/api/services/{name}` | тело `{"confirm":"name"}`, удаляет токены |
 | GET | `/api/services/{name}/tokens` | список токенов без секретов |
 | POST | `/api/services/{name}/tokens` | выпуск токена |
-| DELETE | `/api/services/{name}/tokens/{id}` | отзыв токена |
+| DELETE | `/api/services/{name}/tokens/{id}` | отзыв токена; неизвестный или некорректный ID — `404` |
 
 Имя сервиса: строчная латиница, цифры, точка, дефис, подчёркивание, до
 32 символов. Scope: `read`, `write`, `admin`. Смена scope действует на
@@ -199,6 +199,9 @@ WebAuthn требует HTTPS или localhost; иначе `503 webauthn_unavail
 | PUT | `/api/users/{name}/risk` | admin | пороги риска клиента |
 | GET | `/api/users/{name}/note` | admin | заметка |
 | PUT | `/api/users/{name}/note` | admin | `{"note":"..."}` |
+
+Заметка клиента входит в ответ карточки только для `admin`. `viewer` и
+read-токен её не получают; отдельный GET заметки также требует admin.
 | GET | `/api/summary` | обе | сводка и здоровье |
 
 ### Импорт клиентов из CSV

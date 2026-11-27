@@ -87,8 +87,10 @@ func (s *Server) apiUserView(r *http.Request, u telemt.User) apiUser {
 	if last, ok := s.store.LastSeen(r.Context(), u.Username); ok {
 		out.LastSeen = last.Format(time.RFC3339)
 	}
-	if note, err := s.store.Note(r.Context(), u.Username); err == nil {
-		out.Note = note
+	if s.isAdmin(r) {
+		if note, err := s.store.Note(r.Context(), u.Username); err == nil {
+			out.Note = note
+		}
 	}
 	if out.SourceDeny == nil {
 		out.SourceDeny = []string{}
@@ -536,6 +538,9 @@ func (s *Server) apiResetQuota(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiGetNote(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdminAPI(w, r) {
+		return
+	}
 	name := chi.URLParam(r, "name")
 	note, err := s.store.Note(r.Context(), name)
 	if err != nil {
