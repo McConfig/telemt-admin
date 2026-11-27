@@ -5,6 +5,8 @@
 
 ## [Unreleased]
 
+## [1.10.4] — 2026-11-27
+
 ### Исправлено
 
 - non-Bearer `Authorization` больше не блокирует cookie-сессию;
