@@ -46,7 +46,7 @@ details, screenshots and cleanup.
 - YAML configuration export/import with diff, name conflicts and block
   selection; secrets require password and TOTP confirmation;
 - telemt proxy configuration editor via Control API with validation,
-  `If-Match` and reload;
+  `If-Match` and reload; Russian parameter hints and the UI i18n layer;
 - settings page with global risk rules and home country, session TTL, link
   mode, collection interval and retention, limit templates, backup status,
   system panel and change history; future settings are shown disabled with

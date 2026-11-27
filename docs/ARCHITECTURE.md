@@ -56,6 +56,18 @@ SPA построена на Gravity UI: `Provider` задаёт тему и ру
 берутся из `TGADMIN_BASE_URL`; passkey считается полноценной 2FA и не
 обходит allowlist CIDR.
 
+## Локализация
+
+Интерфейс по умолчанию русский. `LocaleProvider` хранит язык в
+`localStorage` и даёт `useLocale()` с функцией `t()`. Общие строки UI
+пока остаются в компонентах; для подсказок параметров прокси уже
+используется словарь `frontend/src/i18n/proxy.ru.ts`. Описания из схемы
+telemt английские и служат fallback для путей, которых нет в словаре.
+
+Словарь генерируется из официального `CONFIG_PARAMS.ru.md` telemt
+скриптом `hack/gen-proxy-descriptions.py`; ручные дополнения лежат в
+`hack/proxy-descriptions.ru.extra.json`.
+
 ## Обмен конфигурацией
 
 `internal/configx` собирает YAML-бандл `tgadmin.telemt/v1`, строит план

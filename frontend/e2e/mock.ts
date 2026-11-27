@@ -568,12 +568,14 @@ export async function mockApi(
         fields: [
           {
             path: 'general.links.public_host',
+            description: 'Public hostname for tg:// links',
             value: { type: 'string' },
             api: { config_read: true, config_write: true },
             apply: { watcher: 'supported', reload: 'supported', effect: 'links' },
           },
           {
             path: 'censorship.tls_domain',
+            description: 'Cover domain for FakeTLS',
             value: { type: 'string' },
             api: { config_read: true, config_write: true },
             apply: { watcher: 'supported', reload: 'supported', effect: 'links' },
