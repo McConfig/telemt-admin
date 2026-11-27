@@ -222,7 +222,7 @@ func secretFromLinks(l *telemt.Links) string {
 				continue
 			}
 			raw := u.Query().Get("secret")
-			if strings.HasPrefix(raw, "ee") && len(raw) >= 34 {
+			if (strings.HasPrefix(raw, "ee") || strings.HasPrefix(raw, "dd")) && len(raw) >= 34 {
 				return raw[2:34]
 			}
 			if len(raw) == 32 {

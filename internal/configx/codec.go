@@ -57,7 +57,24 @@ func Decode(data []byte) (*Bundle, error) {
 	return &b, nil
 }
 
+const (
+	maxYAMLDepth = 64
+	maxYAMLNodes = 100000
+)
+
 func checkNode(n *yaml.Node) error {
+	count := 0
+	return checkNodeDepth(n, 0, &count)
+}
+
+func checkNodeDepth(n *yaml.Node, depth int, count *int) error {
+	*count++
+	if *count > maxYAMLNodes {
+		return errors.New("bad_yaml: слишком много узлов")
+	}
+	if depth > maxYAMLDepth {
+		return errors.New("bad_yaml: слишком глубокая вложенность")
+	}
 	if n.Kind == yaml.AliasNode {
 		return errors.New("bad_yaml: алиасы запрещены")
 	}
@@ -72,7 +89,7 @@ func checkNode(n *yaml.Node) error {
 		}
 	}
 	for _, child := range n.Content {
-		if err := checkNode(child); err != nil {
+		if err := checkNodeDepth(child, depth+1, count); err != nil {
 			return err
 		}
 	}

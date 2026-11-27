@@ -29,6 +29,36 @@ type PrecheckOptions struct {
 	TargetProxyRevision   string
 }
 
+func rejectSecrets(b *Bundle) error {
+	for section, fields := range b.Spec.Settings {
+		for key := range fields {
+			full := key
+			if !strings.HasPrefix(key, section+".") {
+				full = section + "." + key
+			}
+			if sensitiveSettings[full] || strings.HasSuffix(full, ".webhook_secret") {
+				return fmt.Errorf("bad_yaml: секрет %s без metadata.secrets=included", full)
+			}
+		}
+	}
+	for _, u := range b.Spec.Users {
+		if u.PasswordHash != "" {
+			return fmt.Errorf("bad_yaml: passwordHash %q без metadata.secrets=included", u.Name)
+		}
+	}
+	for _, svc := range b.Spec.Services {
+		if len(svc.Tokens) > 0 {
+			return fmt.Errorf("bad_yaml: токены сервиса %q без metadata.secrets=included", svc.Name)
+		}
+	}
+	for _, c := range b.Spec.Clients {
+		if c.Secret != "" {
+			return fmt.Errorf("bad_yaml: секрет клиента %q без metadata.secrets=included", c.Username)
+		}
+	}
+	return nil
+}
+
 var proxySections = map[string]bool{
 	"general": true, "timeouts": true, "censorship": true, "upstreams": true,
 	"dc_overrides": true, "web": true, "network": true, "server": true,
@@ -39,6 +69,11 @@ func (s *Service) Precheck(ctx context.Context, opts PrecheckOptions) (*Plan, er
 	b := opts.Bundle
 	if b == nil {
 		return nil, errors.New("bad_request: нет бандла")
+	}
+	if b.Metadata.Secrets == SecretsNone {
+		if err := rejectSecrets(b); err != nil {
+			return nil, err
+		}
 	}
 	plan := &Plan{
 		FileName: opts.FileName, FileHash: opts.FileHash,

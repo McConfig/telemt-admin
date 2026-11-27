@@ -261,3 +261,71 @@ func TestApplyClients(t *testing.T) {
 		t.Fatalf("заметка: %q", note)
 	}
 }
+
+func TestApplyClientsPatchOmitsUnsetFields(t *testing.T) {
+	svc, _ := testService(t)
+	var mu sync.Mutex
+	var captured map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/users":
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "data": []map[string]any{{"username": "main", "enabled": true}}})
+		case r.Method == http.MethodPatch:
+			_ = json.NewDecoder(r.Body).Decode(&captured)
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	svc.telemt = telemt.New(srv.URL, "", time.Second)
+	b := &Bundle{
+		APIVersion: APIVersion, Kind: Kind,
+		Metadata: Metadata{Name: "demo", Secrets: SecretsNone},
+		Spec:     Spec{Clients: []Client{{Username: "main", Enabled: true, Note: "только заметка"}}},
+	}
+	plan, err := svc.Precheck(context.Background(), PrecheckOptions{Bundle: b})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Apply(context.Background(), plan, ApplyOptions{
+		Blocks:    []Block{BlockClients},
+		Conflicts: map[string]map[string]string{"clients": {"main": ActionOverwrite}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if _, ok := captured["max_tcp_conns"]; ok {
+		t.Fatalf("лимит попал в патч: %+v", captured)
+	}
+	if captured["enabled"] != true {
+		t.Fatalf("enabled: %+v", captured)
+	}
+}
+
+func TestApplyRefusesDeletingCurrentUser(t *testing.T) {
+	svc, st := testService(t)
+	seedExportData(t, st)
+	b := &Bundle{
+		APIVersion: APIVersion, Kind: Kind,
+		Metadata: Metadata{Name: "demo", Secrets: SecretsNone},
+		Spec:     Spec{Users: []User{}},
+	}
+	plan, err := svc.Precheck(context.Background(), PrecheckOptions{Bundle: b})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan.Owner = "demo"
+	_, err = svc.Apply(context.Background(), plan, ApplyOptions{
+		Blocks: []Block{BlockUsers}, DeleteMissing: true, ConfirmName: "demo",
+	})
+	if err == nil {
+		t.Fatal("ожидался запрет удаления текущего администратора")
+	}
+	if _, getErr := st.GetUser(context.Background(), "demo"); getErr != nil {
+		t.Fatalf("demo удалён: %v", getErr)
+	}
+}

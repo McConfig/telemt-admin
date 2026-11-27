@@ -232,6 +232,9 @@ func (s *Service) applyUsers(ctx context.Context, plan *Plan, opts ApplyOptions)
 	}
 	if opts.DeleteMissing {
 		for _, name := range plan.Deletions["users"] {
+			if plan.Owner != "" && name == plan.Owner {
+				return res, errors.New("bad_request: нельзя удалить текущего администратора")
+			}
 			if err := s.st.DeleteUser(ctx, name); err != nil && !errors.Is(err, store.ErrNotFound) {
 				return res, err
 			}
@@ -365,11 +368,30 @@ func (s *Service) applyClients(ctx context.Context, plan *Plan, opts ApplyOption
 			}
 			res.Created++
 		} else {
-			patch := map[string]any{
-				"max_tcp_conns": c.MaxTcpConns, "max_unique_ips": c.MaxUniqueIps,
-				"expiration_rfc3339": c.ExpirationRFC3339, "data_quota_bytes": c.DataQuotaBytes,
-				"quota_period": c.QuotaPeriod, "rate_limit_up_bps": c.RateLimitUpBps,
-				"rate_limit_down_bps": c.RateLimitDownBps, "enabled": c.Enabled,
+			patch := map[string]any{"enabled": c.Enabled}
+			if c.MaxTcpConns != nil {
+				patch["max_tcp_conns"] = c.MaxTcpConns
+			}
+			if c.MaxUniqueIps != nil {
+				patch["max_unique_ips"] = c.MaxUniqueIps
+			}
+			if c.ExpirationRFC3339 != nil {
+				patch["expiration_rfc3339"] = c.ExpirationRFC3339
+			}
+			if c.DataQuotaBytes != nil {
+				patch["data_quota_bytes"] = c.DataQuotaBytes
+			}
+			if c.QuotaPeriod != nil {
+				patch["quota_period"] = c.QuotaPeriod
+			}
+			if c.RateLimitUpBps != nil {
+				patch["rate_limit_up_bps"] = c.RateLimitUpBps
+			}
+			if c.RateLimitDownBps != nil {
+				patch["rate_limit_down_bps"] = c.RateLimitDownBps
+			}
+			if c.SourceDeny != nil {
+				patch["source_deny"] = c.SourceDeny
 			}
 			if secrets && c.Secret != "" {
 				patch["secret"] = c.Secret
@@ -379,7 +401,7 @@ func (s *Service) applyClients(ctx context.Context, plan *Plan, opts ApplyOption
 			}
 			res.Updated++
 		}
-		if c.Note != "" || exists {
+		if c.Note != "" {
 			_ = s.st.SetNote(ctx, c.Username, c.Note)
 		}
 		if c.Trusted != nil {
