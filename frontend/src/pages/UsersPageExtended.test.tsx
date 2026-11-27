@@ -29,6 +29,10 @@ function manyUsers() {
 
 describe('UsersPage — расширенные сценарии', () => {
   it('сортирует по всем колонкам и фильтрует по риску и новым странам', async () => {
+    localStorage.setItem(
+      'tgadmin-columns:admin',
+      JSON.stringify({ newcountry: true, foreign: true, ips24h: true }),
+    );
     stubFetch({ '/api/users': [proxyUser, secondUser], '/api/summary': summary });
     renderUI(<UsersPage me={me} />);
     await screen.findByRole('link', { name: 'main' });
@@ -218,6 +222,23 @@ describe('UsersPage — расширенные сценарии', () => {
     await chooseSelect('Сортировка', 'по трафику');
     expect(screen.getByRole('combobox', { name: 'Сортировка' })).toHaveTextContent('по трафику');
     await chooseSelect('Сортировка', 'без сортировки');
+  });
+
+  it('настраивает видимость колонок и запоминает выбор', async () => {
+    localStorage.removeItem('tgadmin-columns:admin');
+    stubFetch({ '/api/users': [proxyUser, secondUser], '/api/summary': summary });
+    renderUI(<UsersPage me={me} />);
+    await screen.findByRole('link', { name: 'main' });
+    expect(screen.queryByText('Новые страны')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Настроить колонки' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Новые страны' }));
+    expect(await screen.findByRole('button', { name: /Новые страны/ })).toBeInTheDocument();
+    await waitFor(() => {
+      const saved = JSON.parse(localStorage.getItem('tgadmin-columns:admin') ?? '{}');
+      expect(saved.newcountry).toBe(true);
+    });
+    localStorage.removeItem('tgadmin-columns:admin');
   });
 
   it('скрывает создание для viewer', async () => {
