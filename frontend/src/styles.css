@@ -58,6 +58,7 @@ table a:hover, .user-card a:hover { text-decoration: underline; text-underline-o
 .table-scroll { overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
 .table-scroll::-webkit-scrollbar { height: 8px; }
 .table-scroll::-webkit-scrollbar-thumb { background: var(--g-color-line-generic); border-radius: 999px; }
+.column-settings { display: flex; flex-direction: column; gap: var(--g-spacing-2); padding: var(--g-spacing-3); min-width: 220px; }
 .icon-actions { display: flex; align-items: center; gap: 2px; flex-wrap: nowrap; }
 .link-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: start; }
 .link-box { padding: 10px 12px; border-radius: 8px; background: var(--g-color-base-generic); font-family: monospace; word-break: break-all; }

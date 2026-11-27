@@ -1,13 +1,35 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Alert, Button, Card, Checkbox, Dialog, Label, Loader, Select, Text, TextInput } from '@gravity-ui/uikit';
+import { Alert, Button, Card, Checkbox, Dialog, Divider, Icon, Label, Loader, Popup, Select, Text, TextInput } from '@gravity-ui/uikit';
 import { Table, useTable } from '@gravity-ui/table';
+import { Ellipsis } from '@gravity-ui/icons';
+import type { Table as TanStackTable, VisibilityState } from '@tanstack/react-table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { api, ApiError, type Me, type ProxyUser, type Summary } from '../api';
 import { formatBytes } from '../format';
 import { useTableSort } from '../tableSort';
 import { useMedia } from '../useMedia';
 import ImportDialog from './ImportDialog';
+
+const COLUMN_LABELS: Record<string, string> = {
+  username: 'Имя',
+  status: 'Статус',
+  ips: 'Активные IP',
+  countries: 'Страны',
+  newcountry: 'Новые страны',
+  foreign: 'Иностранные',
+  ips24h: 'IP за 24ч',
+  risk: 'Риск',
+  conns: 'Соединения',
+  traffic: 'Трафик',
+  last: 'Последняя активность',
+};
+
+const DEFAULT_VISIBILITY: VisibilityState = {
+  newcountry: false,
+  foreign: false,
+  ips24h: false,
+};
 
 export default function UsersPage({ me }: { me: Me }) {
   const [users, setUsers] = useState<ProxyUser[]>([]);
@@ -27,6 +49,18 @@ export default function UsersPage({ me }: { me: Me }) {
   const [resetNames, setResetNames] = useState<string[] | null>(null);
   const [resetBusy, setResetBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const columnsKey = `tgadmin-columns:${me.user.name}`;
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() => {
+    try {
+      const raw = localStorage.getItem(columnsKey);
+      return raw ? (JSON.parse(raw) as VisibilityState) : DEFAULT_VISIBILITY;
+    } catch {
+      return DEFAULT_VISIBILITY;
+    }
+  });
+  useEffect(() => {
+    localStorage.setItem(columnsKey, JSON.stringify(columnVisibility));
+  }, [columnsKey, columnVisibility]);
   const isMobile = useMedia('(max-width: 760px)');
   const { sorting, setSorting, sortHeader, sortRows } = useTableSort();
 
@@ -224,17 +258,22 @@ export default function UsersPage({ me }: { me: Me }) {
         row.original.lastSeen ? new Date(row.original.lastSeen).toLocaleString('ru-RU') : '—',
     },
     {
-      id: 'actions',
-      header: '',
-      cell: ({ row }) => (
-        <Link className="action-link" to={`/users/${encodeURIComponent(row.original.username)}`}>
-          Открыть
-        </Link>
-      ),
+      id: 'settings',
+      header: ({ table }) => <ColumnSettings table={table} />,
+      size: 44,
+      meta: { hideInSettings: true },
+      cell: () => null,
     },
   ], [allShownSelected, selected, shownNames.join(','), sorting]);
 
-  const table = useTable({ columns, data: shown });
+  const table = useTable({
+    columns,
+    data: shown,
+    enableHiding: true,
+    state: { columnVisibility },
+    onColumnVisibilityChange: setColumnVisibility,
+    initialState: { columnVisibility: DEFAULT_VISIBILITY },
+  });
 
   return (
     <div className="stack">
@@ -614,5 +653,45 @@ function CreateUserDialog({
         propsButtonApply={{ loading: busy, disabled: !name.trim() }}
       />
     </Dialog>
+  );
+}
+
+function ColumnSettings({ table }: { table: TanStackTable<ProxyUser> }) {
+  const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const columns = table
+    .getAllLeafColumns()
+    .filter((column) => column.id !== 'select' && column.id !== 'settings');
+
+  return (
+    <>
+      <span ref={setAnchor}>
+        <Button
+          view="flat"
+          size="s"
+          aria-label="Настроить колонки"
+          title="Настроить колонки"
+          onClick={() => setOpen(!open)}
+        >
+          <Icon data={Ellipsis} size={16} />
+        </Button>
+      </span>
+      <Popup open={open} anchorElement={anchor} onOpenChange={setOpen} placement="bottom-end">
+        <div className="column-settings">
+          {columns.map((column) => (
+            <Checkbox
+              key={column.id}
+              checked={column.getIsVisible()}
+              onUpdate={(checked) => column.toggleVisibility(checked)}
+              content={COLUMN_LABELS[column.id] ?? column.id}
+            />
+          ))}
+          <Divider />
+          <Button view="flat" size="s" onClick={() => table.resetColumnVisibility()}>
+            Сбросить
+          </Button>
+        </div>
+      </Popup>
+    </>
   );
 }
