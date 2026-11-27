@@ -194,7 +194,7 @@ describe('ProxyPanel — таблица и JSON', () => {
       },
     });
     renderUI(<ProxyPanel />);
-    expect((await screen.findAllByText('Параметр')).length).toBeGreaterThan(0);
+    expect(await screen.findAllByText('Параметр')).toHaveLength(1);
     expect(screen.getAllByText('Значение').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Включено').length).toBeGreaterThan(0);
     expect(screen.getByRole('checkbox', { name: 'censorship.mask' })).toBeChecked();
@@ -310,5 +310,85 @@ describe('ProxyPanel — объект, enum и read-only', () => {
     const checkbox = await screen.findByRole('checkbox', { name: 'server.metrics' });
     expect(checkbox).toBeDisabled();
     expect(checkbox).toBeChecked();
+  });
+});
+
+const helpSchema = {
+  version: 1,
+  fields: [
+    {
+      path: 'general.links.public_host',
+      description: 'Публичный адрес в ссылках tg://',
+      value: { type: 'string' },
+      api: { config_read: true, config_write: true },
+      apply: { watcher: 'supported', reload: 'supported', effect: 'links' },
+    },
+    {
+      path: 'censorship.mask',
+      description: 'Маскировать неизвестные соединения',
+      value: { type: 'boolean' },
+      api: { config_read: true, config_write: true },
+      apply: { watcher: 'supported', reload: 'supported', effect: 'mask' },
+    },
+  ],
+};
+
+describe('ProxyPanel — подсказки, сворачивание и подсветка', () => {
+  it('показывает подсказку по вопросику', async () => {
+    stubFetch({
+      '/api/proxy/schema': helpSchema,
+      '/api/proxy/config': {
+        revision: 'rev1',
+        config: { general: { links: { public_host: 'old' } }, censorship: { mask: true } },
+      },
+    });
+    renderUI(<ProxyPanel />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Описание general.links.public_host' }));
+    expect(await screen.findByText('Публичный адрес в ссылках tg://')).toBeInTheDocument();
+  });
+
+  it('сворачивает и разворачивает группу', async () => {
+    stubFetch({
+      '/api/proxy/schema': helpSchema,
+      '/api/proxy/config': {
+        revision: 'rev1',
+        config: { general: { links: { public_host: 'old' } }, censorship: { mask: true } },
+      },
+    });
+    renderUI(<ProxyPanel />);
+    await screen.findByText('general.links.public_host');
+    await userEvent.click(screen.getByRole('button', { name: /^general/ }));
+    expect(screen.queryByText('general.links.public_host')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /^general/ }));
+    expect(await screen.findByText('general.links.public_host')).toBeInTheDocument();
+  });
+
+  it('подсвечивает рамку изменённого параметра', async () => {
+    stubFetch({
+      '/api/proxy/schema': helpSchema,
+      '/api/proxy/config': {
+        revision: 'rev1',
+        config: { general: { links: { public_host: 'old' } }, censorship: { mask: true } },
+      },
+    });
+    renderUI(<ProxyPanel />);
+    const input = await screen.findByLabelText('general.links.public_host');
+    expect(input.closest('.proxy-row')).not.toHaveClass('proxy-row_changed');
+    await userEvent.type(input, 'x');
+    expect(input.closest('.proxy-row')).toHaveClass('proxy-row_changed');
+  });
+
+  it('не рисует содержимое в колонке включения у не-boolean', async () => {
+    stubFetch({
+      '/api/proxy/schema': helpSchema,
+      '/api/proxy/config': {
+        revision: 'rev1',
+        config: { general: { links: { public_host: 'old' } }, censorship: { mask: true } },
+      },
+    });
+    renderUI(<ProxyPanel />);
+    const input = await screen.findByLabelText('general.links.public_host');
+    const row = input.closest('.proxy-row') as HTMLElement;
+    expect(row.querySelectorAll('.proxy-cell')[2].textContent).toBe('');
   });
 });
