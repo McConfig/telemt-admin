@@ -869,15 +869,12 @@ export default function UserPage({ me }: { me: Me }) {
                       disabled={clearIps}
                     />
                   </label>
-                  <label className="check">
                     <Checkbox
                       controlProps={{ 'aria-label': 'снять лимит IP' }}
                       checked={clearIps}
                       onUpdate={setClearIps}
                       content="снять лимит IP"
                     />
-                    снять лимит IP
-                  </label>
                   <label className="field">
                     <span>Максимум соединений</span>
                     <TextInput
@@ -887,15 +884,12 @@ export default function UserPage({ me }: { me: Me }) {
                       disabled={clearConns}
                     />
                   </label>
-                  <label className="check">
                     <Checkbox
                       controlProps={{ 'aria-label': 'снять лимит соединений' }}
                       checked={clearConns}
                       onUpdate={setClearConns}
                       content="снять лимит соединений"
                     />
-                    снять лимит соединений
-                  </label>
                 </section>
 
                 <section className="form-section">
@@ -926,15 +920,12 @@ export default function UserPage({ me }: { me: Me }) {
                       width="max"
                     />
                   </label>
-                  <label className="check">
                     <Checkbox
                       controlProps={{ 'aria-label': 'снять квоту' }}
                       checked={clearQuota}
                       onUpdate={setClearQuota}
                       content="снять квоту"
                     />
-                    снять квоту
-                  </label>
                 </section>
 
                 <section className="form-section">
@@ -947,15 +938,12 @@ export default function UserPage({ me }: { me: Me }) {
                     <span>Вниз, Кбит/с</span>
                     <TextInput value={rateDown} onUpdate={setRateDown} disabled={clearRates} />
                   </label>
-                  <label className="check">
                     <Checkbox
                       controlProps={{ 'aria-label': 'снять лимиты скорости' }}
                       checked={clearRates}
                       onUpdate={setClearRates}
                       content="снять лимиты скорости"
                     />
-                    снять лимиты скорости
-                  </label>
                 </section>
 
                 <section className="form-section">

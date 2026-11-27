@@ -5,7 +5,6 @@ import ServicesPage from './ServicesPage';
 import { me } from '../test/data';
 import { renderUI } from '../test/render';
 import { stubFetch } from '../test/stubFetch';
-import { chooseSelect } from '../test/select';
 import type { ServiceAccount } from '../api';
 
 const service: ServiceAccount = {
@@ -54,7 +53,6 @@ describe('ServicesPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Создать сервис' }));
     await userEvent.type(screen.getByPlaceholderText('Имя'), 'ci');
     await userEvent.type(screen.getByPlaceholderText('Описание'), 'CI runner');
-    await chooseSelect('Права', 'Клиенты — управление клиентами');
     await userEvent.click(screen.getByRole('button', { name: 'Создать' }));
 
     expect(await screen.findByText('ci')).toBeInTheDocument();
@@ -89,7 +87,6 @@ describe('ServicesPage', () => {
     edit = await screen.findByRole('dialog');
     await userEvent.clear(within(edit).getByPlaceholderText('Описание'));
     await userEvent.type(within(edit).getByPlaceholderText('Описание'), 'Новое описание');
-    await chooseSelect('Права', 'Администратор — полный доступ');
     await userEvent.click(within(edit).getByRole('button', { name: 'Сохранить' }));
     expect(await screen.findByText('Новое описание')).toBeInTheDocument();
 

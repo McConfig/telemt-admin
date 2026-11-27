@@ -256,12 +256,18 @@ describe('UsersPage — импорт CSV', () => {
   }
 
   it('проверяет файл и создаёт валидных клиентов', async () => {
+    const createObjectURL = vi.fn().mockReturnValue('blob:template');
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     importRoutes();
     renderUI(<UsersPage me={me} />);
     await screen.findByRole('link', { name: 'main' });
 
     await userEvent.click(screen.getByRole('button', { name: 'Импорт CSV' }));
     expect(await screen.findByText('Импорт клиентов')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Скачать шаблон' }));
+    expect(createObjectURL).toHaveBeenCalled();
 
     const input = screen.getByLabelText('CSV-файл');
     await userEvent.upload(

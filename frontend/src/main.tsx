@@ -5,10 +5,13 @@ import './styles.css';
 import App from './App';
 import {settings} from '@gravity-ui/date-utils';
 
-void settings.loadLocale('ru');
+async function bootstrap() {
+  await settings.loadLocale('ru');
+  createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  );
+}
 
-createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
+void bootstrap();
