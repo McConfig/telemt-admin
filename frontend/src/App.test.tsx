@@ -90,7 +90,8 @@ describe('App', () => {
     expect(await screen.findByText('Пользователи telemt')).toBeInTheDocument();
     expect(localStorage.getItem('tgadmin-theme')).toBe('system');
 
-    await userEvent.click(screen.getByRole('combobox', { name: 'Тема' }));
+    await userEvent.click(screen.getByText('admin'));
+    await userEvent.click(await screen.findByRole('combobox', { name: 'Тема' }));
     await userEvent.click(screen.getByRole('option', { name: 'Светлая' }));
     await waitFor(() => expect(localStorage.getItem('tgadmin-theme')).toBe('light'));
     expect(document.body.className).toContain('g-root_theme_light');
@@ -111,7 +112,8 @@ describe('App', () => {
     await renderApp('/', { '/api/me': me });
     expect(await screen.findByText('Пользователи telemt')).toBeInTheDocument();
     expect(document.body.className).toContain('g-root_theme_light');
-    await userEvent.click(screen.getByRole('combobox', { name: 'Тема' }));
+    await userEvent.click(screen.getByText('admin'));
+    await userEvent.click(await screen.findByRole('combobox', { name: 'Тема' }));
     await userEvent.click(screen.getByRole('option', { name: 'Тёмная' }));
     await waitFor(() => expect(localStorage.getItem('tgadmin-theme')).toBe('dark'));
   });

@@ -431,7 +431,9 @@ export default function UsersPage({ me }: { me: Me }) {
             ))}
           </div>
         ) : (
-          <Table table={table} emptyContent="Пользователей нет" />
+          <div className="table-scroll">
+            <Table table={table} emptyContent="Пользователей нет" />
+          </div>
         )}
       </Card>
       {pages > 1 && (
