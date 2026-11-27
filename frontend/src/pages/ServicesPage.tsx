@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Dialog, Label, Loader, Text, TextInput } from '@gravity-ui/uikit';
+import { Alert, Button, Card, Checkbox, Dialog, Label, Loader, Select, Text, TextInput } from '@gravity-ui/uikit';
 import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { Ban, Key, Pencil, Play, TrashBin } from '@gravity-ui/icons';
@@ -269,28 +269,28 @@ function ServiceDialog({
           />
           <label className="field">
             <span>Права</span>
-            <select
+            <Select
               aria-label="Права"
-              value={scope}
-              onChange={(event) => setScope(event.target.value as ServiceScope)}
-            >
-              <option value="read">Чтение — только просмотр</option>
-              <option value="write">Клиенты — управление клиентами</option>
-              <option value="admin">Администратор — полный доступ</option>
-            </select>
+              value={[scope]}
+              options={[
+                { value: 'read', content: 'Чтение — только просмотр' },
+                { value: 'write', content: 'Клиенты — управление клиентами' },
+                { value: 'admin', content: 'Администратор — полный доступ' },
+              ]}
+              onUpdate={([value]) => setScope((value ?? 'read') as ServiceScope)}
+              width="max"
+            />
           </label>
           <Text className="muted">
             Смена прав действует на все токены сервиса сразу.
           </Text>
           {service && (
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={disabled}
-                onChange={(event) => setDisabled(event.target.checked)}
-              />
-              <span>Отключён</span>
-            </label>
+            <Checkbox
+              controlProps={{ 'aria-label': 'Отключён' }}
+              checked={disabled}
+              onUpdate={setDisabled}
+              content="Отключён"
+            />
           )}
         </div>
       </Dialog.Body>

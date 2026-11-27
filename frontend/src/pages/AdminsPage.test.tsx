@@ -107,7 +107,8 @@ describe('AdminsPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Создать' }));
     const dialog = await screen.findByRole('dialog');
     await userEvent.type(within(dialog).getByPlaceholderText('Имя'), 'newbie');
-    await userEvent.selectOptions(within(dialog).getByRole('combobox'), 'admin');
+    await userEvent.click(within(dialog).getByRole('combobox', { name: 'Роль' }));
+    await userEvent.keyboard('{ArrowDown}{Enter}');
     await userEvent.type(
       within(dialog).getByPlaceholderText('Пароль (пусто — сгенерировать)'),
       'secret-pass',

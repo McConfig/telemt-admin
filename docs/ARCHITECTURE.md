@@ -40,6 +40,15 @@ principal с именем, типом, ролью и scope. Cookie-сессия 
 сервисами и токенами доступно только из cookie-сессии администратора.
 Секреты токенов хранятся в Valkey как SHA-256.
 
+## Интерфейс
+
+SPA построена на Gravity UI: `Provider` задаёт тему и русскую локаль,
+`AsideHeader` из `@gravity-ui/navigation` формирует боковое меню, аккаунт
+и выход. Поддерживаются темы `system`, `light`, `dark`, `light-hc`,
+`dark-hc`; выбор хранится в `localStorage`. Формы используют `TextInput`,
+`Select`, `Checkbox`, `TextArea`, `DateField`, таблицы данных —
+`@gravity-ui/table`.
+
 ## Границы доверия
 
 1. **Браузер ↔ reverse-proxy** — HTTPS, HSTS, cookie `Secure`/`HttpOnly`,

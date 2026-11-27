@@ -53,11 +53,13 @@ describe('ServicesPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Создать сервис' }));
     await userEvent.type(screen.getByPlaceholderText('Имя'), 'ci');
     await userEvent.type(screen.getByPlaceholderText('Описание'), 'CI runner');
-    await userEvent.selectOptions(screen.getByLabelText('Права'), 'write');
+    await userEvent.click(screen.getByRole('combobox', { name: 'Права' }));
+    await userEvent.keyboard('{ArrowDown}{Enter}');
     await userEvent.click(screen.getByRole('button', { name: 'Создать' }));
 
     expect(await screen.findByText('ci')).toBeInTheDocument();
     expect(screen.getByText('CI runner')).toBeInTheDocument();
+    expect(screen.getByText('Клиенты')).toBeInTheDocument();
   });
 
   it('редактирует, отключает и удаляет сервис', async () => {
@@ -88,7 +90,6 @@ describe('ServicesPage', () => {
     edit = await screen.findByRole('dialog');
     await userEvent.clear(within(edit).getByPlaceholderText('Описание'));
     await userEvent.type(within(edit).getByPlaceholderText('Описание'), 'Новое описание');
-    await userEvent.selectOptions(within(edit).getByLabelText('Права'), 'admin');
     await userEvent.click(within(edit).getByRole('button', { name: 'Сохранить' }));
     expect(await screen.findByText('Новое описание')).toBeInTheDocument();
 

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Alert, Button, Card, Text, TextInput } from '@gravity-ui/uikit';
+import { Alert, Button, Card, Text, TextArea, TextInput } from '@gravity-ui/uikit';
 import { api, ApiError, type LimitTemplate, type Me } from '../api';
+import { FormSelect } from '../components/FormSelect';
+import { DateFormField } from '../components/DateFormField';
 
 function daysFromNow(days: number): string {
   const date = new Date(Date.now() + days * 24 * 3600 * 1000);
@@ -86,54 +88,47 @@ export default function NewUserPage({ me }: { me: Me }) {
         <form className="stack" onSubmit={submit}>
           {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
           {templates.length > 0 && (
-            <label className="field">
-              <span>Шаблон лимитов</span>
-              <select
-                value={templateName}
-                onChange={(event) => {
-                  const next = templates.find((t) => t.name === event.target.value);
-                  setTemplateName(event.target.value);
-                  if (next) applyTemplate(next);
-                }}
-              >
-                {templates.map((t) => (
-                  <option key={t.name} value={t.name}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <FormSelect
+              label="Шаблон лимитов"
+              value={templateName}
+              options={templates.map((t) => ({ value: t.name, content: t.name }))}
+              onUpdate={(value) => {
+                const next = templates.find((t) => t.name === value);
+                setTemplateName(value);
+                if (next) applyTemplate(next);
+              }}
+            />
           )}
           <TextInput placeholder="Имя" value={name} onUpdate={setName} />
           <TextInput placeholder="Секрет (32 hex, пусто — сгенерировать)" value={secret} onUpdate={setSecret} />
           <TextInput placeholder="Максимум уникальных IP" value={maxIps} onUpdate={setMaxIps} />
           <TextInput placeholder="Максимум соединений" value={maxConns} onUpdate={setMaxConns} />
           <TextInput placeholder="Квота, ГиБ" value={quotaGB} onUpdate={setQuotaGB} />
-          <label className="field">
-            <span>Период квоты</span>
-            <select value={period} onChange={(e) => setPeriod(e.target.value)}>
-              <option value="">без сброса</option>
-              <option value="daily">сутки</option>
-              <option value="weekly">неделя</option>
-              <option value="monthly">месяц</option>
-            </select>
-          </label>
+          <FormSelect
+            label="Период квоты"
+            value={period}
+            options={[
+              { value: '', content: 'без сброса' },
+              { value: 'daily', content: 'сутки' },
+              { value: 'weekly', content: 'неделя' },
+              { value: 'monthly', content: 'месяц' },
+            ]}
+            onUpdate={setPeriod}
+          />
           <TextInput placeholder="Скорость вверх, Кбит/с" value={rateUp} onUpdate={setRateUp} />
           <TextInput placeholder="Скорость вниз, Кбит/с" value={rateDown} onUpdate={setRateDown} />
-          <label className="field">
-            <span>Действует до</span>
-            <input
-              type="datetime-local"
-              value={expiration}
-              onChange={(e) => setExpiration(e.target.value)}
-            />
-          </label>
+          <DateFormField
+            label="Действует до"
+            value={expiration}
+            withTime
+            onUpdate={setExpiration}
+          />
           <label className="field">
             <span>Запрещённые сети, по одной на строку</span>
-            <textarea
+            <TextArea
               rows={2}
               value={sourceDeny}
-              onChange={(e) => setSourceDeny(e.target.value)}
+              onUpdate={setSourceDeny}
               placeholder="203.0.113.0/24"
             />
           </label>

@@ -29,5 +29,5 @@ test('вход со вторым фактором', async ({ page }) => {
   await page.getByPlaceholder('000000').fill('123456');
   await page.getByRole('button', { name: 'Подтвердить' }).click();
   await expect(page.getByText('Пользователи telemt')).toBeVisible();
-  await expect(page.locator('.topbar-user').getByText('mcconfig')).toBeVisible();
+  await expect(page.getByText('mcconfig').first()).toBeVisible();
 });

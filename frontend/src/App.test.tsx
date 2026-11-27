@@ -88,22 +88,31 @@ describe('App', () => {
   it('загружает me, показывает список, переключает тему и выходит', async () => {
     await renderApp('/', { '/api/me': me });
     expect(await screen.findByText('Пользователи telemt')).toBeInTheDocument();
-    expect(localStorage.getItem('tgadmin-theme')).toBe('dark');
+    expect(localStorage.getItem('tgadmin-theme')).toBe('system');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Переключить тему' }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'Тема' }));
+    await userEvent.click(screen.getByRole('option', { name: 'Светлая' }));
     await waitFor(() => expect(localStorage.getItem('tgadmin-theme')).toBe('light'));
-    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(document.body.className).toContain('g-root_theme_light');
 
     await userEvent.click(screen.getByRole('button', { name: 'Выйти' }));
     expect(await screen.findByText('Вход в TeleMT Admin')).toBeInTheDocument();
+  });
+
+  it('по умолчанию использует системную тему', async () => {
+    await renderApp('/', { '/api/me': me });
+    expect(await screen.findByText('Пользователи telemt')).toBeInTheDocument();
+    expect(localStorage.getItem('tgadmin-theme')).toBe('system');
+    expect(document.body.className).toContain('g-root_theme_light');
   });
 
   it('стартует со светлой темы из localStorage', async () => {
     localStorage.setItem('tgadmin-theme', 'light');
     await renderApp('/', { '/api/me': me });
     expect(await screen.findByText('Пользователи telemt')).toBeInTheDocument();
-    expect(document.documentElement.dataset.theme).toBe('light');
-    await userEvent.click(screen.getByRole('button', { name: 'Переключить тему' }));
+    expect(document.body.className).toContain('g-root_theme_light');
+    await userEvent.click(screen.getByRole('combobox', { name: 'Тема' }));
+    await userEvent.click(screen.getByRole('option', { name: 'Тёмная' }));
     await waitFor(() => expect(localStorage.getItem('tgadmin-theme')).toBe('dark'));
   });
 

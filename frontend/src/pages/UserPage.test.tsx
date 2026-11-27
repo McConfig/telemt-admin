@@ -6,6 +6,7 @@ import UserPage from './UserPage';
 import { me, proxyUser } from '../test/data';
 import { renderUI } from '../test/render';
 import { stubFetch } from '../test/stubFetch';
+import { chooseSelect } from '../test/select';
 
 const riskDay = new Date().toISOString().slice(0, 10);
 const riskReport = {
@@ -164,7 +165,7 @@ describe('UserPage', () => {
 
     await userEvent.type(screen.getByLabelText('Предупреждение, больше IP'), '6');
     await userEvent.type(screen.getByLabelText('Высокий риск, больше IP'), '8');
-    await userEvent.selectOptions(screen.getByLabelText('Реакция на новую страну'), 'no');
+    await chooseSelect('Реакция на новую страну', 'не считать');
     await userEvent.click(screen.getByRole('button', { name: 'Сохранить пороги' }));
 
     expect(await screen.findByText('сохранено')).toBeInTheDocument();
@@ -184,7 +185,7 @@ describe('UserPage', () => {
     await screen.findByText('main');
     await userEvent.click(screen.getByRole('button', { name: 'Лимиты' }));
     expect(await screen.findByText('Автосброс квоты')).toBeInTheDocument();
-    await userEvent.selectOptions(screen.getByLabelText('Режим'), 'custom');
+    await chooseSelect('Режим', 'своё расписание');
     await userEvent.type(screen.getByLabelText('Интервал, дней'), '14');
     await userEvent.type(screen.getByLabelText('Время'), '05:30');
     await userEvent.click(screen.getByRole('button', { name: 'Сохранить расписание' }));

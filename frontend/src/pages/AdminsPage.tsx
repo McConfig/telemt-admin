@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Dialog, Label, Loader, Text, TextInput } from '@gravity-ui/uikit';
+import { Alert, Button, Card, Dialog, Label, Loader, Select, Text, TextInput } from '@gravity-ui/uikit';
 import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { ArrowRightFromSquare, Ban, Key, Lock, Play, TrashBin } from '@gravity-ui/icons';
@@ -290,12 +290,18 @@ function CreateAdminDialog({
         <div className="stack">
           {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
           <TextInput placeholder="Имя" value={name} onUpdate={setName} />
-          <label>
-            Роль:{' '}
-            <select value={role} onChange={(e) => setRole(e.target.value as 'admin' | 'viewer')}>
-              <option value="viewer">viewer</option>
-              <option value="admin">admin</option>
-            </select>
+          <label className="field">
+            <span>Роль</span>
+            <Select
+              aria-label="Роль"
+              value={[role]}
+              options={[
+                { value: 'viewer', content: 'viewer' },
+                { value: 'admin', content: 'admin' },
+              ]}
+              onUpdate={([value]) => setRole((value ?? 'viewer') as 'admin' | 'viewer')}
+              width="max"
+            />
           </label>
           <TextInput
             placeholder="Пароль (пусто — сгенерировать)"

@@ -4,10 +4,13 @@ import {
   Alert,
   Button,
   Card,
+  Checkbox,
   Dialog,
   Label,
   Loader,
+  Select,
   Text,
+  TextArea,
   TextInput,
 } from '@gravity-ui/uikit';
 import {
@@ -39,6 +42,7 @@ import {
 import { formatBytes, formatTime } from '../format';
 import { useTableSort } from '../tableSort';
 import { useMedia } from '../useMedia';
+import { DateFormField } from '../components/DateFormField';
 
 export default function UserPage({ me }: { me: Me }) {
   const { name = '' } = useParams();
@@ -722,13 +726,16 @@ export default function UserPage({ me }: { me: Me }) {
                 <div className="row">
                   <label className="field field-inline">
                     <span>Период</span>
-                    <select
-                      value={riskDays}
-                      onChange={(event) => setRiskDays(Number(event.target.value))}
-                    >
-                      <option value={7}>7 дней</option>
-                      <option value={30}>30 дней</option>
-                    </select>
+                    <Select
+                      aria-label="Период"
+                      value={[String(riskDays)]}
+                      options={[
+                        { value: '7', content: '7 дней' },
+                        { value: '30', content: '30 дней' },
+                      ]}
+                      onUpdate={([value]) => setRiskDays(Number(value))}
+                      width={140}
+                    />
                   </label>
                   <div style={{ flex: 1 }} />
                   <Button view="outlined" onClick={() => setRotateOpen(true)}>
@@ -743,11 +750,11 @@ export default function UserPage({ me }: { me: Me }) {
                     <Text variant="subheader-1">Дни</Text>
                     <div className="risk-days">
                       {riskReport.days.map((day) => (
-                        <button
+                        <Button
                           key={day.day}
-                          type="button"
+                          view="flat"
                           className="risk-day"
-                          aria-pressed={riskDay === day.day}
+                          selected={riskDay === day.day}
                           onClick={() => setRiskDay(day.day)}
                         >
                           <Text variant="subheader-1">{formatRiskDay(day.day)}</Text>
@@ -762,7 +769,7 @@ export default function UserPage({ me }: { me: Me }) {
                               новые страны: {day.newCountries?.map((country) => country.code).join(', ')}
                             </span>
                           )}
-                        </button>
+                        </Button>
                       ))}
                     </div>
 
@@ -823,16 +830,16 @@ export default function UserPage({ me }: { me: Me }) {
                 <div className="row">
                   <label className="field field-inline">
                     <span>Шаблон</span>
-                    <select
-                      value={templateName}
-                      onChange={(event) => setTemplateName(event.target.value)}
-                    >
-                      {templates.map((template) => (
-                        <option key={template.name} value={template.name}>
-                          {template.name}
-                        </option>
-                      ))}
-                    </select>
+                    <Select
+                      aria-label="Шаблон"
+                      value={templateName ? [templateName] : []}
+                      options={templates.map((template) => ({
+                        value: template.name,
+                        content: template.name,
+                      }))}
+                      onUpdate={([value]) => setTemplateName(value ?? '')}
+                      width={180}
+                    />
                   </label>
                   <Button view="outlined" type="button" onClick={applyTemplate}>
                     Заполнить из шаблона
@@ -862,10 +869,12 @@ export default function UserPage({ me }: { me: Me }) {
                       disabled={clearIps}
                     />
                   </label>
-                  <label className="check">
-                    <input type="checkbox" checked={clearIps} onChange={(e) => setClearIps(e.target.checked)} />
-                    снять лимит IP
-                  </label>
+                    <Checkbox
+                      controlProps={{ 'aria-label': 'снять лимит IP' }}
+                      checked={clearIps}
+                      onUpdate={setClearIps}
+                      content="снять лимит IP"
+                    />
                   <label className="field">
                     <span>Максимум соединений</span>
                     <TextInput
@@ -875,10 +884,12 @@ export default function UserPage({ me }: { me: Me }) {
                       disabled={clearConns}
                     />
                   </label>
-                  <label className="check">
-                    <input type="checkbox" checked={clearConns} onChange={(e) => setClearConns(e.target.checked)} />
-                    снять лимит соединений
-                  </label>
+                    <Checkbox
+                      controlProps={{ 'aria-label': 'снять лимит соединений' }}
+                      checked={clearConns}
+                      onUpdate={setClearConns}
+                      content="снять лимит соединений"
+                    />
                 </section>
 
                 <section className="form-section">
@@ -894,17 +905,27 @@ export default function UserPage({ me }: { me: Me }) {
                   </label>
                   <label className="field">
                     <span>Период сброса</span>
-                    <select value={period} onChange={(e) => setPeriod(e.target.value)} disabled={clearQuota}>
-                      <option value="">без сброса</option>
-                      <option value="daily">сутки</option>
-                      <option value="weekly">неделя</option>
-                      <option value="monthly">месяц</option>
-                    </select>
+                    <Select
+                      aria-label="Период квоты"
+                      value={period ? [period] : []}
+                      options={[
+                        { value: '', content: 'без сброса' },
+                        { value: 'daily', content: 'сутки' },
+                        { value: 'weekly', content: 'неделя' },
+                        { value: 'monthly', content: 'месяц' },
+                      ]}
+                      onUpdate={([value]) => setPeriod(value ?? '')}
+                      disabled={clearQuota}
+                      placeholder="без сброса"
+                      width="max"
+                    />
                   </label>
-                  <label className="check">
-                    <input type="checkbox" checked={clearQuota} onChange={(e) => setClearQuota(e.target.checked)} />
-                    снять квоту
-                  </label>
+                    <Checkbox
+                      controlProps={{ 'aria-label': 'снять квоту' }}
+                      checked={clearQuota}
+                      onUpdate={setClearQuota}
+                      content="снять квоту"
+                    />
                 </section>
 
                 <section className="form-section">
@@ -917,46 +938,46 @@ export default function UserPage({ me }: { me: Me }) {
                     <span>Вниз, Кбит/с</span>
                     <TextInput value={rateDown} onUpdate={setRateDown} disabled={clearRates} />
                   </label>
-                  <label className="check">
-                    <input type="checkbox" checked={clearRates} onChange={(e) => setClearRates(e.target.checked)} />
-                    снять лимиты скорости
-                  </label>
+                    <Checkbox
+                      controlProps={{ 'aria-label': 'снять лимиты скорости' }}
+                      checked={clearRates}
+                      onUpdate={setClearRates}
+                      content="снять лимиты скорости"
+                    />
                 </section>
 
                 <section className="form-section">
                   <Text variant="subheader-1">Срок действия</Text>
-                  <label className="field">
-                    <span>Действует до</span>
-                    <input
-                      type="datetime-local"
-                      value={expiration}
-                      disabled={clearExpiration}
-                      onChange={(e) => setExpiration(e.target.value)}
-                    />
-                  </label>
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={clearExpiration}
-                      onChange={(e) => setClearExpiration(e.target.checked)}
-                    />
-                    без срока
-                  </label>
+                  <DateFormField
+                    label="Действует до"
+                    value={expiration}
+                    withTime
+                    disabled={clearExpiration}
+                    onUpdate={setExpiration}
+                  />
+                  <Checkbox
+                    controlProps={{ 'aria-label': 'без срока' }}
+                    checked={clearExpiration}
+                    onUpdate={setClearExpiration}
+                    content="без срока"
+                  />
                 </section>
 
                 <section className="form-section span-2">
                   <Text variant="subheader-1">Запрещённые сети (source_deny)</Text>
-                  <textarea
+                  <TextArea
                     rows={3}
                     value={sourceDeny}
                     disabled={clearSource}
-                    onChange={(e) => setSourceDeny(e.target.value)}
+                    onUpdate={setSourceDeny}
                     placeholder="по одному CIDR на строку, например 203.0.113.0/24"
                   />
-                  <label className="check">
-                    <input type="checkbox" checked={clearSource} onChange={(e) => setClearSource(e.target.checked)} />
-                    очистить список
-                  </label>
+                  <Checkbox
+                    controlProps={{ 'aria-label': 'очистить список' }}
+                    checked={clearSource}
+                    onUpdate={setClearSource}
+                    content="очистить список"
+                  />
                 </section>
               </div>
 
@@ -991,11 +1012,17 @@ export default function UserPage({ me }: { me: Me }) {
               <div className="form-grid">
                 <label className="field">
                   <span>Режим</span>
-                  <select value={quotaMode} onChange={(e) => setQuotaMode(e.target.value)}>
-                    <option value="inherit">как у всех</option>
-                    <option value="off">не сбрасывать</option>
-                    <option value="custom">своё расписание</option>
-                  </select>
+                  <Select
+                    aria-label="Режим"
+                    value={[quotaMode]}
+                    options={[
+                      { value: 'inherit', content: 'как у всех' },
+                      { value: 'off', content: 'не сбрасывать' },
+                      { value: 'custom', content: 'своё расписание' },
+                    ]}
+                    onUpdate={([value]) => setQuotaMode(value ?? 'inherit')}
+                    width="max"
+                  />
                 </label>
                 <label className="field">
                   <span>Интервал, дней</span>
@@ -1082,14 +1109,19 @@ export default function UserPage({ me }: { me: Me }) {
                   <Text variant="subheader-1">Новые страны</Text>
                   <label className="field">
                     <span>Реакция на новую страну</span>
-                    <select
-                      value={riskNewMode}
-                      onChange={(e) => setRiskNewMode(e.target.value as 'inherit' | 'yes' | 'no')}
-                    >
-                      <option value="inherit">как у всех</option>
-                      <option value="yes">считать риском</option>
-                      <option value="no">не считать</option>
-                    </select>
+                    <Select
+                      aria-label="Реакция на новую страну"
+                      value={[riskNewMode]}
+                      options={[
+                        { value: 'inherit', content: 'как у всех' },
+                        { value: 'yes', content: 'считать риском' },
+                        { value: 'no', content: 'не считать' },
+                      ]}
+                      onUpdate={([value]) =>
+                        setRiskNewMode((value ?? 'inherit') as 'inherit' | 'yes' | 'no')
+                      }
+                      width="max"
+                    />
                   </label>
                 </section>
               </div>

@@ -2,11 +2,6 @@ body { margin: 0; }
 #root { min-height: 100vh; }
 .app-shell { display: flex; flex-direction: column; min-height: 100vh; }
 .page { flex: 1 0 auto; max-width: 1180px; width: 100%; box-sizing: border-box; margin: 0 auto; padding: 24px; }
-.topbar { display: flex; gap: 16px; align-items: center; padding: 12px 24px; border-bottom: 1px solid var(--g-color-line-generic); }
-.topbar .brand { font-weight: 600; margin-right: 8px; }
-.topbar nav { display: flex; gap: 16px; flex: 1; }
-.topbar a { color: var(--g-color-text-link); text-decoration: none; }
-.topbar a.active { color: var(--g-color-text-primary); font-weight: 600; }
 .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .stack { display: flex; flex-direction: column; gap: 16px; }
 .qr { background: #fff; padding: 8px; width: 264px; border-radius: 8px; }
@@ -15,12 +10,7 @@ body { margin: 0; }
 
 table { width: 100%; }
 
-textarea { font: inherit; background: transparent; color: inherit; border: 1px solid var(--g-color-line-generic); border-radius: 6px; padding: 8px; }
-select { font: inherit; }
 a[download] { text-decoration: none; }
-.menu-toggle { display: none; font: inherit; background: none; color: inherit; border: 1px solid var(--g-color-line-generic); border-radius: 6px; padding: 6px 10px; }
-.topbar-panel { display: flex; align-items: center; gap: 16px; flex: 1; }
-.topbar-user { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 .user-cards { display: flex; flex-direction: column; gap: 10px; }
 .footer { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 16px 24px; border-top: 1px solid var(--g-color-line-generic); color: var(--g-color-text-secondary); font-size: 13px; text-align: center; margin-top: auto; }
 .footer a { color: var(--g-color-text-link); text-decoration: none; }
@@ -30,10 +20,11 @@ table a:hover, .user-card a:hover { text-decoration: underline; text-underline-o
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .form-section { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--g-color-line-generic); border-radius: 10px; background: var(--g-color-base-generic); }
 .form-section .g-text-input { width: 100%; }
-.field { display: flex; flex-direction: column; gap: 4px; }
+.field { display: flex; flex-direction: column; gap: var(--g-spacing-1); }
+.field-label { font-size: 12px; color: var(--g-color-text-secondary); }
+.field-hint { font-size: 12px; color: var(--g-color-text-secondary); }
+.field-error { font-size: 12px; color: var(--g-color-text-danger); }
 .field > span { font-size: 12px; color: var(--g-color-text-secondary); }
-.field select, .field input[type="datetime-local"] { font: inherit; color: inherit; background: transparent; border: 1px solid var(--g-color-line-generic); border-radius: 6px; padding: 8px; }
-.check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--g-color-text-secondary); }
 .form-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .span-2 { grid-column: span 2; }
 .page-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -44,9 +35,7 @@ table a:hover, .user-card a:hover { text-decoration: underline; text-underline-o
 .stat-value-warning { color: var(--g-color-text-warning); }
 .stat-value-danger { color: var(--g-color-text-danger); }
 .card-head { display: flex; align-items: center; gap: 8px; }
-.select { font: inherit; color: inherit; background: var(--g-color-base-generic); border: 1px solid var(--g-color-line-generic); border-radius: 6px; padding: 8px; }
 .field-inline { flex-direction: row; align-items: center; gap: 6px; }
-.field-inline input[type="date"] { font: inherit; color: inherit; background: transparent; border: 1px solid var(--g-color-line-generic); border-radius: 6px; padding: 6px; }
 .totp-setup { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
 .totp-setup img { border-radius: 8px; background: #fff; }
 .recovery-codes { margin: 0; padding: 12px; border-radius: 8px; background: var(--g-color-base-generic); font-family: monospace; font-size: 14px; line-height: 1.6; }
@@ -74,18 +63,13 @@ table a:hover, .user-card a:hover { text-decoration: underline; text-underline-o
 .template-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px; border: 1px solid var(--g-color-line-generic); border-radius: 8px; }
 .settings-save { position: sticky; bottom: 12px; display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 10px 12px; border: 1px solid var(--g-color-line-generic); border-radius: 10px; background: var(--g-color-base-float); }
 .risk-days { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
-.risk-day { display: flex; flex-direction: column; gap: 4px; text-align: left; font: inherit; color: inherit; cursor: pointer; padding: 12px; border: 1px solid var(--g-color-line-generic); border-radius: 8px; background: transparent; }
-.risk-day:hover { background: var(--g-color-base-generic-hover); }
+.risk-day.g-button { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; height: auto; text-align: left; font: inherit; color: inherit; padding: var(--g-spacing-3); border: 1px solid var(--g-color-line-generic); border-radius: 8px; background: transparent; }
+.risk-day.g-button:hover { background: var(--g-color-base-generic-hover); }
+.risk-day .g-button__text { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; white-space: normal; }
 .risk-day[aria-pressed="true"] { border-color: var(--g-color-line-brand); background: var(--g-color-base-selection); }
 
 @media (max-width: 760px) {
   .page { padding: 12px; }
-  .topbar { gap: 8px; padding: 8px 12px; flex-wrap: wrap; }
-  .menu-toggle { display: inline-block; margin-left: auto; }
-  .topbar-panel { display: none; order: 3; flex: 1 0 100%; flex-direction: column; align-items: flex-start; gap: 8px; width: 100%; }
-  .topbar-panel.open { display: flex; padding-top: 8px; border-top: 1px solid var(--g-color-line-generic); }
-  .topbar nav { flex-direction: column; align-items: flex-start; gap: 8px; }
-  .topbar-user { flex-wrap: wrap; margin-left: 0; }
   .footer { flex-direction: column; padding: 12px; }
 
   .qr { width: 200px; }

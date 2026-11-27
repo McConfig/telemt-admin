@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Dialog, Loader, Text, TextInput } from '@gravity-ui/uikit';
+import { Table, useTable } from '@gravity-ui/table';
+import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { api, ApiError, type IssuedServiceToken, type ServiceAccount, type ServiceToken } from '../api';
 import { formatTime } from '../format';
 
@@ -149,40 +151,7 @@ export default function ServiceTokensDialog({
               ) : tokens.length === 0 ? (
                 <Text className="muted">Токенов пока нет.</Text>
               ) : (
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Метка</th>
-                        <th>ID</th>
-                        <th>Создан</th>
-                        <th>Срок</th>
-                        <th>Последнее использование</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tokens.map((token) => (
-                        <tr key={token.id}>
-                          <td>{token.label || '—'}</td>
-                          <td>{token.prefix}</td>
-                          <td>{formatTime(token.createdAt)}</td>
-                          <td>{token.expiresAt ? formatTime(token.expiresAt) : 'бессрочно'}</td>
-                          <td>{token.lastUsedAt ? formatTime(token.lastUsedAt) : 'не использовался'}</td>
-                          <td>
-                            <Button
-                              view="flat"
-                              aria-label={`Отозвать ${token.label || token.id}`}
-                              onClick={() => void revoke(token)}
-                            >
-                              Отозвать
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <TokensTable tokens={tokens} onRevoke={(token) => void revoke(token)} />
               )}
             </>
           )}
@@ -190,5 +159,57 @@ export default function ServiceTokensDialog({
       </Dialog.Body>
       <Dialog.Footer onClickButtonCancel={onClose} textButtonCancel="Закрыть" />
     </Dialog>
+  );
+}
+
+function TokensTable({
+  tokens,
+  onRevoke,
+}: {
+  tokens: ServiceToken[];
+  onRevoke: (token: ServiceToken) => void;
+}) {
+  const columns = useMemo<ColumnDef<ServiceToken>[]>(
+    () => [
+      { id: 'label', header: 'Метка', cell: ({ row }) => row.original.label || '—' },
+      { id: 'id', header: 'ID', cell: ({ row }) => row.original.prefix },
+      {
+        id: 'created',
+        header: 'Создан',
+        cell: ({ row }) => formatTime(row.original.createdAt),
+      },
+      {
+        id: 'expires',
+        header: 'Срок',
+        cell: ({ row }) =>
+          row.original.expiresAt ? formatTime(row.original.expiresAt) : 'бессрочно',
+      },
+      {
+        id: 'lastUsed',
+        header: 'Последнее использование',
+        cell: ({ row }) =>
+          row.original.lastUsedAt ? formatTime(row.original.lastUsedAt) : 'не использовался',
+      },
+      {
+        id: 'actions',
+        header: '',
+        cell: ({ row }) => (
+          <Button
+            view="flat"
+            aria-label={`Отозвать ${row.original.label || row.original.id}`}
+            onClick={() => onRevoke(row.original)}
+          >
+            Отозвать
+          </Button>
+        ),
+      },
+    ],
+    [onRevoke],
+  );
+  const table = useTable({ columns, data: tokens });
+  return (
+    <div className="table-scroll">
+      <Table table={table} />
+    </div>
   );
 }

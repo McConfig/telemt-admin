@@ -3,9 +3,15 @@ import { createRoot } from 'react-dom/client';
 import '@gravity-ui/uikit/styles/styles.css';
 import './styles.css';
 import App from './App';
+import {settings} from '@gravity-ui/date-utils';
 
-createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
+async function bootstrap() {
+  await settings.loadLocale('ru');
+  createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  );
+}
+
+void bootstrap();

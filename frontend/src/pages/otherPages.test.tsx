@@ -8,6 +8,7 @@ import NewUserPage from './NewUserPage';
 import { me } from '../test/data';
 import { renderUI } from '../test/render';
 import { stubFetch } from '../test/stubFetch';
+import { chooseSelect } from '../test/select';
 
 const admins = [
   {
@@ -57,8 +58,8 @@ describe('AuditPage', () => {
     expect(await screen.findByText('user.create')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /^Кто/ }));
     expect(screen.getAllByText(/↑|↓/).length).toBeGreaterThan(0);
-    await userEvent.selectOptions(screen.getByRole('combobox'), 'user.create');
-    await userEvent.type(screen.getByRole('textbox'), 'main');
+    await chooseSelect('Действие', 'user.create');
+    await userEvent.type(screen.getByPlaceholderText('Поиск по имени, цели, IP'), 'main');
   });
 });
 

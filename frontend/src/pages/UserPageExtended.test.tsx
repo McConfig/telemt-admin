@@ -6,6 +6,7 @@ import UserPage from './UserPage';
 import { me, proxyUser } from '../test/data';
 import { renderUI } from '../test/render';
 import { stubFetch } from '../test/stubFetch';
+import { chooseSelect } from '../test/select';
 
 const riskDay = new Date().toISOString().slice(0, 10);
 const dayBefore = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
@@ -348,9 +349,8 @@ describe('UserPage — расширенные сценарии', () => {
     await screen.findByText('main');
     await userEvent.click(screen.getByRole('button', { name: 'Лимиты' }));
 
-    const selects = screen.getAllByRole('combobox');
-    await userEvent.selectOptions(selects[0], 'phone');
-    await userEvent.selectOptions(selects[0], 'router');
+    await chooseSelect('Шаблон', 'phone');
+    await chooseSelect('Шаблон', 'router');
     await userEvent.click(screen.getByRole('button', { name: 'Заполнить из шаблона' }));
     expect(screen.getAllByPlaceholderText('например, 3')[0]).toHaveValue('5');
 
@@ -431,9 +431,10 @@ describe('UserPage — расширенные сценарии', () => {
     const dayButtons = document.querySelectorAll('.risk-day');
     expect(dayButtons.length).toBe(2);
     await userEvent.click(dayButtons[1] as HTMLElement);
+    expect(dayButtons[1]).toHaveAttribute('aria-pressed', 'true');
     expect(await screen.findByText('За этот день адресов нет.')).toBeInTheDocument();
 
-    await userEvent.selectOptions(screen.getByDisplayValue('7 дней'), '30');
+    await chooseSelect('Период', '30 дней');
     await waitFor(() =>
       expect(
         vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('risk-report?days=30')),

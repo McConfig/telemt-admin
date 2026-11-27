@@ -6,7 +6,7 @@ test('сервисный аккаунт: выпуск токена, права �
   await login(page);
   page.on('dialog', (dialog) => void dialog.accept());
 
-  await page.getByRole('link', { name: 'Сервисные аккаунты' }).click();
+  await page.getByRole('button', { name: 'Сервисные аккаунты' }).click();
   await expect(page.getByText('Сервисные аккаунты', { exact: true }).first()).toBeVisible();
 
   await page.getByRole('button', { name: 'Создать сервис' }).click();
@@ -43,9 +43,10 @@ test('сервисный аккаунт: выпуск токена, права �
   expect(createDenied).toBe(403);
 
   await page.getByRole('button', { name: 'Готово' }).click();
-  await page.getByRole('button', { name: 'Закрыть' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Закрыть' }).last().click();
   await page.getByRole('button', { name: 'Изменить monitoring' }).click();
-  await page.getByLabel('Права').selectOption('write');
+  await page.getByRole('combobox', { name: 'Права' }).click();
+  await page.getByRole('option', { name: 'Клиенты — управление клиентами' }).click();
   await page.getByRole('button', { name: 'Сохранить' }).click();
   await expect(page.locator('table').getByText('Клиенты', { exact: true })).toBeVisible();
 
