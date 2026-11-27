@@ -38,5 +38,8 @@ describe('формы Gravity UI', () => {
     expect(input.value.replace(/[\u200e\u200f\u2066-\u2069]/g, '')).toBe(
       '2026-12-31 23:59',
     );
+    await userEvent.clear(input);
+    await userEvent.type(input, '2027-01-02 10:00');
+    expect(onUpdate).toHaveBeenCalled();
   });
 });

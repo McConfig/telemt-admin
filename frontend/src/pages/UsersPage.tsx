@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Alert, Button, Card, Dialog, Label, Loader, Text, TextInput } from '@gravity-ui/uikit';
+import { Alert, Button, Card, Checkbox, Dialog, Label, Loader, Select, Text, TextInput } from '@gravity-ui/uikit';
 import { Table, useTable } from '@gravity-ui/table';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { api, ApiError, type Me, type ProxyUser, type Summary } from '../api';
@@ -135,19 +135,17 @@ export default function UsersPage({ me }: { me: Me }) {
     {
       id: 'select',
       header: () => (
-        <input
-          type="checkbox"
-          aria-label="Выбрать всех"
+        <Checkbox
+          controlProps={{ 'aria-label': 'Выбрать всех' }}
           checked={allShownSelected}
-          onChange={toggleAll}
+          onUpdate={toggleAll}
         />
       ),
       cell: ({ row }) => (
-        <input
-          type="checkbox"
-          aria-label={`Выбрать ${row.original.username}`}
+        <Checkbox
+          controlProps={{ 'aria-label': `Выбрать ${row.original.username}` }}
           checked={selected.has(row.original.username)}
-          onChange={() => toggleOne(row.original.username)}
+          onUpdate={() => toggleOne(row.original.username)}
         />
       ),
     },
@@ -310,41 +308,40 @@ export default function UsersPage({ me }: { me: Me }) {
           onUpdate={setQuery}
         />
         {isMobile && (
-          <select
-            className="select"
-            value={sorting[0]?.id ?? ''}
-            onChange={(e) =>
-              setSorting(e.target.value ? [{ id: e.target.value, desc: false }] : [])
-            }
-          >
-            <option value="">без сортировки</option>
-            <option value="username">по имени</option>
-            <option value="ips">по активным IP</option>
-            <option value="traffic">по трафику</option>
-            <option value="risk">по риску</option>
-            <option value="last">по активности</option>
-          </select>
+          <Select
+            aria-label="Сортировка"
+            value={sorting[0]?.id ? [sorting[0].id] : []}
+            options={[
+              { value: '', content: 'без сортировки' },
+              { value: 'username', content: 'по имени' },
+              { value: 'ips', content: 'по активным IP' },
+              { value: 'traffic', content: 'по трафику' },
+              { value: 'risk', content: 'по риску' },
+              { value: 'last', content: 'по активности' },
+            ]}
+            onUpdate={([value]) => setSorting(value ? [{ id: value, desc: false }] : [])}
+            placeholder="без сортировки"
+            width={180}
+          />
         )}
-        <label>
-          <input type="checkbox" checked={onlyRisk} onChange={(e) => setOnlyRisk(e.target.checked)} /> только
-          подозрительные
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={onlyForeign}
-            onChange={(e) => setOnlyForeign(e.target.checked)}
-          />{' '}
-          только с иностранными IP
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={onlyNewCountry}
-            onChange={(e) => setOnlyNewCountry(e.target.checked)}
-          />{' '}
-          только с новыми странами
-        </label>
+        <Checkbox
+          controlProps={{ 'aria-label': 'только подозрительные' }}
+          checked={onlyRisk}
+          onUpdate={setOnlyRisk}
+          content="только подозрительные"
+        />
+        <Checkbox
+          controlProps={{ 'aria-label': 'только с иностранными IP' }}
+          checked={onlyForeign}
+          onUpdate={setOnlyForeign}
+          content="только с иностранными IP"
+        />
+        <Checkbox
+          controlProps={{ 'aria-label': 'только с новыми странами' }}
+          checked={onlyNewCountry}
+          onUpdate={setOnlyNewCountry}
+          content="только с новыми странами"
+        />
       </div>
       {selected.size > 0 && (
         <div className="row bulk-bar">
@@ -395,11 +392,10 @@ export default function UsersPage({ me }: { me: Me }) {
             {shown.map((u) => (
               <div className="user-card" key={u.username}>
                 <div className="row">
-                  <input
-                    type="checkbox"
-                    aria-label={`Выбрать ${u.username}`}
+                  <Checkbox
+                    controlProps={{ 'aria-label': `Выбрать ${u.username}` }}
                     checked={selected.has(u.username)}
-                    onChange={() => toggleOne(u.username)}
+                    onUpdate={() => toggleOne(u.username)}
                   />
                   <Link to={`/users/${encodeURIComponent(u.username)}`}>{u.username}</Link>
                   <Label theme={u.enabled ? 'success' : 'danger'} size="s">

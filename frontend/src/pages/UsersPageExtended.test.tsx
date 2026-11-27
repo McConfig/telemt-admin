@@ -5,6 +5,7 @@ import UsersPage from './UsersPage';
 import { me, proxyUser, secondUser, summary } from '../test/data';
 import { renderUI } from '../test/render';
 import { stubFetch } from '../test/stubFetch';
+import { chooseSelect } from '../test/select';
 
 function calls(method: string, part: string) {
   return vi
@@ -214,10 +215,9 @@ describe('UsersPage — расширенные сценарии', () => {
     expect(screen.getByText('высокий риск')).toBeInTheDocument();
     await userEvent.click(screen.getAllByLabelText('Выбрать main')[0]);
     expect(screen.getByText('Выбрано: 1')).toBeInTheDocument();
-    const sort = screen.getByRole('combobox');
-    await userEvent.selectOptions(sort, 'traffic');
-    expect(screen.getByDisplayValue('по трафику')).toBeInTheDocument();
-    await userEvent.selectOptions(sort, '');
+    await chooseSelect('Сортировка', 'по трафику');
+    expect(screen.getByRole('combobox', { name: 'Сортировка' })).toHaveTextContent('по трафику');
+    await chooseSelect('Сортировка', 'без сортировки');
   });
 
   it('скрывает создание для viewer', async () => {
