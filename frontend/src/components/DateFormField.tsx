@@ -1,4 +1,4 @@
-import { DateField } from '@gravity-ui/date-components';
+import { DateField, DatePicker } from '@gravity-ui/date-components';
 import { dateTimeParse } from '@gravity-ui/date-utils';
 import { FormField } from './FormField';
 
@@ -24,15 +24,27 @@ export function DateFormField({
 
   return (
     <FormField label={label}>
-      <DateField
-        aria-label={label}
-        value={date}
-        format={displayFormat}
-        hasClear
-        disabled={disabled}
-        placeholder={placeholder ?? displayFormat}
-        onUpdate={(next) => onUpdate(next ? next.format(apiFormat) : '')}
-      />
+      {withTime ? (
+        <DateField
+          aria-label={label}
+          value={date}
+          format={displayFormat}
+          hasClear
+          disabled={disabled}
+          placeholder={placeholder ?? displayFormat}
+          onUpdate={(next) => onUpdate(next ? next.format(apiFormat) : '')}
+        />
+      ) : (
+        <DatePicker
+          aria-label={label}
+          value={date}
+          format={displayFormat}
+          hasClear
+          disabled={disabled}
+          placeholder={placeholder ?? displayFormat}
+          onUpdate={(next) => onUpdate(next ? next.format(apiFormat) : '')}
+        />
+      )}
     </FormField>
   );
 }

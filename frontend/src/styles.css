@@ -6,7 +6,7 @@ body { margin: 0; }
 .page > .footer { margin-top: auto; }
 .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .stack { display: flex; flex-direction: column; gap: 16px; }
-.qr { background: #fff; padding: 8px; width: 264px; border-radius: 8px; }
+.qr { /* белый фон обязателен для сканирования QR в любой теме */ background: #fff; padding: 8px; width: 264px; border-radius: 8px; }
 .link { word-break: break-all; font-family: monospace; }
 .muted { color: var(--g-color-text-secondary); }
 
@@ -39,7 +39,7 @@ table a:hover, .user-card a:hover { text-decoration: underline; text-underline-o
 .card-head { display: flex; align-items: center; gap: 8px; }
 .field-inline { flex-direction: row; align-items: center; gap: 6px; }
 .totp-setup { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
-.totp-setup img { border-radius: 8px; background: #fff; }
+.totp-setup img { border-radius: 8px; /* белый фон для TOTP QR */ background: #fff; }
 .recovery-codes { margin: 0; padding: 12px; border-radius: 8px; background: var(--g-color-base-generic); font-family: monospace; font-size: 14px; line-height: 1.6; }
 .th-sort { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
 .th-sort:hover { color: var(--g-color-text-brand); }

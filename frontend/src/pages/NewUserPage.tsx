@@ -114,6 +114,7 @@ export default function NewUserPage({ me }: { me: Me }) {
               { value: 'monthly', content: 'месяц' },
             ]}
             onUpdate={setPeriod}
+            placeholder="без сброса"
           />
           <TextInput placeholder="Скорость вверх, Кбит/с" value={rateUp} onUpdate={setRateUp} />
           <TextInput placeholder="Скорость вниз, Кбит/с" value={rateDown} onUpdate={setRateDown} />

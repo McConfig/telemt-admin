@@ -101,7 +101,12 @@ export default function AuditPage({ userName }: { userName?: string }) {
       </div>
       {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
       <div className="row">
-        <TextInput placeholder="Поиск по имени, цели, IP" value={q} onUpdate={setQ} />
+        <TextInput
+          placeholder="Поиск по имени, цели, IP"
+          value={q}
+          onUpdate={setQ}
+          controlProps={{ 'aria-label': 'Поиск аудита' }}
+        />
         <Select
           aria-label="Действие"
           value={[action]}

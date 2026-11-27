@@ -331,6 +331,7 @@ export default function UsersPage({ me }: { me: Me }) {
       <div className="row">
         <TextInput
           placeholder="Поиск по имени, стране, оператору"
+          controlProps={{ 'aria-label': 'Поиск клиентов' }}
           value={query}
           onUpdate={setQuery}
         />

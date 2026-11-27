@@ -955,7 +955,10 @@ export default function UserPage({ me }: { me: Me }) {
                     value={expiration}
                     withTime
                     disabled={clearExpiration}
-                    onUpdate={setExpiration}
+                    onUpdate={(value) => {
+                      setExpiration(value);
+                      setClearExpiration(!value);
+                    }}
                   />
                   <Checkbox
                     controlProps={{ 'aria-label': 'без срока' }}

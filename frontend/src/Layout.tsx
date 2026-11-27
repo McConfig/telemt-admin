@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Alert } from '@gravity-ui/uikit';
 import { AsideHeader, FooterItem } from '@gravity-ui/navigation';
@@ -83,8 +83,12 @@ export default function Layout({
       : []),
   ].map((item) => ({
     ...item,
+    href: MENU_PATHS[item.id] ?? '/',
     current: current(item.id),
-    onItemClick: () => navigate(MENU_PATHS[item.id] ?? '/'),
+    onItemClick: (_item: unknown, _collapsed: boolean, event: MouseEvent<HTMLElement>) => {
+      event.preventDefault();
+      navigate(MENU_PATHS[item.id] ?? '/');
+    },
   }));
 
   return (
@@ -120,7 +124,11 @@ export default function Layout({
               title={me.user.name}
               icon={Person}
               compact={effectiveCompact}
-              onItemClick={() => navigate('/account')}
+              href="/account"
+              onItemClick={(_item, _collapsed, event) => {
+                event.preventDefault();
+                navigate('/account');
+              }}
             />
             <FooterItem
               id="logout"
