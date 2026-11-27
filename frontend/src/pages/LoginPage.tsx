@@ -39,9 +39,10 @@ export default function LoginPage({ onLogin }: { onLogin: (me: Me) => void }) {
     setError('');
     try {
       const options = await api.passkeyLoginBegin();
-      const credential = await startAuthentication({ optionsJSON: options as never });
+      const credential = await startAuthentication({ optionsJSON: options.publicKey });
       onLogin(await api.passkeyLoginFinish(credential));
     } catch (err) {
+      console.error('passkey login failed', err);
       setError(err instanceof ApiError ? err.message : 'passkey не сработал');
       setBusy(false);
     }

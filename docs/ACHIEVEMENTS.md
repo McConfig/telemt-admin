@@ -36,7 +36,8 @@
 
 - README, README.en, API, UPGRADE, ARCHITECTURE, SECURITY, ASSURANCE,
   CODING_STANDARDS, DEPENDENCIES, ROADMAP.
-- Демо-стенд с фейковым telemt и семь скриншотов в `docs/screenshots`.
+- Демо-стенд с фейковым telemt, семь скриншотов в `docs/screenshots`
+  и полный e2e WebAuthn с виртуальным аутентификатором Chromium.
 - Публичная история изменений и релизов.
 
 ## Наблюдаемость

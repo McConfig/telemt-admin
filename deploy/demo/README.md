@@ -118,7 +118,7 @@
 
 ## Смена версии tgadmin
 
-По умолчанию используется `v1.11.0`. Другая версия:
+По умолчанию используется `v1.11.1`. Другая версия:
 
 ```bash
 TGADMIN_VERSION=v1.3.1 docker compose up -d tgadmin
@@ -161,6 +161,50 @@ TGADMIN_VERSION=v1.3.1 docker compose up -d tgadmin
    DEMO_PASSWORD=demo-admin-password \
    npm run screenshots:demo
    ```
+
+## E2E WebAuthn с виртуальным аутентификатором
+
+Полный сценарий WebAuthn проверяется на реальном tgadmin, а не на моках.
+Chromium создаёт виртуальный аутентификатор через CDP, поэтому Touch ID,
+Windows Hello и USB-ключ не нужны.
+
+1. Поднимите стенд и выполните seed, как описано в разделе «Запуск».
+   Проверьте, что API отвечает:
+
+   ```bash
+   curl -fsS http://localhost:8090/api/meta
+   ```
+
+   Ожидается JSON с `"version"`.
+
+2. Установите Chromium для Playwright (если ещё не установлен):
+
+   ```bash
+   cd frontend
+   npm ci
+   npx playwright install chromium
+   ```
+
+3. Запустите только реальный WebAuthn-тест:
+
+   ```bash
+   REAL_BASE_URL=http://localhost:8090 npm run e2e -- e2e/webauthn.real.spec.ts
+   ```
+
+   Ожидаемый вывод:
+
+   ```text
+   1 passed
+   ```
+
+   Тест создаёт отдельного пользователя `passkey-e2e`, сбрасывает его 2FA,
+   регистрирует passkey, выходит, входит по passkey, удаляет passkey и
+   проверяет, что вход снова проходит без второго фактора. В конце
+   пользователь удаляется. Если тест упал, следующий запуск сам сбросит
+   состояние.
+
+4. Обычный `npm run e2e` этот файл пропускает: без `REAL_BASE_URL` он
+   помечен как skipped, поэтому CI не требует Docker.
 
 ## Остановка и удаление
 

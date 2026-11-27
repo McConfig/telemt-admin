@@ -45,6 +45,17 @@ try {
   await page.getByPlaceholder('Пароль').fill(password);
   await page.getByRole('button', { name: 'Войти' }).click();
   await page.locator('table').waitFor({ timeout: 30_000 });
+
+  // Убираем сессии прошлых запусков, чтобы счётчики и таблицы были чистыми.
+  await page.goto(`${baseURL}/account`, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(800);
+  const revoke = page.getByRole('button', { name: 'Завершить' });
+  while ((await revoke.count()) > 0) {
+    await revoke.first().click();
+    await page.waitForTimeout(300);
+  }
+  await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
+  await page.locator('table').waitFor({ timeout: 30_000 });
   await shot('clients');
 
   const pages = [
