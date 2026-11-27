@@ -112,8 +112,9 @@ describe('ProxyPanel — дополнительные сценарии', () => {
       '/api/proxy/validate': { ok: true, changedPaths: ['censorship.mask'] },
     });
     renderUI(<ProxyPanel />);
-    const mask = await screen.findByRole('checkbox', { name: 'censorship.mask' });
+    const mask = await screen.findByRole('combobox', { name: 'censorship.mask' });
     await userEvent.click(mask);
+    await userEvent.keyboard('{ArrowDown}{Enter}');
     const port = screen.getByLabelText('general.links.public_port');
     await userEvent.clear(port);
     await userEvent.type(port, '8443');
@@ -195,9 +196,9 @@ describe('ProxyPanel — таблица и JSON', () => {
     });
     renderUI(<ProxyPanel />);
     expect(await screen.findAllByText('Параметр')).toHaveLength(1);
-    expect(screen.getAllByText('Значение').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Включено').length).toBeGreaterThan(0);
-    expect(screen.getByRole('checkbox', { name: 'censorship.mask' })).toBeChecked();
+    expect(screen.getAllByText('Значение')).toHaveLength(1);
+    expect(screen.queryByText('Включено')).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'censorship.mask' })).toHaveTextContent('true');
   });
 
   it('редактирует JSON с валидацией и применяет массив', async () => {
@@ -243,7 +244,7 @@ describe('ProxyPanel — таблица и JSON', () => {
     });
     renderUI(<ProxyPanel />);
     await screen.findByText('general.links.public_host');
-    await userEvent.type(screen.getByLabelText('Поиск по параметру'), 'censorship');
+    await userEvent.type(screen.getByLabelText('Поиск по параметру или значению'), 'censorship');
     expect(screen.queryByText('general.links.public_host')).not.toBeInTheDocument();
     expect(screen.getByText('censorship.mask')).toBeInTheDocument();
   });
@@ -299,7 +300,7 @@ describe('ProxyPanel — объект, enum и read-only', () => {
     expect(screen.getAllByText('general.log_level').length).toBeGreaterThan(0);
   });
 
-  it('показывает неактивный чекбокс для read-only boolean', async () => {
+  it('показывает read-only boolean текстом без select', async () => {
     stubFetch({
       '/api/proxy/schema': objectSchema,
       '/api/proxy/config': { revision: 'rev1', config: { server: { metrics: true } } },
@@ -307,9 +308,9 @@ describe('ProxyPanel — объект, enum и read-only', () => {
     renderUI(<ProxyPanel />);
     await screen.findByText('Только через файл или перезапуск');
     await userEvent.click(screen.getByText('Только через файл или перезапуск'));
-    const checkbox = await screen.findByRole('checkbox', { name: 'server.metrics' });
-    expect(checkbox).toBeDisabled();
-    expect(checkbox).toBeChecked();
+    const row = (await screen.findByText('server.metrics')).closest('.proxy-row') as HTMLElement;
+    expect(row.textContent).toContain('true');
+    expect(within(row).queryByRole('combobox')).not.toBeInTheDocument();
   });
 });
 
@@ -378,7 +379,7 @@ describe('ProxyPanel — подсказки, сворачивание и под�
     expect(input.closest('.proxy-row')).toHaveClass('proxy-row_changed');
   });
 
-  it('не рисует содержимое в колонке включения у не-boolean', async () => {
+  it('оставляет у параметра две ячейки', async () => {
     stubFetch({
       '/api/proxy/schema': helpSchema,
       '/api/proxy/config': {
@@ -389,6 +390,46 @@ describe('ProxyPanel — подсказки, сворачивание и под�
     renderUI(<ProxyPanel />);
     const input = await screen.findByLabelText('general.links.public_host');
     const row = input.closest('.proxy-row') as HTMLElement;
-    expect(row.querySelectorAll('.proxy-cell')[2].textContent).toBe('');
+    expect(row.querySelectorAll('.proxy-cell')).toHaveLength(2);
+  });
+});
+
+describe('ProxyPanel — поиск по значению и TOML', () => {
+  it('ищет по значению параметра', async () => {
+    stubFetch({
+      '/api/proxy/schema': helpSchema,
+      '/api/proxy/config': {
+        revision: 'rev1',
+        config: { general: { links: { public_host: 'demo.example.com' } }, censorship: { mask: true } },
+      },
+    });
+    renderUI(<ProxyPanel />);
+    await screen.findByText('general.links.public_host');
+    await userEvent.type(screen.getByLabelText('Поиск по параметру или значению'), 'demo.example.com');
+    expect(screen.getByText('general.links.public_host')).toBeInTheDocument();
+    expect(screen.queryByText('censorship.mask')).not.toBeInTheDocument();
+  });
+
+  it('скачивает TOML группы', async () => {
+    let captured: Blob | null = null;
+    URL.createObjectURL = vi.fn((blob: Blob) => {
+      captured = blob;
+      return 'blob:x';
+    });
+    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    stubFetch({
+      '/api/proxy/schema': helpSchema,
+      '/api/proxy/config': {
+        revision: 'rev1',
+        config: { general: { links: { public_host: 'demo.example.com' } }, censorship: { mask: true } },
+      },
+    });
+    renderUI(<ProxyPanel />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Скачать TOML general' }));
+    expect(captured).not.toBeNull();
+    const text = await (captured as unknown as Blob).text();
+    expect(text).toContain('[general.links]');
+    expect(text).toContain('public_host = "demo.example.com"');
   });
 });
