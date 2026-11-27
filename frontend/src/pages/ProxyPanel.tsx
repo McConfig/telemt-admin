@@ -16,6 +16,7 @@ import {
 } from '@gravity-ui/uikit';
 import { ChevronDown, ChevronRight } from '@gravity-ui/icons';
 import { api, ApiError, type ProxyConfig, type ProxySchema, type ProxySchemaField } from '../api';
+import { proxyDescription, useLocale } from '../i18n';
 
 function getPath(source: Record<string, unknown>, path: string): unknown {
   let current: unknown = source;
@@ -109,6 +110,7 @@ export default function ProxyPanel() {
   const [search, setSearch] = useState('');
   const [jsonEditor, setJsonEditor] = useState<JsonEditor | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const { locale } = useLocale();
 
   const load = useCallback(async () => {
     try {
@@ -301,7 +303,7 @@ export default function ProxyPanel() {
   const renderRow = (field: ProxySchemaField, readonly = false) => {
     const kind = kindOf(field);
     const value = current(field);
-    const help = field.description || field.non_editable_reason;
+    const help = proxyDescription(field.path, field.description, locale) || field.non_editable_reason;
     return (
       <div className={`proxy-row${rowChanged(field) ? ' proxy-row_changed' : ''}`} key={field.path}>
         <div className="proxy-cell proxy-name">

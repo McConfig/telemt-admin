@@ -318,7 +318,7 @@ const helpSchema = {
   fields: [
     {
       path: 'general.links.public_host',
-      description: 'Публичный адрес в ссылках tg://',
+      description: 'English description',
       value: { type: 'string' },
       api: { config_read: true, config_write: true },
       apply: { watcher: 'supported', reload: 'supported', effect: 'links' },
@@ -344,7 +344,7 @@ describe('ProxyPanel — подсказки, сворачивание и под�
     });
     renderUI(<ProxyPanel />);
     await userEvent.click(await screen.findByRole('button', { name: 'Описание general.links.public_host' }));
-    expect(await screen.findByText('Публичный адрес в ссылках tg://')).toBeInTheDocument();
+    expect(await screen.findByText(/Переопределение общедоступного имени/)).toBeInTheDocument();
   });
 
   it('сворачивает и разворачивает группу', async () => {
