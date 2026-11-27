@@ -6,6 +6,16 @@ import { Ban, Key, Pencil, Play, TrashBin } from '@gravity-ui/icons';
 import { api, ApiError, type Me, type ServiceAccount, type ServiceScope } from '../api';
 import { formatTime } from '../format';
 import ServiceTokensDialog from './ServiceTokensDialog';
+import { settingsColumn, usePersistentColumnVisibility } from '../components/ColumnSettings';
+
+const COLUMN_LABELS: Record<string, string> = {
+  name: 'Имя',
+  description: 'Описание',
+  scope: 'Права',
+  tokens: 'Токенов',
+  status: 'Статус',
+  created: 'Создан',
+};
 
 const scopeTitle: Record<ServiceScope, string> = {
   read: 'Чтение',
@@ -90,6 +100,7 @@ export default function ServicesPage({ me }: { me: Me }) {
       {
         id: 'actions',
         header: '',
+        enableHiding: false,
         cell: ({ row }) => (
           <div className="icon-actions">
             <Button
@@ -135,11 +146,22 @@ export default function ServicesPage({ me }: { me: Me }) {
           </div>
         ),
       },
+      settingsColumn<ServiceAccount>(COLUMN_LABELS),
     ],
     [],
   );
 
-  const table = useTable({ columns, data: items });
+  const [columnVisibility, setColumnVisibility] = usePersistentColumnVisibility(
+    me.user.name,
+    'services',
+  );
+  const table = useTable({
+    columns,
+    data: items,
+    enableHiding: true,
+    state: { columnVisibility },
+    onColumnVisibilityChange: setColumnVisibility,
+  });
 
   if (me.user.role !== 'admin') {
     return <Alert theme="danger" message="Раздел доступен только администратору" />;

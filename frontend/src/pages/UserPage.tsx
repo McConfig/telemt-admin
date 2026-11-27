@@ -43,6 +43,7 @@ import { formatBytes, formatTime } from '../format';
 import { useTableSort } from '../tableSort';
 import { useMedia } from '../useMedia';
 import { DateFormField } from '../components/DateFormField';
+import { settingsColumn, usePersistentColumnVisibility } from '../components/ColumnSettings';
 
 export default function UserPage({ me }: { me: Me }) {
   const { name = '' } = useParams();
@@ -595,7 +596,7 @@ export default function UserPage({ me }: { me: Me }) {
           <Text className="muted">
             Адреса за 24 часа: {user.ips24h}, за 7 дней: {user.ips7d}, новых: {user.new24h}, пик: {user.maxToday}
           </Text>
-          {isAdmin && user.ipHistory && user.ipHistory.length > 0 && <IPHistoryTable items={user.ipHistory} />}
+          {isAdmin && user.ipHistory && user.ipHistory.length > 0 && <IPHistoryTable items={user.ipHistory} userName={me.user.name} />}
         </div>
       </Card>
 
@@ -781,6 +782,7 @@ export default function UserPage({ me }: { me: Me }) {
                         ) : (
                           <RiskDayTable
                             items={selectedRiskDay.ips}
+                            userName={me.user.name}
                             onTrustIP={(ip) => trustRisk({ ip })}
                             onTrustCountry={(code) => trustRisk({ country: code })}
                           />
@@ -1331,12 +1333,25 @@ function formatRiskDay(day: string): string {
   return new Date(`${day}T00:00:00Z`).toLocaleDateString('ru-RU');
 }
 
+const RISK_IP_COLUMNS: Record<string, string> = {
+  ip: 'IP',
+  country: 'Страна',
+  asn: 'Оператор',
+  dayFirst: 'Первый раз за день',
+  dayLast: 'Последний раз за день',
+  count: 'Наблюдений',
+  new: 'Новый',
+  trusted: 'Доверенный',
+};
+
 function RiskDayTable({
   items,
+  userName,
   onTrustIP,
   onTrustCountry,
 }: {
   items: RiskIP[];
+  userName: string;
   onTrustIP: (ip: string) => void;
   onTrustCountry: (code: string) => void;
 }) {
@@ -1398,6 +1413,7 @@ function RiskDayTable({
       {
         id: 'actions',
         header: '',
+        enableHiding: false,
         cell: ({ row }) => (
           <div className="row">
             {!row.original.trusted && (
@@ -1417,10 +1433,21 @@ function RiskDayTable({
           </div>
         ),
       },
+      settingsColumn<RiskIP>(RISK_IP_COLUMNS),
     ],
     [onTrustIP, onTrustCountry],
   );
-  const table = useTable({ columns, data: items });
+  const [columnVisibility, setColumnVisibility] = usePersistentColumnVisibility(
+    userName,
+    'risk-ips',
+  );
+  const table = useTable({
+    columns,
+    data: items,
+    enableHiding: true,
+    state: { columnVisibility },
+    onColumnVisibilityChange: setColumnVisibility,
+  });
   return (
     <div className="table-scroll">
       <Table table={table} />
@@ -1454,7 +1481,16 @@ function compareIPHistory(a: IPHistoryItem, b: IPHistoryItem, id: string): numbe
   }
 }
 
-function IPHistoryTable({ items }: { items: IPHistoryItem[] }) {
+const IP_HISTORY_COLUMNS: Record<string, string> = {
+  ip: 'IP',
+  country: 'Страна',
+  asn: 'Оператор',
+  first: 'Впервые',
+  last: 'Последний раз',
+  count: 'Наблюдений',
+};
+
+function IPHistoryTable({ items, userName }: { items: IPHistoryItem[]; userName: string }) {
   const isMobile = useMedia('(max-width: 760px)');
   const { sorting, sortHeader, sortRows } = useTableSort([{ id: 'last', desc: true }]);
   const columns = useMemo<ColumnDef<IPHistoryItem>[]>(() => [
@@ -1501,9 +1537,20 @@ function IPHistoryTable({ items }: { items: IPHistoryItem[] }) {
           { id: 'last', header: 'Последний раз', cell: ({ row }: { row: { original: IPHistoryItem } }) => new Date(row.original.lastSeen).toLocaleString('ru-RU') },
           { id: 'count', header: 'Наблюдений', cell: ({ row }: { row: { original: IPHistoryItem } }) => row.original.count },
         ]),
+    settingsColumn<IPHistoryItem>(IP_HISTORY_COLUMNS),
   ], [isMobile, sorting]);
   const data = useMemo(() => sortRows(items, compareIPHistory), [items, sorting]);
-  const table = useTable({ columns, data });
+  const [columnVisibility, setColumnVisibility] = usePersistentColumnVisibility(
+    userName,
+    'ip-history',
+  );
+  const table = useTable({
+    columns,
+    data,
+    enableHiding: true,
+    state: { columnVisibility },
+    onColumnVisibilityChange: setColumnVisibility,
+  });
   return (
     <div className="table-scroll">
       <Table table={table} />

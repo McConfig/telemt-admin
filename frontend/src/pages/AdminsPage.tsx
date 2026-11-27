@@ -7,6 +7,16 @@ import { api, ApiError, type AdminUser, type Me } from '../api';
 import { formatTime } from '../format';
 import { useTableSort } from '../tableSort';
 import { useMedia } from '../useMedia';
+import { settingsColumn, usePersistentColumnVisibility } from '../components/ColumnSettings';
+
+const COLUMN_LABELS: Record<string, string> = {
+  name: 'Имя',
+  role: 'Роль',
+  state: 'Статус',
+  totp: '2FA',
+  sessions: 'Сессии',
+  created: 'Создан',
+};
 
 export default function AdminsPage({ me }: { me: Me }) {
   const [items, setItems] = useState<AdminUser[]>([]);
@@ -133,9 +143,20 @@ export default function AdminsPage({ me }: { me: Me }) {
         </div>
       ),
     },
+    settingsColumn<AdminUser>(COLUMN_LABELS),
   ], [sorting]);
   const sorted = useMemo(() => sortRows(items, compareAdmins), [items, sorting]);
-  const table = useTable({ columns, data: sorted });
+  const [columnVisibility, setColumnVisibility] = usePersistentColumnVisibility(
+    me.user.name,
+    'admins',
+  );
+  const table = useTable({
+    columns,
+    data: sorted,
+    enableHiding: true,
+    state: { columnVisibility },
+    onColumnVisibilityChange: setColumnVisibility,
+  });
 
   if (me.user.role !== 'admin') {
     return <Alert theme="warning" title="Нет прав" message="Раздел доступен только администраторам" />;

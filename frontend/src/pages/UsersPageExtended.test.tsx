@@ -30,7 +30,7 @@ function manyUsers() {
 describe('UsersPage — расширенные сценарии', () => {
   it('сортирует по всем колонкам и фильтрует по риску и новым странам', async () => {
     localStorage.setItem(
-      'tgadmin-columns:admin',
+      'tgadmin-columns:admin:users',
       JSON.stringify({ newcountry: true, foreign: true, ips24h: true }),
     );
     stubFetch({ '/api/users': [proxyUser, secondUser], '/api/summary': summary });
@@ -225,7 +225,7 @@ describe('UsersPage — расширенные сценарии', () => {
   });
 
   it('настраивает видимость колонок и запоминает выбор', async () => {
-    localStorage.removeItem('tgadmin-columns:admin');
+    localStorage.removeItem('tgadmin-columns:admin:users');
     stubFetch({ '/api/users': [proxyUser, secondUser], '/api/summary': summary });
     renderUI(<UsersPage me={me} />);
     await screen.findByRole('link', { name: 'main' });
@@ -235,10 +235,10 @@ describe('UsersPage — расширенные сценарии', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: 'Новые страны' }));
     expect(await screen.findByRole('button', { name: /Новые страны/ })).toBeInTheDocument();
     await waitFor(() => {
-      const saved = JSON.parse(localStorage.getItem('tgadmin-columns:admin') ?? '{}');
+      const saved = JSON.parse(localStorage.getItem('tgadmin-columns:admin:users') ?? '{}');
       expect(saved.newcountry).toBe(true);
     });
-    localStorage.removeItem('tgadmin-columns:admin');
+    localStorage.removeItem('tgadmin-columns:admin:users');
   });
 
   it('скрывает создание для viewer', async () => {

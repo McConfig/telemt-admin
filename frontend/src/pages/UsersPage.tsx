@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Alert, Button, Card, Checkbox, Dialog, Divider, Icon, Label, Loader, Popup, Select, Text, TextInput } from '@gravity-ui/uikit';
+import { Alert, Button, Card, Checkbox, Dialog, Label, Loader, Select, Text, TextInput } from '@gravity-ui/uikit';
 import { Table, useTable } from '@gravity-ui/table';
-import { Ellipsis } from '@gravity-ui/icons';
-import type { Table as TanStackTable, VisibilityState } from '@tanstack/react-table';
+import type { VisibilityState } from '@tanstack/react-table';
+import { settingsColumn, usePersistentColumnVisibility } from '../components/ColumnSettings';
 import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { api, ApiError, type Me, type ProxyUser, type Summary } from '../api';
 import { formatBytes } from '../format';
@@ -49,18 +49,12 @@ export default function UsersPage({ me }: { me: Me }) {
   const [resetNames, setResetNames] = useState<string[] | null>(null);
   const [resetBusy, setResetBusy] = useState(false);
   const [notice, setNotice] = useState('');
-  const columnsKey = `tgadmin-columns:${me.user.name}`;
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() => {
-    try {
-      const raw = localStorage.getItem(columnsKey);
-      return raw ? (JSON.parse(raw) as VisibilityState) : DEFAULT_VISIBILITY;
-    } catch {
-      return DEFAULT_VISIBILITY;
-    }
-  });
-  useEffect(() => {
-    localStorage.setItem(columnsKey, JSON.stringify(columnVisibility));
-  }, [columnsKey, columnVisibility]);
+  const [columnVisibility, setColumnVisibility] = usePersistentColumnVisibility(
+    me.user.name,
+    'users',
+    DEFAULT_VISIBILITY,
+    `tgadmin-columns:${me.user.name}`,
+  );
   const isMobile = useMedia('(max-width: 760px)');
   const { sorting, setSorting, sortHeader, sortRows } = useTableSort();
 
@@ -257,13 +251,7 @@ export default function UsersPage({ me }: { me: Me }) {
       cell: ({ row }) =>
         row.original.lastSeen ? new Date(row.original.lastSeen).toLocaleString('ru-RU') : '—',
     },
-    {
-      id: 'settings',
-      header: ({ table }) => <ColumnSettings table={table} />,
-      size: 44,
-      meta: { hideInSettings: true },
-      cell: () => null,
-    },
+    settingsColumn<ProxyUser>(COLUMN_LABELS),
   ], [allShownSelected, selected, shownNames.join(','), sorting]);
 
   const table = useTable({
@@ -656,42 +644,3 @@ function CreateUserDialog({
   );
 }
 
-function ColumnSettings({ table }: { table: TanStackTable<ProxyUser> }) {
-  const [open, setOpen] = useState(false);
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-  const columns = table
-    .getAllLeafColumns()
-    .filter((column) => column.id !== 'select' && column.id !== 'settings');
-
-  return (
-    <>
-      <span ref={setAnchor}>
-        <Button
-          view="flat"
-          size="s"
-          aria-label="Настроить колонки"
-          title="Настроить колонки"
-          onClick={() => setOpen(!open)}
-        >
-          <Icon data={Ellipsis} size={16} />
-        </Button>
-      </span>
-      <Popup open={open} anchorElement={anchor} onOpenChange={setOpen} placement="bottom-end">
-        <div className="column-settings">
-          {columns.map((column) => (
-            <Checkbox
-              key={column.id}
-              checked={column.getIsVisible()}
-              onUpdate={(checked) => column.toggleVisibility(checked)}
-              content={COLUMN_LABELS[column.id] ?? column.id}
-            />
-          ))}
-          <Divider />
-          <Button view="flat" size="s" onClick={() => table.resetColumnVisibility()}>
-            Сбросить
-          </Button>
-        </div>
-      </Popup>
-    </>
-  );
-}
