@@ -82,14 +82,18 @@ func (s *Server) apiServices(w http.ResponseWriter, r *http.Request) {
 		s.serverErrorJSON(w, r, err)
 		return
 	}
+	names := make([]string, 0, len(services))
+	for _, svc := range services {
+		names = append(names, svc.Name)
+	}
+	counts, err := s.store.CountServiceTokensMany(r.Context(), names)
+	if err != nil {
+		s.serverErrorJSON(w, r, err)
+		return
+	}
 	out := make([]serviceView, 0, len(services))
 	for _, svc := range services {
-		tokens, err := s.store.ListServiceTokens(r.Context(), svc.Name)
-		if err != nil && !errors.Is(err, store.ErrNotFound) {
-			s.serverErrorJSON(w, r, err)
-			return
-		}
-		out = append(out, makeServiceView(svc, len(tokens)))
+		out = append(out, makeServiceView(svc, counts[svc.Name]))
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -190,9 +194,13 @@ func (s *Server) apiUpdateService(w http.ResponseWriter, r *http.Request) {
 		s.serviceStoreError(w, r, err)
 		return
 	}
-	tokens, _ := s.store.ListServiceTokens(r.Context(), name)
+	count, err := s.store.CountServiceTokens(r.Context(), name)
+	if err != nil {
+		s.serverErrorJSON(w, r, err)
+		return
+	}
 	s.audit(r, "service.update", name, serviceUpdateResult(*before, *updated))
-	writeJSON(w, http.StatusOK, makeServiceView(*updated, len(tokens)))
+	writeJSON(w, http.StatusOK, makeServiceView(*updated, count))
 }
 
 func serviceUpdateResult(before, after store.ServiceAccount) string {
@@ -330,8 +338,12 @@ func (s *Server) apiRevokeServiceToken(w http.ResponseWriter, r *http.Request) {
 	}
 	name := chi.URLParam(r, "name")
 	id := chi.URLParam(r, "id")
-	if !serviceNameRe.MatchString(name) || !serviceTokenIDRe.MatchString(id) {
-		writeError(w, http.StatusBadRequest, "bad_request", "недопустимые параметры")
+	if !serviceNameRe.MatchString(name) {
+		writeError(w, http.StatusBadRequest, "bad_request", "недопустимое имя")
+		return
+	}
+	if !serviceTokenIDRe.MatchString(id) {
+		writeError(w, http.StatusNotFound, "not_found", "токен не найден")
 		return
 	}
 	if err := s.store.DeleteServiceToken(r.Context(), name, id); err != nil {

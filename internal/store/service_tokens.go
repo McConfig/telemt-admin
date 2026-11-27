@@ -276,3 +276,30 @@ func (s *Store) ImportServiceToken(ctx context.Context, t ServiceTokenSecret) er
 	}
 	return s.rdb.SAdd(ctx, serviceTokensKey(t.Service), t.ID).Err()
 }
+
+// CountServiceTokens возвращает число токенов сервиса.
+func (s *Store) CountServiceTokens(ctx context.Context, service string) (int, error) {
+	n, err := s.rdb.SCard(ctx, serviceTokensKey(service)).Result()
+	return int(n), err
+}
+
+// CountServiceTokensMany возвращает число токенов для набора сервисов
+// одним pipeline-запросом.
+func (s *Store) CountServiceTokensMany(ctx context.Context, services []string) (map[string]int, error) {
+	out := make(map[string]int, len(services))
+	if len(services) == 0 {
+		return out, nil
+	}
+	pipe := s.rdb.Pipeline()
+	cmds := make([]*redis.IntCmd, len(services))
+	for i, service := range services {
+		cmds[i] = pipe.SCard(ctx, serviceTokensKey(service))
+	}
+	if _, err := pipe.Exec(ctx); err != nil {
+		return nil, err
+	}
+	for i, service := range services {
+		out[service] = int(cmds[i].Val())
+	}
+	return out, nil
+}

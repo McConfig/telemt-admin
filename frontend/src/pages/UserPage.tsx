@@ -486,7 +486,7 @@ export default function UserPage({ me }: { me: Me }) {
               перевыпустите секрет.
             </Text>
           )}
-          {user.note && <Text className="muted">Заметка: {user.note}</Text>}
+          {isAdmin && user.note && <Text className="muted">Заметка: {user.note}</Text>}
         </div>
       </Card>
 

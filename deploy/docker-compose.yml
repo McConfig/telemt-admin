@@ -21,7 +21,7 @@ services:
       options: { max-size: "10m", max-file: "2" }
 
   tgadmin:
-    image: ghcr.io/mcconfig/telemt-admin:v2.1.2
+    image: ghcr.io/mcconfig/telemt-admin:v2.2.0
     restart: unless-stopped
     env_file: .env
     depends_on: [valkey, telemt]
