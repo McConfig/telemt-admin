@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
   Alert,
   Button,
@@ -14,9 +14,10 @@ import {
   TextArea,
   TextInput,
 } from '@gravity-ui/uikit';
-import { ChevronDown, ChevronRight } from '@gravity-ui/icons';
+import { ChevronDown, ChevronRight, FileArrowDown } from '@gravity-ui/icons';
 import { api, ApiError, type ProxyConfig, type ProxySchema, type ProxySchemaField } from '../api';
 import { proxyDescription, useLocale } from '../i18n';
+import { toTOML } from './proxyToml';
 
 function getPath(source: Record<string, unknown>, path: string): unknown {
   let current: unknown = source;
@@ -98,6 +99,17 @@ type JsonEditor = {
   expected: 'array' | 'object';
 };
 
+function downloadText(text: string, filename: string) {
+  const url = URL.createObjectURL(new Blob([text], { type: 'application/toml;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function ProxyPanel() {
   const [schema, setSchema] = useState<ProxySchema | null>(null);
   const [config, setConfig] = useState<ProxyConfig | null>(null);
@@ -152,6 +164,11 @@ export default function ProxyPanel() {
       ),
     [schema],
   );
+
+  const nameWidth = useMemo(() => {
+    const longest = Math.max(24, ...[...rows, ...readOnly].map((field) => field.path.length));
+    return `${longest * 8 + 56}px`;
+  }, [rows, readOnly]);
 
   const groups = useMemo(() => {
     const out: Record<string, ProxySchemaField[]> = {};
@@ -213,9 +230,11 @@ export default function ProxyPanel() {
   const matches = (field: ProxySchemaField) => {
     const needle = search.trim().toLowerCase();
     if (!needle) return true;
+    const value = valueText(current(field)).toLowerCase();
     return (
       field.path.toLowerCase().includes(needle) ||
-      String(field.description ?? '').toLowerCase().includes(needle)
+      String(field.description ?? '').toLowerCase().includes(needle) ||
+      value.includes(needle)
     );
   };
 
@@ -300,6 +319,14 @@ export default function ProxyPanel() {
     );
   }
 
+  const sectionValues = (section: string) => {
+    const root: Record<string, unknown> = JSON.parse(JSON.stringify(config?.config ?? {}));
+    for (const field of rows) {
+      if (draft[field.path] !== undefined) setPath(root, field.path, draft[field.path]);
+    }
+    return root[section];
+  };
+
   const renderRow = (field: ProxySchemaField, readonly = false) => {
     const kind = kindOf(field);
     const value = current(field);
@@ -324,7 +351,20 @@ export default function ProxyPanel() {
         </div>
         <div className="proxy-cell proxy-value">
           {kind === 'bool' ? (
-            <Text>{Boolean(value) ? 'true' : 'false'}</Text>
+            readonly ? (
+              <Text>{Boolean(value) ? 'true' : 'false'}</Text>
+            ) : (
+              <Select
+                aria-label={field.path}
+                value={[String(Boolean(value))]}
+                options={[
+                  { value: 'true', content: 'true' },
+                  { value: 'false', content: 'false' },
+                ]}
+                onUpdate={([next]) => update(field, next === 'true')}
+                width="max"
+              />
+            )
           ) : kind === 'enum' ? (
             readonly ? (
               <Text>{String(value ?? '')}</Text>
@@ -360,16 +400,6 @@ export default function ProxyPanel() {
             />
           )}
         </div>
-        <div className="proxy-cell proxy-enabled">
-          {kind === 'bool' && (
-            <Checkbox
-              checked={Boolean(value)}
-              disabled={readonly}
-              onUpdate={(checked) => update(field, checked)}
-              controlProps={{ 'aria-label': field.path }}
-            />
-          )}
-        </div>
       </div>
     );
   };
@@ -378,7 +408,6 @@ export default function ProxyPanel() {
     <div className="proxy-row proxy-row_head" key="header">
       <div className="proxy-cell">Параметр</div>
       <div className="proxy-cell">Значение</div>
-      <div className="proxy-cell">Включено</div>
     </div>
   );
 
@@ -394,13 +423,13 @@ export default function ProxyPanel() {
         {message && <Alert theme="success" message={message} onClose={() => setMessage('')} />}
         {reload && <Text className="muted">{reload}</Text>}
         <TextInput
-          placeholder="Поиск по параметру"
+          placeholder="Поиск по параметру или значению"
           value={search}
           onUpdate={setSearch}
-          controlProps={{ 'aria-label': 'Поиск по параметру' }}
+          controlProps={{ 'aria-label': 'Поиск по параметру или значению' }}
         />
 
-        <div className="proxy-table">
+        <div className="proxy-table" style={{ '--proxy-name-width': nameWidth } as CSSProperties}>
           {header}
           {Object.entries(groups).map(([section, items]) => {
             const visible = items.filter(matches);
@@ -408,17 +437,27 @@ export default function ProxyPanel() {
             const isCollapsed = Boolean(collapsed[section]);
             return (
               <div className="proxy-group" key={section}>
-                <Button
-                  view="flat"
-                  className="proxy-group-toggle"
-                  aria-expanded={!isCollapsed}
-                  onClick={() => setCollapsed((prev) => ({ ...prev, [section]: !prev[section] }))}
-                >
-                  <span className="proxy-group-title">
-                    <Icon data={isCollapsed ? ChevronRight : ChevronDown} size={16} />
-                    <Text variant="header-2">{section}</Text>
-                  </span>
-                </Button>
+                <div className="proxy-group-head">
+                  <Button
+                    view="flat"
+                    className="proxy-group-toggle"
+                    aria-expanded={!isCollapsed}
+                    onClick={() => setCollapsed((prev) => ({ ...prev, [section]: !prev[section] }))}
+                  >
+                    <span className="proxy-group-title">
+                      <Icon data={isCollapsed ? ChevronRight : ChevronDown} size={16} />
+                      <Text variant="header-2">{section}</Text>
+                    </span>
+                  </Button>
+                  <Button
+                    view="flat"
+                    size="s"
+                    aria-label={`Скачать TOML ${section}`}
+                    onClick={() => downloadText(toTOML(section, sectionValues(section)), `telemt-${section}.toml`)}
+                  >
+                    <Icon data={FileArrowDown} size={16} />
+                  </Button>
+                </div>
                 {!isCollapsed && visible.map((field) => renderRow(field))}
               </div>
             );
@@ -461,7 +500,10 @@ export default function ProxyPanel() {
         {readOnly.length > 0 && (
           <details>
             <summary>Только через файл или перезапуск</summary>
-            <div className="proxy-table" style={{ marginTop: 8 }}>
+            <div
+              className="proxy-table"
+              style={{ marginTop: 8, '--proxy-name-width': nameWidth } as CSSProperties}
+            >
               {readOnly.filter(matches).map((field) => renderRow(field, true))}
             </div>
           </details>
@@ -471,11 +513,13 @@ export default function ProxyPanel() {
       <Dialog
         open={jsonEditor !== null}
         onOpenChange={(next) => !next && setJsonEditor(null)}
-        maxWidth="l"
+        fullWidth
+        modalClassName="proxy-json-modal"
+        className="proxy-json-dialog"
       >
         <Dialog.Header caption={jsonEditor ? `JSON: ${jsonEditor.path}` : 'JSON'} />
         <Dialog.Body>
-          <div className="stack proxy-json-dialog">
+          <div className="stack proxy-json-dialog-content">
             <div className="proxy-json-error">
               {jsonEditor?.error ? (
                 <Alert theme="danger" message={jsonEditor.error} />
@@ -485,6 +529,8 @@ export default function ProxyPanel() {
             </div>
             <TextArea
               className="proxy-json-editor"
+              minRows={20}
+              maxRows={20}
               value={jsonEditor?.text ?? ''}
               onUpdate={changeJSON}
               controlProps={{ 'aria-label': 'JSON' }}
