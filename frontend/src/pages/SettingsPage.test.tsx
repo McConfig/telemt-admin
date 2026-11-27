@@ -172,3 +172,37 @@ describe('SettingsPage', () => {
     expect(screen.getByPlaceholderText('по умолчанию: 3')).toHaveValue('3');
   });
 });
+
+describe('SettingsPage — выгрузка YAML', () => {
+  it('скачивает секцию и все настройки', async () => {
+    let captured: Blob | null = null;
+    URL.createObjectURL = vi.fn((blob: Blob) => {
+      captured = blob;
+      return 'blob:x';
+    });
+    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    stubFetch({
+      '/api/settings': catalog,
+      '/api/settings/templates': { default: 'default', templates: [] },
+      '/api/settings/backups': {
+        valkey: { saveInProgress: false, keys: 1 },
+        host: { available: false },
+      },
+      '/api/settings/system': {},
+      '/api/settings/history': [],
+      '/api/diagnostics': {},
+    });
+    renderUI(<SettingsPage />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Скачать risk YAML' }));
+    expect(captured).not.toBeNull();
+    const section = await (captured as unknown as Blob).text();
+    expect(section).toContain('risk:');
+    expect(section).toContain('warn_ips: 3');
+
+    captured = null;
+    await userEvent.click(screen.getByRole('button', { name: 'Скачать все настройки YAML' }));
+    const all = await (captured as unknown as Blob).text();
+    expect(all).toContain('risk:');
+  });
+});

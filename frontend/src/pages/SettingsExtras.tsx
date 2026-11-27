@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Card, Checkbox, Label, Loader, Select, Text, TextArea, TextInput } from '@gravity-ui/uikit';
+import { Alert, Button, Card, Checkbox, Icon, Label, Loader, Select, Text, TextArea, TextInput } from '@gravity-ui/uikit';
+import { FileArrowDown } from '@gravity-ui/icons';
 import {
   api,
   ApiError,
@@ -10,6 +11,8 @@ import {
   type TemplatesResponse,
 } from '../api';
 import { formatBytes, formatTime } from '../format';
+import { templatesYAML } from './settingsYaml';
+import { downloadText } from '../utils/download';
 
 type TemplateForm = {
   name: string;
@@ -161,6 +164,14 @@ export function TemplatesPanel() {
         <div className="card-head">
           <Text variant="header-1">Шаблоны лимитов</Text>
           <div style={{ flex: 1 }} />
+          <Button
+            view="outlined"
+            size="s"
+            aria-label="Скачать шаблоны YAML"
+            onClick={() => downloadText(templatesYAML(data), 'tgadmin-limit-templates.yaml', 'application/yaml;charset=utf-8')}
+          >
+            <Icon data={FileArrowDown} size={16} />
+          </Button>
           <Button
             view="action"
             onClick={() => {

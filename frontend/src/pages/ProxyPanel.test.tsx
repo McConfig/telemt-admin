@@ -433,3 +433,30 @@ describe('ProxyPanel — поиск по значению и TOML', () => {
     expect(text).toContain('public_host = "demo.example.com"');
   });
 });
+
+describe('ProxyPanel — полный TOML', () => {
+  it('скачивает полный конфиг', async () => {
+    let captured: Blob | null = null;
+    URL.createObjectURL = vi.fn((blob: Blob) => {
+      captured = blob;
+      return 'blob:x';
+    });
+    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    stubFetch({
+      '/api/proxy/schema': extendedSchema,
+      '/api/proxy/config': {
+        revision: 'rev1',
+        config: {
+          general: { links: { public_host: 'demo.example.com', public_port: 443 } },
+          censorship: { mask: true },
+        },
+      },
+    });
+    renderUI(<ProxyPanel />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Скачать полный TOML' }));
+    const text = await (captured as unknown as Blob).text();
+    expect(text).toContain('[general.links]');
+    expect(text).toContain('[censorship]');
+  });
+});
