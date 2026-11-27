@@ -8,9 +8,11 @@ import (
 	"io/fs"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/McConfig/telemt-admin/internal/config"
+	"github.com/McConfig/telemt-admin/internal/configx"
 	"github.com/McConfig/telemt-admin/internal/settings"
 	"github.com/McConfig/telemt-admin/internal/store"
 	"github.com/McConfig/telemt-admin/internal/telemt"
@@ -28,12 +30,20 @@ type Server struct {
 	telemt    *telemt.Client
 	passkeys  *webauthn.Service
 	settings  *settings.Service
+	configx   *configx.Service
 	notifier  Notifier
 	router    chi.Router
 	assets    http.Handler
 	now       func() time.Time
 	startedAt time.Time
 	status    func() collector.Status
+
+	configRates map[string]*rateWindow
+	ratesMu     sync.Mutex
+
+	proxySchemaMu sync.Mutex
+	proxySchema   *telemt.ConfigSchema
+	proxySchemaAt time.Time
 }
 
 // Notifier отправляет события аудита во внешнюю систему.
@@ -55,7 +65,13 @@ func (s *Server) SetCollectorStatus(fn func() collector.Status) {
 // New собирает сервер и маршруты.
 func New(cfg *config.Config, st *store.Store, tc *telemt.Client, metrics http.Handler) *Server {
 	passkeySvc, _ := webauthn.New(cfg, st)
-	s := &Server{cfg: cfg, store: st, telemt: tc, passkeys: passkeySvc, settings: settings.New(cfg, st), now: time.Now, startedAt: time.Now()}
+	settingsSvc := settings.New(cfg, st)
+	s := &Server{
+		cfg: cfg, store: st, telemt: tc, passkeys: passkeySvc, settings: settingsSvc,
+		configx: configx.New(st, settingsSvc, tc, time.Now),
+		now:     time.Now, startedAt: time.Now(),
+		configRates: map[string]*rateWindow{},
+	}
 	sub, err := fs.Sub(distFS, "dist")
 	if err != nil {
 		panic(fmt.Sprintf("dist: %v", err))
@@ -154,6 +170,16 @@ func New(cfg *config.Config, st *store.Store, tc *telemt.Client, metrics http.Ha
 				r.Post("/account/totp/disable", s.apiTOTPDisable)
 				r.Post("/account/totp/recovery", s.apiTOTPRecovery)
 				r.Post("/admins/{name}/totp-reset", s.apiResetAdminTOTP)
+				r.Get("/config/blocks", s.apiConfigBlocks)
+				r.Post("/config/export", s.apiConfigExport)
+				r.Post("/config/precheck", s.apiConfigPrecheck)
+				r.Post("/config/apply", s.apiConfigApply)
+				r.Get("/config/plan/{id}", s.apiConfigPlan)
+				r.Get("/proxy/schema", s.apiProxySchema)
+				r.Get("/proxy/config", s.apiProxyConfig)
+				r.Post("/proxy/validate", s.apiProxyValidate)
+				r.Post("/proxy/apply", s.apiProxyApply)
+				r.Get("/proxy/reload/{id}", s.apiProxyReload)
 			})
 		})
 	})
