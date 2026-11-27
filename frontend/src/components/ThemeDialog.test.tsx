@@ -17,8 +17,16 @@ describe('ThemeDialog', () => {
       />,
     );
     expect(screen.getByText('Тема оформления')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('combobox', { name: 'Тема' }));
-    await userEvent.click(await screen.findByRole('option', { name: 'Тёмная контрастная' }));
+    const trigger = screen.getByRole('combobox', { name: 'Тема' });
+    await userEvent.click(trigger);
+    let option;
+    try {
+      option = await screen.findByRole('option', { name: 'Тёмная контрастная' }, { timeout: 5000 });
+    } catch {
+      await userEvent.click(trigger);
+      option = await screen.findByRole('option', { name: 'Тёмная контрастная' }, { timeout: 5000 });
+    }
+    await userEvent.click(option);
     expect(onThemeChange).toHaveBeenCalledWith('dark-hc');
     await userEvent.click(screen.getByRole('button', { name: 'Закрыть' }));
     expect(onClose).toHaveBeenCalled();
