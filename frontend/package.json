@@ -15,7 +15,11 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@bem-react/classname": "^1.8.0",
+    "@gravity-ui/date-components": "^5.0.0",
+    "@gravity-ui/date-utils": "^2.7.3",
     "@gravity-ui/icons": "^2.24.0",
+    "@gravity-ui/navigation": "^8.0.4",
     "@gravity-ui/table": "^2.0.0",
     "@gravity-ui/uikit": "^8.2.0",
     "@hello-pangea/dnd": "^18.0.1",
