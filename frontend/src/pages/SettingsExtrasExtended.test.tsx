@@ -153,3 +153,23 @@ describe('SettingsExtras — расширенные сценарии', () => {
     expect(screen.queryByText('Система')).not.toBeInTheDocument();
   });
 });
+
+describe('TemplatesPanel — выгрузка YAML', () => {
+  it('скачивает шаблоны', async () => {
+    let captured: Blob | null = null;
+    URL.createObjectURL = vi.fn((blob: Blob) => {
+      captured = blob;
+      return 'blob:x';
+    });
+    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    stubFetch({
+      '/api/settings/templates': { default: 'router', templates: [router] },
+    });
+    renderUI(<TemplatesPanel />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Скачать шаблоны YAML' }));
+    const text = await (captured as unknown as Blob).text();
+    expect(text).toContain('limitTemplates:');
+    expect(text).toContain('router');
+  });
+});

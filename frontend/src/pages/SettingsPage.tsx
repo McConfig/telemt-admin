@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Card, Checkbox, Label, Loader, Select, Text, TextInput } from '@gravity-ui/uikit';
+import { Alert, Button, Card, Checkbox, Icon, Label, Loader, Select, Text, TextInput } from '@gravity-ui/uikit';
+import { FileArrowDown } from '@gravity-ui/icons';
 import { api, ApiError, type SettingField, type SettingsCatalog } from '../api';
 import { BackupsPanel, HistoryPanel, SystemPanel, TemplatesPanel } from './SettingsExtras';
 import ConfigExchange from './ConfigExchange';
 import ProxyPanel from './ProxyPanel';
+import { allSettingsYAML, settingsSectionYAML } from './settingsYaml';
+import { downloadText } from '../utils/download';
 
 function isDirty(field: SettingField, value: unknown): boolean {
   if (field.status !== 'active') return false;
@@ -279,6 +282,22 @@ export default function SettingsPage() {
         <Text variant="header-2">Настройки</Text>
         <div style={{ flex: 1 }} />
         <Text className="muted">версия {catalog.version}</Text>
+        <Button
+          view="outlined"
+          size="s"
+          aria-label="Скачать все настройки YAML"
+          onClick={() => {
+            void api
+              .templates()
+              .catch(() => undefined)
+              .then((templates) =>
+                downloadText(allSettingsYAML(catalog, draft, templates), 'tgadmin-settings.yaml', 'application/yaml;charset=utf-8'),
+              );
+          }}
+        >
+          <Icon data={FileArrowDown} size={16} />
+          YAML
+        </Button>
       </div>
       {error && (
         <Alert
@@ -315,7 +334,24 @@ export default function SettingsPage() {
         return (
           <Card view="filled" style={{ padding: 16 }} key={section.id}>
             <div className="stack">
-              <Text variant="header-1">{section.title}</Text>
+              <div className="card-head">
+                <Text variant="header-1">{section.title}</Text>
+                <div style={{ flex: 1 }} />
+                <Button
+                  view="flat"
+                  size="s"
+                  aria-label={`Скачать ${section.id} YAML`}
+                  onClick={() =>
+                    downloadText(
+                      settingsSectionYAML(catalog, section.id, draft),
+                      `tgadmin-${section.id}.yaml`,
+                      'application/yaml;charset=utf-8',
+                    )
+                  }
+                >
+                  <Icon data={FileArrowDown} size={16} />
+                </Button>
+              </div>
               <Text className="muted">{section.description}</Text>
               <div className="form-grid">{section.settings.map(renderField)}</div>
               {section.id === 'notifications' && (

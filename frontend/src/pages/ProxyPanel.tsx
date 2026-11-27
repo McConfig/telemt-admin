@@ -17,7 +17,8 @@ import {
 import { ChevronDown, ChevronRight, FileArrowDown } from '@gravity-ui/icons';
 import { api, ApiError, type ProxyConfig, type ProxySchema, type ProxySchemaField } from '../api';
 import { proxyDescription, useLocale } from '../i18n';
-import { toTOML } from './proxyToml';
+import { configToTOML, toTOML } from './proxyToml';
+import { downloadText } from '../utils/download';
 
 function getPath(source: Record<string, unknown>, path: string): unknown {
   let current: unknown = source;
@@ -99,16 +100,6 @@ type JsonEditor = {
   expected: 'array' | 'object';
 };
 
-function downloadText(text: string, filename: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/toml;charset=utf-8' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
 
 export default function ProxyPanel() {
   const [schema, setSchema] = useState<ProxySchema | null>(null);
@@ -319,13 +310,15 @@ export default function ProxyPanel() {
     );
   }
 
-  const sectionValues = (section: string) => {
+  const fullConfigValues = () => {
     const root: Record<string, unknown> = JSON.parse(JSON.stringify(config?.config ?? {}));
     for (const field of rows) {
       if (draft[field.path] !== undefined) setPath(root, field.path, draft[field.path]);
     }
-    return root[section];
+    return root;
   };
+
+  const sectionValues = (section: string) => fullConfigValues()[section];
 
   const renderRow = (field: ProxySchemaField, readonly = false) => {
     const kind = kindOf(field);
@@ -417,6 +410,15 @@ export default function ProxyPanel() {
         <div className="row">
           <Text variant="header-1">Прокси telemt</Text>
           <div style={{ flex: 1 }} />
+          <Button
+            view="outlined"
+            size="s"
+            aria-label="Скачать полный TOML"
+            onClick={() => downloadText(configToTOML(fullConfigValues()), 'telemt-config.toml', 'application/toml;charset=utf-8')}
+          >
+            <Icon data={FileArrowDown} size={16} />
+            TOML
+          </Button>
           <Label theme="info">ревизия {config.revision.slice(0, 12)}</Label>
         </div>
         {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
