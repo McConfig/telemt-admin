@@ -14,6 +14,7 @@ import { useTableSort } from '../tableSort';
 import { useMedia } from '../useMedia';
 import { ThemeSelect } from '../components/ThemeSelect';
 import type { AppTheme } from '../theme';
+import { settingsColumn, usePersistentColumnVisibility } from '../components/ColumnSettings';
 
 function compareSessions(a: SessionItem, b: SessionItem, id: string): number {
   switch (id) {
@@ -26,14 +27,22 @@ function compareSessions(a: SessionItem, b: SessionItem, id: string): number {
   }
 }
 
+const SESSION_COLUMNS: Record<string, string> = {
+  ua: 'Устройство',
+  ip: 'IP',
+  at: 'Вход',
+};
+
 export default function AccountPage({
   onMeChange,
   theme = 'system',
   onThemeChange = () => {},
+  userName,
 }: {
   onMeChange?: () => void;
   theme?: AppTheme;
   onThemeChange?: (theme: AppTheme) => void;
+  userName?: string;
 } = {}) {
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,6 +82,7 @@ export default function AccountPage({
     {
       id: 'action',
       header: '',
+      enableHiding: false,
       cell: ({ row }) =>
         row.original.current ? (
           <Text color="secondary">текущая</Text>
@@ -82,6 +92,7 @@ export default function AccountPage({
           </Button>
         ),
     },
+    settingsColumn<SessionItem>(SESSION_COLUMNS),
   ], [sorting]);
 
   const changePassword = async (event: React.FormEvent) => {
@@ -103,7 +114,17 @@ export default function AccountPage({
   };
 
   const sorted = useMemo(() => sortRows(sessions, compareSessions), [sessions, sorting]);
-  const table = useTable({ columns, data: sorted });
+  const [columnVisibility, setColumnVisibility] = usePersistentColumnVisibility(
+    userName,
+    'sessions',
+  );
+  const table = useTable({
+    columns,
+    data: sorted,
+    enableHiding: true,
+    state: { columnVisibility },
+    onColumnVisibilityChange: setColumnVisibility,
+  });
 
   return (
     <div className="stack">

@@ -5,6 +5,7 @@ import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { api, ApiError, type AuditItem } from '../api';
 import { formatTime } from '../format';
 import { DateFormField } from '../components/DateFormField';
+import { settingsColumn, usePersistentColumnVisibility } from '../components/ColumnSettings';
 import { useTableSort } from '../tableSort';
 import { useMedia } from '../useMedia';
 
@@ -31,7 +32,16 @@ const actions = [
 
 const pageSize = 50;
 
-export default function AuditPage() {
+const COLUMN_LABELS: Record<string, string> = {
+  at: 'Время',
+  actor: 'Кто',
+  action: 'Действие',
+  target: 'Цель',
+  result: 'Результат',
+  ip: 'IP',
+};
+
+export default function AuditPage({ userName }: { userName?: string }) {
   const [items, setItems] = useState<AuditItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -65,9 +75,20 @@ export default function AuditPage() {
     { id: 'target', header: () => sortHeader('target', 'Цель'), cell: ({ row }) => row.original.target },
     { id: 'result', header: () => sortHeader('result', 'Результат'), cell: ({ row }) => row.original.result },
     { id: 'ip', header: () => sortHeader('ip', 'IP'), cell: ({ row }) => row.original.ip },
+    settingsColumn<AuditItem>(COLUMN_LABELS),
   ], [sorting]);
 
-  const table = useTable({ columns, data: items });
+  const [columnVisibility, setColumnVisibility] = usePersistentColumnVisibility(
+    userName,
+    'audit',
+  );
+  const table = useTable({
+    columns,
+    data: items,
+    enableHiding: true,
+    state: { columnVisibility },
+    onColumnVisibilityChange: setColumnVisibility,
+  });
 
   return (
     <div className="stack">
