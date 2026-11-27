@@ -63,3 +63,90 @@ describe('ConfigExchange', () => {
     });
   });
 });
+
+describe('ConfigExchange — дополнительные сценарии', () => {
+  it('переключает пресеты, секреты и удаление отсутствующих', async () => {
+    stubFetch({
+      '/api/config/blocks': [
+        { id: 'settings', title: 'Системные настройки' },
+        { id: 'clients', title: 'Клиенты telemt' },
+      ],
+      '/api/config/precheck': plan,
+    });
+    renderUI(<ConfigExchange />);
+    await screen.findByText('Обмен конфигурацией');
+    await userEvent.click(screen.getByRole('button', { name: 'Полная выгрузка' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Включить секреты' }));
+    await userEvent.type(screen.getByLabelText('Пароль для секретов'), 'secret');
+    await userEvent.type(screen.getByLabelText('Код для секретов'), '123456');
+    await userEvent.upload(screen.getByLabelText('YAML'), new File(['yaml'], 'x.yaml'));
+    await userEvent.click(screen.getByRole('button', { name: 'Проверить' }));
+    await screen.findByText('risk.warn_ips: 3 → 4');
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Удалить отсутствующие' }));
+    await userEvent.type(screen.getByLabelText('Имя установки'), 'demo');
+    expect(screen.getByRole('button', { name: 'Применить выбранное' })).toBeEnabled();
+  });
+
+  it('показывает ошибку экспорта', async () => {
+    stubFetch({
+      '/api/config/blocks': [],
+      '/api/config/export': () =>
+        new Response(JSON.stringify({ error: { code: 'proxy_unavailable', message: 'нет связи' } }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    });
+    renderUI(<ConfigExchange />);
+    await screen.findByText('Обмен конфигурацией');
+    await userEvent.click(screen.getByRole('button', { name: 'Скачать YAML' }));
+    expect(await screen.findByText('нет связи')).toBeInTheDocument();
+  });
+
+  it('показывает пароли и ссылки после применения', async () => {
+    stubFetch({
+      '/api/config/blocks': [{ id: 'settings', title: 'Системные настройки' }],
+      '/api/config/precheck': plan,
+      '/api/config/apply': {
+        results: [
+          {
+            block: 'users',
+            status: 'applied',
+            passwords: { demo: 'temp-pass' },
+            links: { main: ['tg://proxy?server=demo.example.com'] },
+          },
+        ],
+      },
+    });
+    renderUI(<ConfigExchange />);
+    await screen.findByText('Обмен конфигурацией');
+    await userEvent.upload(screen.getByLabelText('YAML'), new File(['yaml'], 'x.yaml'));
+    await userEvent.click(screen.getByRole('button', { name: 'Проверить' }));
+    await screen.findByText('risk.warn_ips: 3 → 4');
+    await userEvent.click(screen.getByRole('button', { name: 'Применить выбранное' }));
+    expect(await screen.findByText(/demo: временный пароль temp-pass/)).toBeInTheDocument();
+    expect(await screen.findByText(/main: tg:\/\/proxy/)).toBeInTheDocument();
+  });
+});
+
+describe('ConfigExchange — выбор блоков плана', () => {
+  it('снимает блок плана и оставляет конфликт без изменений', async () => {
+    stubFetch({
+      '/api/config/blocks': [{ id: 'settings', title: 'Системные настройки' }],
+      '/api/config/precheck': plan,
+      '/api/config/apply': { results: [], error: 'частичная ошибка' },
+    });
+    renderUI(<ConfigExchange />);
+    await screen.findByText('Обмен конфигурацией');
+    await userEvent.upload(screen.getByLabelText('YAML'), new File(['yaml'], 'x.yaml'));
+    await userEvent.click(screen.getByRole('button', { name: 'Проверить' }));
+    await screen.findByText('risk.warn_ips: 3 → 4');
+    const planChecks = screen.getAllByRole('checkbox', { name: 'Системные настройки' });
+    await userEvent.click(planChecks[planChecks.length - 1]);
+    await userEvent.click(planChecks[planChecks.length - 1]);
+    await userEvent.click(screen.getByRole('button', { name: 'оставить demo' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Применить выбранное' }));
+    expect(await screen.findByText('частичная ошибка')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Включить секреты' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Включить секреты' }));
+  });
+});

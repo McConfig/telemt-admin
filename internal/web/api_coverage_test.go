@@ -63,6 +63,13 @@ func coverageServer(t *testing.T) (*Server, string, string) {
 				{"path": "general.links.public_host", "api": map[string]any{"config_read": true, "config_write": true}},
 			}})
 		case r.Method == http.MethodPost && p == "/v1/config/validate":
+			var patch map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&patch)
+			if patch["access"] != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(`{"ok":false,"error":{"code":"access_not_editable","message":"no"}}`))
+				return
+			}
 			env(w, map[string]any{})
 		case r.Method == http.MethodPatch && p == "/v1/config":
 			if r.Header.Get("If-Match") != "rev1" {

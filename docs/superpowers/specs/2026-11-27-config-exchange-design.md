@@ -89,7 +89,7 @@ tgadmin-YYYYMMDD-HHMM.tgadmin.yaml
 apiVersion: tgadmin.telemt/v1
 kind: InstallationBundle
 metadata:
-  name: pantheon
+  name: demo
   createdAt: "2026-11-27T14:00:00Z"
   appVersion: v2.0.0
   generator: tgadmin
@@ -196,7 +196,7 @@ proxy:
       log_level: normal
       use_middle_proxy: true
     links:
-      public_host: tools.q1w2e3.ru
+      public_host: demo.example.com
       public_port: 8444
     modes:
       classic: false
@@ -204,11 +204,11 @@ proxy:
       tls: true
     server:
       port: 8444
-      metrics_listen: "10.0.0.9:3129"
+      metrics_listen: "192.0.2.10:3129"
       metrics_whitelist:
-        - 10.0.0.9/32
+        - 192.0.2.10/32
     censorship:
-      tls_domain: tools.q1w2e3.ru
+      tls_domain: demo.example.com
       mask: true
       tls_emulation: false
 ```
@@ -450,7 +450,7 @@ clients:
     "clients": { "main": "overwrite" }
   },
   "deleteMissing": false,
-  "confirmName": "pantheon"
+  "confirmName": "demo"
 }
 ```
 

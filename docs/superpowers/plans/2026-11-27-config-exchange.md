@@ -2085,7 +2085,7 @@ git push origin v2.0.0
 - [ ] **Step 7: Деплой**
 
 ```bash
-ssh mcconfig@10.0.0.9 'cd ~/lab/network && \
+ssh mcconfig@192.0.2.10 'cd ~/lab/network && \
   docker compose exec valkey valkey-cli -a "$(grep VALKEY_PASSWORD .env | cut -d= -f2)" BGSAVE && \
   cp -a docker-compose.yml docker-compose.yml.bak-$(date +%F-%H%M) && \
   sed -i "s|telemt-admin:v1.11.1|telemt-admin:v2.0.0|" docker-compose.yml && \
