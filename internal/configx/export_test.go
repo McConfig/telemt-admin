@@ -56,6 +56,9 @@ func seedExportData(t *testing.T, st *store.Store) {
 	if err := st.CreateUser(ctx, store.User{Name: "demo", Hash: hash, Role: store.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
+	if err := st.CreateUser(ctx, store.User{Name: "viewer", Hash: hash, Role: store.RoleViewer}); err != nil {
+		t.Fatal(err)
+	}
 	if err := st.SaveTemplate(ctx, store.LimitTemplate{Name: "default"}); err != nil {
 		t.Fatal(err)
 	}
