@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Card, Label, Loader, Text, TextInput } from '@gravity-ui/uikit';
+import { Alert, Button, Card, Checkbox, Label, Loader, Select, Text, TextArea, TextInput } from '@gravity-ui/uikit';
 import {
   api,
   ApiError,
@@ -237,15 +237,19 @@ export function TemplatesPanel() {
             </label>
             <label className="field">
               <span>Период квоты</span>
-              <select
-                value={form.quotaPeriod}
-                onChange={(e) => update('quotaPeriod', e.target.value)}
-              >
-                <option value="">без сброса</option>
-                <option value="daily">сутки</option>
-                <option value="weekly">неделя</option>
-                <option value="monthly">месяц</option>
-              </select>
+              <Select
+                aria-label="Период квоты"
+                value={form.quotaPeriod ? [form.quotaPeriod] : []}
+                options={[
+                  { value: '', content: 'без сброса' },
+                  { value: 'daily', content: 'сутки' },
+                  { value: 'weekly', content: 'неделя' },
+                  { value: 'monthly', content: 'месяц' },
+                ]}
+                onUpdate={([value]) => update('quotaPeriod', value ?? '')}
+                placeholder="без сброса"
+                width="max"
+              />
             </label>
             <label className="field">
               <span>Срок, дней</span>
@@ -274,21 +278,19 @@ export function TemplatesPanel() {
               <span>Риск: адресов за 7 дней</span>
               <TextInput value={form.riskDistinct} onUpdate={(v) => update('riskDistinct', v)} />
             </label>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={form.riskNewCountries}
-                onChange={(e) => update('riskNewCountries', e.target.checked)}
-              />
-              новая страна считается риском
-            </label>
+            <Checkbox
+              controlProps={{ 'aria-label': 'новая страна считается риском' }}
+              checked={form.riskNewCountries}
+              onUpdate={(checked) => update('riskNewCountries', checked)}
+              content="новая страна считается риском"
+            />
           </div>
           <label className="field">
             <span>Запрещённые сети, по одной на строку</span>
-            <textarea
+            <TextArea
               rows={2}
               value={form.sourceDeny}
-              onChange={(e) => update('sourceDeny', e.target.value)}
+              onUpdate={(value) => update('sourceDeny', value)}
               placeholder="203.0.113.0/24"
             />
           </label>

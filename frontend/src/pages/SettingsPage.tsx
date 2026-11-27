@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Card, Label, Loader, Text, TextInput } from '@gravity-ui/uikit';
+import { Alert, Button, Card, Checkbox, Label, Loader, Select, Text, TextInput } from '@gravity-ui/uikit';
 import { api, ApiError, type SettingField, type SettingsCatalog } from '../api';
 import { BackupsPanel, HistoryPanel, SystemPanel, TemplatesPanel } from './SettingsExtras';
 
@@ -224,22 +224,23 @@ export default function SettingsPage() {
           )}
         </span>
         {field.kind === 'bool' ? (
-          <span className="check">
-            <input
-              type="checkbox"
-              checked={Boolean(value)}
-              onChange={(event) => update(field.key, event.target.checked)}
-            />
-            включено
-          </span>
+          <Checkbox
+            controlProps={{ 'aria-label': field.title }}
+            checked={Boolean(value)}
+            onUpdate={(checked) => update(field.key, checked)}
+            content="включено"
+          />
         ) : field.kind === 'enum' ? (
-          <select value={String(value ?? '')} onChange={(event) => update(field.key, event.target.value)}>
-            {(field.options ?? []).map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <Select
+            aria-label={field.title}
+            value={[String(value ?? '')]}
+            options={(field.options ?? []).map((option) => ({
+              value: option.value,
+              content: option.label,
+            }))}
+            onUpdate={([next]) => update(field.key, next ?? '')}
+            width="max"
+          />
         ) : (
           <TextInput
             value={String(value ?? '')}
