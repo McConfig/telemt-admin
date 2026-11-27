@@ -107,6 +107,8 @@ describe('AdminsPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Создать' }));
     const dialog = await screen.findByRole('dialog');
     await userEvent.type(within(dialog).getByPlaceholderText('Имя'), 'newbie');
+    await userEvent.click(within(dialog).getByRole('combobox', { name: 'Роль' }));
+    await userEvent.keyboard('{ArrowDown}{Enter}');
     await userEvent.type(
       within(dialog).getByPlaceholderText('Пароль (пусто — сгенерировать)'),
       'secret-pass',
@@ -115,7 +117,7 @@ describe('AdminsPage', () => {
 
     expect(await screen.findByText(/generated-pass/)).toBeInTheDocument();
     const body = JSON.parse(String((calls('POST', '/api/admins')[0][1] as RequestInit).body));
-    expect(body).toMatchObject({ name: 'newbie', role: 'viewer', password: 'secret-pass' });
+    expect(body).toMatchObject({ name: 'newbie', role: 'admin', password: 'secret-pass' });
   });
 
   it('показывает ошибку создания администратора', async () => {

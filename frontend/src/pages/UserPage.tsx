@@ -754,7 +754,7 @@ export default function UserPage({ me }: { me: Me }) {
                           key={day.day}
                           view="flat"
                           className="risk-day"
-                          aria-pressed={riskDay === day.day}
+                          selected={riskDay === day.day}
                           onClick={() => setRiskDay(day.day)}
                         >
                           <Text variant="subheader-1">{formatRiskDay(day.day)}</Text>

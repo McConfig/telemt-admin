@@ -431,6 +431,7 @@ describe('UserPage — расширенные сценарии', () => {
     const dayButtons = document.querySelectorAll('.risk-day');
     expect(dayButtons.length).toBe(2);
     await userEvent.click(dayButtons[1] as HTMLElement);
+    expect(dayButtons[1]).toHaveAttribute('aria-pressed', 'true');
     expect(await screen.findByText('За этот день адресов нет.')).toBeInTheDocument();
 
     await chooseSelect('Период', '30 дней');

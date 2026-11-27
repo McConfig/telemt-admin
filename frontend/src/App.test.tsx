@@ -99,6 +99,13 @@ describe('App', () => {
     expect(await screen.findByText('Вход в TeleMT Admin')).toBeInTheDocument();
   });
 
+  it('по умолчанию использует системную тему', async () => {
+    await renderApp('/', { '/api/me': me });
+    expect(await screen.findByText('Пользователи telemt')).toBeInTheDocument();
+    expect(localStorage.getItem('tgadmin-theme')).toBe('system');
+    expect(document.body.className).toContain('g-root_theme_light');
+  });
+
   it('стартует со светлой темы из localStorage', async () => {
     localStorage.setItem('tgadmin-theme', 'light');
     await renderApp('/', { '/api/me': me });

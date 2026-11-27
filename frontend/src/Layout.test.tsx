@@ -57,6 +57,27 @@ describe('Layout', () => {
     expect(screen.queryByText('Настройки')).not.toBeInTheDocument();
   });
 
+  it('на мобильном принудительно сворачивает сайдбар', () => {
+    localStorage.setItem('tgadmin-sidebar-compact', 'false');
+    vi.spyOn(window, 'matchMedia').mockReturnValue({
+      matches: true,
+      media: '(max-width: 960px)',
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    } as unknown as MediaQueryList);
+    stubFetch({ '/api/meta': { version: 'v9.9.9', repo: 'https://example.com/repo' } });
+    renderUI(
+      <Layout me={me} onLogout={() => {}} theme="system" onThemeChange={() => {}}>
+        <div>содержимое</div>
+      </Layout>,
+    );
+    expect(screen.queryByRole('combobox', { name: 'Тема' })).not.toBeInTheDocument();
+  });
+
   it('переключает тему на контрастную', async () => {
     stubFetch({ '/api/meta': { version: 'v9.9.9', repo: 'https://example.com/repo' } });
     const onThemeChange = vi.fn();

@@ -19,6 +19,7 @@ import type { AppTheme } from './theme';
 import { ThemeSelect } from './components/ThemeSelect';
 import { ThemeDialog } from './components/ThemeDialog';
 import Footer from './Footer';
+import { useMedia } from './useMedia';
 
 const MENU_PATHS: Record<string, string> = {
   clients: '/',
@@ -45,11 +46,12 @@ export default function Layout({
   const navigate = useNavigate();
   const location = useLocation();
   const [themeDialogOpen, setThemeDialogOpen] = useState(false);
+  const isMobile = useMedia('(max-width: 960px)');
   const [compact, setCompact] = useState(() => {
     const saved = localStorage.getItem('tgadmin-sidebar-compact');
-    if (saved !== null) return saved === 'true';
-    return window.matchMedia('(max-width: 960px)').matches;
+    return saved === 'true';
   });
+  const effectiveCompact = isMobile || compact;
 
   useEffect(() => {
     localStorage.setItem('tgadmin-sidebar-compact', String(compact));
@@ -100,13 +102,13 @@ export default function Layout({
           icon: Server,
           onClick: () => navigate('/'),
         }}
-        compact={compact}
-        onChangeCompact={setCompact}
+        compact={effectiveCompact}
+        onChangeCompact={(next) => !isMobile && setCompact(next)}
         menuItems={menuItems}
         menuDensity="compact"
         menuOverflow="scroll"
         aboveMenuContent={
-          compact ? null : (
+          effectiveCompact ? null : (
             <div style={{ padding: '8px 12px' }}>
               <ThemeSelect theme={theme} onThemeChange={onThemeChange} />
             </div>
@@ -118,15 +120,15 @@ export default function Layout({
               id="account"
               title={me.user.name}
               icon={Person}
-              compact={compact}
+              compact={effectiveCompact}
               onItemClick={() => navigate('/account')}
             />
-            {compact && (
+            {effectiveCompact && (
               <FooterItem
                 id="theme"
                 title="Тема"
                 icon={Sun}
-                compact={compact}
+                compact={effectiveCompact}
                 onItemClick={() => setThemeDialogOpen(true)}
               />
             )}
@@ -134,7 +136,7 @@ export default function Layout({
               id="logout"
               title="Выйти"
               icon={ArrowRightFromSquare}
-              compact={compact}
+              compact={effectiveCompact}
               onItemClick={onLogout}
             />
           </>

@@ -27,3 +27,31 @@ test('переключает все темы Gravity UI', async ({ page }) => {
     );
   }
 });
+
+test('системная тема и сворачивание сайдбара', async ({ page }) => {
+  await mockApi(page);
+  await login(page);
+  expect(await page.evaluate(() => localStorage.getItem('tgadmin-theme'))).toBe('system');
+  await expect
+    .poll(() => page.evaluate(() => document.body.className))
+    .toMatch(/g-root_theme_(light|dark)/);
+
+  await page.locator('[data-gn-aside-collapse-layer] button').first().click({ force: true });
+  expect(await page.evaluate(() => localStorage.getItem('tgadmin-sidebar-compact'))).toBe(
+    'true',
+  );
+});
+
+test('на мобильном сайдбар свёрнут и нет горизонтального скролла', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await page.addInitScript(() => {
+    localStorage.setItem('tgadmin-sidebar-compact', 'false');
+  });
+  await mockApi(page);
+  await login(page);
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
+    )
+    .toBeLessThanOrEqual(1);
+});
