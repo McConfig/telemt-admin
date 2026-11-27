@@ -128,8 +128,8 @@ type AppTheme = 'system' | 'light' | 'dark' | 'light-hc' | 'dark-hc';
 | `textarea` | UserPage, SettingsExtras, NewUserPage | `TextArea` |
 | текстовые/числовые `input` | SettingsPage, UsersPage (сортировка), ImportDialog | `TextInput` |
 | `input[type=file]` | ImportDialog | `useFileInput` + `Button` |
-| `input[type=date]` | AuditPage (2) | `DateField` |
-| `input[type=datetime-local]` | UserPage, NewUserPage | `DatePicker` с временем |
+| `input[type=date]` | AuditPage (2) | `DateField` с `format="YYYY-MM-DD"` |
+| `input[type=datetime-local]` | UserPage, NewUserPage | `DateField` с `format="YYYY-MM-DD HH:mm"` |
 | нативная `<button>` | tableSort, UserPage (день риска) | `Button` |
 
 Для повторяющихся полей создаются обёртки:
@@ -137,8 +137,8 @@ type AppTheme = 'system' | 'light' | 'dark' | 'light-hc' | 'dark-hc';
 - `FormField` — подпись, контрол, подсказка/ошибка;
 - `FormSelect` — `Select` с `value: string[]` и преобразованием в строку;
 - `ThemeSelect` — пять тем и подпись;
-- `DateFormField` — `DateField`/`DatePicker` и преобразование
-  `DateTime ↔ ISO/локальная строка`.
+- `DateFormField` — `DateField` и преобразование `DateTime ↔ локальная
+  строка`; для выбора даты из календаря используется `DatePicker`.
 
 Правила преобразования дат:
 
