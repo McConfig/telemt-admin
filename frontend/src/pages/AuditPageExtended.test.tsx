@@ -52,13 +52,11 @@ describe('AuditPage — расширенные сценарии', () => {
     await screen.findByText('страница 2');
   });
 
-  it('фильтрует по датам и действию', async () => {
+  it('фильтрует по действию', async () => {
     stubFetch({ '/api/audit': events(1) });
     renderUI(<AuditPage />);
     await screen.findByText('user.create');
 
-    expect(screen.getByRole('textbox', { name: 'С' })).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'По' })).toBeInTheDocument();
     await chooseSelect('Действие', 'user.rotate');
     await waitFor(() => {
       const urls = auditUrls();

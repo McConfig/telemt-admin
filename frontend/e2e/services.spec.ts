@@ -6,7 +6,7 @@ test('сервисный аккаунт: выпуск токена, права �
   await login(page);
   page.on('dialog', (dialog) => void dialog.accept());
 
-  await page.getByRole('button', { name: 'Сервисные аккаунты' }).click();
+  await page.getByRole('link', { name: 'Сервисные аккаунты' }).click();
   await expect(page.getByText('Сервисные аккаунты', { exact: true }).first()).toBeVisible();
 
   await page.getByRole('button', { name: 'Создать сервис' }).click();

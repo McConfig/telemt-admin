@@ -56,6 +56,7 @@ export default function LoginPage({ onLogin }: { onLogin: (me: Me) => void }) {
                 value={username}
                 onUpdate={setUsername}
                 autoComplete="username"
+                controlProps={{ 'aria-label': 'Имя пользователя' }}
               />
               <TextInput
                 placeholder="Пароль"
@@ -63,6 +64,7 @@ export default function LoginPage({ onLogin }: { onLogin: (me: Me) => void }) {
                 value={password}
                 onUpdate={setPassword}
                 autoComplete="current-password"
+                controlProps={{ 'aria-label': 'Пароль' }}
               />
               <Button view="action" type="submit" loading={busy} disabled={!username || !password}>
                 Войти
@@ -82,6 +84,7 @@ export default function LoginPage({ onLogin }: { onLogin: (me: Me) => void }) {
                 value={code}
                 onUpdate={setCode}
                 autoComplete="one-time-code"
+                controlProps={{ 'aria-label': recovery ? 'Резервный код' : 'Код TOTP' }}
                 autoFocus
               />
               <Button view="action" type="submit" loading={busy} disabled={code.trim().length < 6}>

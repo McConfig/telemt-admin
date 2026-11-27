@@ -144,8 +144,8 @@ export default function AccountPage({
       <Card view="filled" style={{ padding: 16 }}>
         <form className="stack" onSubmit={changePassword}>
           <Text variant="header-1">Смена пароля</Text>
-          <TextInput placeholder="Текущий пароль" type="password" value={current} onUpdate={setCurrent} />
-          <TextInput placeholder="Новый пароль (не короче 12)" type="password" value={next} onUpdate={setNext} />
+          <TextInput placeholder="Текущий пароль" type="password" value={current} onUpdate={setCurrent} controlProps={{ 'aria-label': 'Текущий пароль' }} />
+          <TextInput placeholder="Новый пароль (не короче 12)" type="password" value={next} onUpdate={setNext} controlProps={{ 'aria-label': 'Новый пароль' }} />
           <div>
             <Button view="action" type="submit" loading={busy} disabled={!current || next.length < 12}>
               Сменить
@@ -178,7 +178,7 @@ export default function AccountPage({
                   value={totpPassword}
                   onUpdate={setTotpPassword}
                 />
-                <TextInput placeholder="Код" value={totpCode} onUpdate={setTotpCode} />
+                <TextInput placeholder="Код" value={totpCode} onUpdate={setTotpCode} controlProps={{ 'aria-label': 'Код TOTP' }} />
                 <Button
                   view="outlined"
                   loading={totpBusy}
@@ -260,7 +260,7 @@ export default function AccountPage({
                     </div>
                   </div>
                   <div className="row">
-                    <TextInput placeholder="Код из приложения" value={totpCode} onUpdate={setTotpCode} />
+                    <TextInput placeholder="Код из приложения" value={totpCode} onUpdate={setTotpCode} controlProps={{ 'aria-label': 'Код из приложения' }} />
                     <Button
                       view="action"
                       loading={totpBusy}

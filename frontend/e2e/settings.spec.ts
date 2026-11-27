@@ -4,7 +4,7 @@ import { login, mockApi } from './mock';
 test('настройки: каталог, planned и сохранение', async ({ page }) => {
   const { settingsBodies } = await mockApi(page);
   await login(page);
-  await page.getByRole('button', { name: 'Настройки' }).click();
+  await page.getByRole('link', { name: 'Настройки' }).click();
 
   await expect(page.getByText('Настройки', { exact: true }).last()).toBeVisible();
   await page.getByRole('button', { name: 'Безопасность' }).click();
@@ -40,7 +40,7 @@ test('2FA: после срока показывается экран настр�
 test('диагностика: показывает предупреждения и коды', async ({ page }) => {
   await mockApi(page);
   await login(page);
-  await page.getByRole('button', { name: 'Диагностика' }).click();
+  await page.getByRole('link', { name: 'Диагностика' }).click();
   await expect(page.getByText('Диагностика', { exact: true }).last()).toBeVisible();
   await expect(page.getByText(/Есть предупреждения/)).toBeVisible();
   await expect(page.getByText('telemt_unreachable')).toBeVisible();
