@@ -118,7 +118,7 @@
 
 ## Смена версии tgadmin
 
-По умолчанию используется `v1.11.1`. Другая версия:
+По умолчанию используется `v2.0.0`. Другая версия:
 
 ```bash
 TGADMIN_VERSION=v1.3.1 docker compose up -d tgadmin
@@ -151,7 +151,10 @@ TGADMIN_VERSION=v1.3.1 docker compose up -d tgadmin
    - `audit.png` — аудит;
    - `admins.png` — администраторы;
    - `account.png` — аккаунт;
-   - `new-client.png` — создание клиента.
+   - `new-client.png` — создание клиента;
+   - `config-export.png` — экспорт конфигурации;
+   - `config-precheck.png` — предпросмотр импорта;
+   - `proxy.png` — редактор прокси.
 
 3. Другой адрес или пароль:
 
@@ -161,6 +164,38 @@ TGADMIN_VERSION=v1.3.1 docker compose up -d tgadmin
    DEMO_PASSWORD=demo-admin-password \
    npm run screenshots:demo
    ```
+
+## Обмен конфигурацией и редактор прокси
+
+В «Настройках» → «Бэкапы» доступны экспорт и импорт YAML, а на вкладке
+«Прокси» — редактор конфигурации telemt. Демо-стенд использует
+`fake-telemt`, который поддерживает `GET /v1/config`,
+`GET /v1/config/schema`, `POST /v1/config/validate`, `PATCH /v1/config`
+и `GET /v1/system/reload/{id}`.
+
+1. Проверьте, что API конфигурации отвечает:
+
+   ```bash
+   curl -fsS http://localhost:9091/v1/config
+   ```
+
+   Внутри стека порт 9091 слушает `fake-telemt`; с хоста он не опубликован.
+
+2. Откройте <http://localhost:8090/settings>, вкладка «Бэкапы»:
+   выберите блоки и нажмите «Скачать YAML». Файл сохранится с именем
+   `tgadmin-….tgadmin.yaml`.
+
+3. Для импорта вставьте YAML в поле или выберите файл, нажмите
+   «Проверить», изучите diff и конфликты, затем «Применить выбранное».
+   Секреты требуют пароль и TOTP-код.
+
+4. Вкладка «Прокси» читает схему `fake-telemt`. Измените
+   `general.links.public_host`, нажмите «Проверить», затем «Применить» —
+   ревизия и статус перезагрузки обновятся.
+
+Ограничения демо: `fake-telemt` хранит конфигурацию в памяти и не пишет
+`config.toml`. На реальном стенде изменения применяет telemt через свой
+Control API.
 
 ## E2E WebAuthn с виртуальным аутентификатором
 

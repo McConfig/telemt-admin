@@ -56,6 +56,19 @@ SPA построена на Gravity UI: `Provider` задаёт тему и ру
 берутся из `TGADMIN_BASE_URL`; passkey считается полноценной 2FA и не
 обходит allowlist CIDR.
 
+## Обмен конфигурацией
+
+`internal/configx` собирает YAML-бандл `tgadmin.telemt/v1`, строит план
+импорта с diff и применяет выбранные блоки. Настройки берутся из
+`internal/settings`, данные — из Valkey, конфигурация прокси — из Control
+API telemt. Планы импорта живут в Valkey 15 минут и привязаны к
+пользователю и сессии.
+
+Прокси не монтируется в контейнер: tgadmin читает `GET /v1/config`,
+проверяет кандидат через `POST /v1/config/validate` и применяет
+`PATCH /v1/config` с `If-Match` и `reload`. Порт, bind-адреса,
+`auth_header` и `access.*` недоступны через API и остаются в файле.
+
 ## Границы доверия
 
 1. **Браузер ↔ reverse-proxy** — HTTPS, HSTS, cookie `Secure`/`HttpOnly`,
@@ -94,6 +107,7 @@ SPA построена на Gravity UI: `Provider` задаёт тему и ру
 | `risk:user:*` | пороги риска клиента | бессрочно |
 | `settings:*` | глобальные настройки и версия | бессрочно |
 | `limit:*` | шаблоны лимитов и шаблон по умолчанию | бессрочно |
+| `config:plan:*` | временные планы импорта | 15 минут |
 
 Схема совместима внутри линии 1.x; изменения описываются в
 [UPGRADE.md](UPGRADE.md).

@@ -565,6 +565,56 @@ URL и возвращает `{"sent":true,"status":204}`. Ошибка дост�
 возвращается в каталоге, только `secretSet`. `*` в списке событий включает
 все.
 
+## Обмен конфигурацией
+
+Только `admin` с cookie-сессией. Сервисный токен получает `403`.
+Все изменяющие запросы требуют CSRF.
+
+| Метод | Путь | Назначение |
+|---|---|---|
+| GET | `/api/config/blocks` | список блоков выгрузки |
+| POST | `/api/config/export` | собрать YAML; тело `{blocks, secrets, password, code}` |
+| POST | `/api/config/precheck` | проверить YAML; тело `{yaml, fileName, password, code}` |
+| GET | `/api/config/plan/{id}` | получить план в пределах TTL |
+| POST | `/api/config/apply` | применить план |
+| GET | `/api/proxy/schema` | схема конфигурации telemt (кэш 5 минут) |
+| GET | `/api/proxy/config` | текущий конфиг и ревизия |
+| POST | `/api/proxy/validate` | `{patch}` без записи |
+| POST | `/api/proxy/apply` | `{patch, confirm}`; применяет с `If-Match` и reload |
+| GET | `/api/proxy/reload/{id}` | статус перезагрузки |
+
+Экспорт отдаёт `application/yaml` с `Content-Disposition: attachment` и
+`Cache-Control: no-store`. Блоки: `settings`, `limitTemplates`, `proxy`,
+`users`, `services`, `clients`.
+
+Импорт:
+
+```json
+{
+  "planId": "…",
+  "blocks": ["settings", "proxy"],
+  "modes": {"settings": "merge", "proxy": "replace"},
+  "conflicts": {"users": {"demo": "overwrite"}},
+  "deleteMissing": false,
+  "confirmName": ""
+}
+```
+
+Коды ошибок:
+
+| Код | HTTP | Когда |
+|---|---|---|
+| `bad_yaml` | 400 | синтаксис, дубли, неизвестные поля |
+| `unsupported_version` | 400 | другая `apiVersion` |
+| `too_large` | 413 | файл больше 4 МиБ |
+| `secrets_confirmation_required` | 403 | нужен пароль или TOTP |
+| `bad_credentials` | 403 | неверный пароль или код |
+| `plan_not_found` | 404 | план истёк или чужой |
+| `stale_plan` | 409 | изменились настройки или конфиг telemt |
+| `proxy_unavailable` | 503 | Control API недоступен |
+| `proxy_conflict` | 409 | `revision_conflict` или `runtime_conflict` |
+| `proxy_invalid` | 400 | telemt отклонил патч |
+
 ## Пользователи UI
 
 Только `admin`.
