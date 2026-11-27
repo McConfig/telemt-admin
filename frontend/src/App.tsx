@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { Alert, Button, Loader, ThemeProvider } from '@gravity-ui/uikit';
+import { Alert, Button, Loader } from '@gravity-ui/uikit';
 import { api, type Me } from './api';
 import Layout from './Layout';
 import LoginPage from './pages/LoginPage';
@@ -13,15 +13,16 @@ import AdminsPage from './pages/AdminsPage';
 import ServicesPage from './pages/ServicesPage';
 import SettingsPage from './pages/SettingsPage';
 import DiagnosticsPage from './pages/DiagnosticsPage';
+import { AppProviders } from './providers/AppProviders';
+import { normalizeTheme, type AppTheme } from './theme';
 
 export default function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
-  const [theme, setTheme] = useState<'dark' | 'light'>(
-    () => (localStorage.getItem('tgadmin-theme') === 'light' ? 'light' : 'dark'),
+  const [theme, setTheme] = useState<AppTheme>(() =>
+    normalizeTheme(localStorage.getItem('tgadmin-theme')),
   );
   useEffect(() => {
     localStorage.setItem('tgadmin-theme', theme);
-    document.documentElement.dataset.theme = theme;
   }, [theme]);
 
   useEffect(() => {
@@ -40,18 +41,18 @@ export default function App() {
 
   if (me === undefined) {
     return (
-      <ThemeProvider theme={theme}>
+      <AppProviders theme={theme}>
         <div className="page">
           <Loader size="l" />
         </div>
-      </ThemeProvider>
+      </AppProviders>
     );
   }
   if (me === null) {
     return (
-      <ThemeProvider theme={theme}>
+      <AppProviders theme={theme}>
         <LoginPage onLogin={setMe} />
-      </ThemeProvider>
+      </AppProviders>
     );
   }
   const logout = async () => {
@@ -71,7 +72,7 @@ export default function App() {
 
   if (me.require2fa?.enforced) {
     return (
-      <ThemeProvider theme={theme}>
+      <AppProviders theme={theme}>
         <div className="app-shell">
           <main className="page stack">
             <Alert
@@ -87,14 +88,14 @@ export default function App() {
             </div>
           </main>
         </div>
-      </ThemeProvider>
+      </AppProviders>
     );
   }
 
   return (
-    <ThemeProvider theme={theme}>
+    <AppProviders theme={theme}>
     <BrowserRouter>
-      <Layout me={me} onLogout={logout} theme={theme} onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+      <Layout me={me} onLogout={logout} theme={theme} onThemeChange={setTheme}>
         <Routes>
           <Route path="/" element={<UsersPage me={me} />} />
           <Route path="/users/new" element={<NewUserPage me={me} />} />
@@ -120,6 +121,6 @@ export default function App() {
         </Routes>
       </Layout>
     </BrowserRouter>
-    </ThemeProvider>
+    </AppProviders>
   );
 }

@@ -2,11 +2,6 @@ body { margin: 0; }
 #root { min-height: 100vh; }
 .app-shell { display: flex; flex-direction: column; min-height: 100vh; }
 .page { flex: 1 0 auto; max-width: 1180px; width: 100%; box-sizing: border-box; margin: 0 auto; padding: 24px; }
-.topbar { display: flex; gap: 16px; align-items: center; padding: 12px 24px; border-bottom: 1px solid var(--g-color-line-generic); }
-.topbar .brand { font-weight: 600; margin-right: 8px; }
-.topbar nav { display: flex; gap: 16px; flex: 1; }
-.topbar a { color: var(--g-color-text-link); text-decoration: none; }
-.topbar a.active { color: var(--g-color-text-primary); font-weight: 600; }
 .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .stack { display: flex; flex-direction: column; gap: 16px; }
 .qr { background: #fff; padding: 8px; width: 264px; border-radius: 8px; }
@@ -18,9 +13,6 @@ table { width: 100%; }
 textarea { font: inherit; background: transparent; color: inherit; border: 1px solid var(--g-color-line-generic); border-radius: 6px; padding: 8px; }
 select { font: inherit; }
 a[download] { text-decoration: none; }
-.menu-toggle { display: none; font: inherit; background: none; color: inherit; border: 1px solid var(--g-color-line-generic); border-radius: 6px; padding: 6px 10px; }
-.topbar-panel { display: flex; align-items: center; gap: 16px; flex: 1; }
-.topbar-user { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 .user-cards { display: flex; flex-direction: column; gap: 10px; }
 .footer { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 16px 24px; border-top: 1px solid var(--g-color-line-generic); color: var(--g-color-text-secondary); font-size: 13px; text-align: center; margin-top: auto; }
 .footer a { color: var(--g-color-text-link); text-decoration: none; }
@@ -80,12 +72,6 @@ table a:hover, .user-card a:hover { text-decoration: underline; text-underline-o
 
 @media (max-width: 760px) {
   .page { padding: 12px; }
-  .topbar { gap: 8px; padding: 8px 12px; flex-wrap: wrap; }
-  .menu-toggle { display: inline-block; margin-left: auto; }
-  .topbar-panel { display: none; order: 3; flex: 1 0 100%; flex-direction: column; align-items: flex-start; gap: 8px; width: 100%; }
-  .topbar-panel.open { display: flex; padding-top: 8px; border-top: 1px solid var(--g-color-line-generic); }
-  .topbar nav { flex-direction: column; align-items: flex-start; gap: 8px; }
-  .topbar-user { flex-wrap: wrap; margin-left: 0; }
   .footer { flex-direction: column; padding: 12px; }
 
   .qr { width: 200px; }

@@ -1,5 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { fileURLToPath } from 'node:url';
+
+const navigationEsm = fileURLToPath(
+  new URL('./node_modules/@gravity-ui/navigation/build/esm/index.js', import.meta.url),
+);
 
 export default defineConfig({
   plugins: [react()],
@@ -15,6 +20,7 @@ export default defineConfig({
     // e2e запускает Playwright, Vitest не должен подхватывать эти файлы.
     environment: 'jsdom',
     server: { deps: { inline: [/@gravity-ui\//] } },
+    alias: { '@gravity-ui/navigation': navigationEsm },
     setupFiles: ['./src/test/setup.ts'],
     exclude: ['node_modules/**', 'dist/**', 'e2e/**'],
     coverage: {

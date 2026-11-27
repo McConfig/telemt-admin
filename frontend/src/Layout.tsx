@@ -1,79 +1,167 @@
-import { useState, type ReactNode } from 'react';
-import { Link, NavLink } from 'react-router-dom';
-import { Alert, Button, Label } from '@gravity-ui/uikit';
-import { ArrowRightFromSquare, Moon, Sun } from '@gravity-ui/icons';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Alert } from '@gravity-ui/uikit';
+import { AsideHeader, FooterItem } from '@gravity-ui/navigation';
+import {
+  ArrowRightFromSquare,
+  FileText,
+  Gear,
+  Key,
+  Person,
+  Persons,
+  Server,
+  ShieldCheck,
+  Stethoscope,
+  Sun,
+} from '@gravity-ui/icons';
 import type { Me } from './api';
+import type { AppTheme } from './theme';
+import { ThemeSelect } from './components/ThemeSelect';
+import { ThemeDialog } from './components/ThemeDialog';
 import Footer from './Footer';
+
+const MENU_PATHS: Record<string, string> = {
+  clients: '/',
+  audit: '/audit',
+  admins: '/admins',
+  services: '/services',
+  settings: '/settings',
+  diagnostics: '/diagnostics',
+};
 
 export default function Layout({
   me,
   onLogout,
   theme,
-  onToggleTheme,
+  onThemeChange,
   children,
 }: {
   me: Me;
   onLogout: () => void;
-  theme: 'dark' | 'light';
-  onToggleTheme: () => void;
+  theme: AppTheme;
+  onThemeChange: (theme: AppTheme) => void;
   children: ReactNode;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const close = () => setMenuOpen(false);
-  const ThemeIcon = theme === 'dark' ? Sun : Moon;
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [themeDialogOpen, setThemeDialogOpen] = useState(false);
+  const [compact, setCompact] = useState(() => {
+    const saved = localStorage.getItem('tgadmin-sidebar-compact');
+    if (saved !== null) return saved === 'true';
+    return window.matchMedia('(max-width: 960px)').matches;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('tgadmin-sidebar-compact', String(compact));
+  }, [compact]);
+
+  const isAdmin = me.user.role === 'admin';
+  const current = (id: string) => {
+    switch (id) {
+      case 'clients':
+        return location.pathname === '/' || location.pathname.startsWith('/users');
+      case 'audit':
+        return location.pathname.startsWith('/audit');
+      case 'admins':
+        return location.pathname.startsWith('/admins');
+      case 'services':
+        return location.pathname.startsWith('/services');
+      case 'settings':
+        return location.pathname.startsWith('/settings');
+      case 'diagnostics':
+        return location.pathname.startsWith('/diagnostics');
+      default:
+        return false;
+    }
+  };
+
+  const menuItems = [
+    { id: 'clients', title: 'Клиенты', icon: Persons },
+    { id: 'audit', title: 'Аудит', icon: FileText },
+    ...(isAdmin
+      ? [
+          { id: 'admins', title: 'Пользователи UI', icon: ShieldCheck },
+          { id: 'services', title: 'Сервисные аккаунты', icon: Key },
+          { id: 'settings', title: 'Настройки', icon: Gear },
+          { id: 'diagnostics', title: 'Диагностика', icon: Stethoscope },
+        ]
+      : []),
+  ].map((item) => ({
+    ...item,
+    current: current(item.id),
+    onItemClick: () => navigate(MENU_PATHS[item.id] ?? '/'),
+  }));
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <span className="brand">TeleMT Admin</span>
-        <button
-          className="menu-toggle"
-          type="button"
-          aria-label="Меню"
-          onClick={() => setMenuOpen(!menuOpen)}
-        >
-          {menuOpen ? 'Закрыть' : 'Меню'}
-        </button>
-        <div className={`topbar-panel${menuOpen ? ' open' : ''}`}>
-          <nav onClick={close}>
-            <NavLink to="/" end>
-              Пользователи
-            </NavLink>
-            <NavLink to="/audit">Аудит</NavLink>
-            {me.user.role === 'admin' && <NavLink to="/admins">Пользователи UI</NavLink>}
-            {me.user.role === 'admin' && <NavLink to="/services">Сервисные аккаунты</NavLink>}
-            {me.user.role === 'admin' && <NavLink to="/settings">Настройки</NavLink>}
-            {me.user.role === 'admin' && <NavLink to="/diagnostics">Диагностика</NavLink>}
-          </nav>
-          <div className="topbar-user">
-            <Link to="/account" onClick={close} title={`Аккаунт, роль: ${me.user.role}`}>
-              <Label theme={me.user.role === 'admin' ? 'success' : 'info'} size="s">
-                {me.user.name}
-              </Label>
-            </Link>
-            <Button view="flat" aria-label="Переключить тему" title="Тема" onClick={onToggleTheme}>
-              <ThemeIcon width={18} height={18} />
-            </Button>
-            <Button view="flat" aria-label="Выйти" title="Выйти" onClick={onLogout}>
-              <ArrowRightFromSquare width={18} height={18} />
-            </Button>
-          </div>
-        </div>
-      </header>
-      <main className="page">
-        {me.require2fa?.enabled && !me.require2fa.enforced && (
-          <Alert
-            theme="warning"
-            message={
-              me.require2fa.daysLeft > 0
-                ? `2FA не включена. Через ${me.require2fa.daysLeft} дн. доступ к интерфейсу будет ограничен до её включения. Настройте её в разделе «Аккаунт».`
-                : '2FA не включена. Сегодня истекает льготный срок, после чего доступ будет ограничен. Настройте её в разделе «Аккаунт».'
-            }
-          />
+    <>
+      <AsideHeader
+        logo={{
+          text: 'TeleMT Admin',
+          icon: Server,
+          onClick: () => navigate('/'),
+        }}
+        compact={compact}
+        onChangeCompact={setCompact}
+        menuItems={menuItems}
+        menuDensity="compact"
+        menuOverflow="scroll"
+        aboveMenuContent={
+          compact ? null : (
+            <div style={{ padding: '8px 12px' }}>
+              <ThemeSelect theme={theme} onThemeChange={onThemeChange} />
+            </div>
+          )
+        }
+        renderFooter={() => (
+          <>
+            <FooterItem
+              id="account"
+              title={me.user.name}
+              icon={Person}
+              compact={compact}
+              onItemClick={() => navigate('/account')}
+            />
+            {compact && (
+              <FooterItem
+                id="theme"
+                title="Тема"
+                icon={Sun}
+                compact={compact}
+                onItemClick={() => setThemeDialogOpen(true)}
+              />
+            )}
+            <FooterItem
+              id="logout"
+              title="Выйти"
+              icon={ArrowRightFromSquare}
+              compact={compact}
+              onItemClick={onLogout}
+            />
+          </>
         )}
-        {children}
-      </main>
-      <Footer />
-    </div>
+        renderContent={() => (
+          <main className="page">
+            {me.require2fa?.enabled && !me.require2fa.enforced && (
+              <Alert
+                theme="warning"
+                message={
+                  me.require2fa.daysLeft > 0
+                    ? `2FA не включена. Через ${me.require2fa.daysLeft} дн. доступ к интерфейсу будет ограничен до её включения. Настройте её в разделе «Аккаунт».`
+                    : '2FA не включена. Сегодня истекает льготный срок, после чего доступ будет ограничен. Настройте её в разделе «Аккаунт».'
+                }
+              />
+            )}
+            {children}
+            <Footer />
+          </main>
+        )}
+      />
+      <ThemeDialog
+        open={themeDialogOpen}
+        theme={theme}
+        onThemeChange={onThemeChange}
+        onClose={() => setThemeDialogOpen(false)}
+      />
+    </>
   );
 }
