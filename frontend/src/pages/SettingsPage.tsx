@@ -347,19 +347,21 @@ export default function SettingsPage() {
       {tab === 'system' && <SystemPanel />}
       {tab === 'history' && <HistoryPanel />}
 
-      <div className="settings-save">
-        <Text className="muted">
-          {changesCount > 0 ? `${changesCount} изменений` : 'нет изменений'}
-        </Text>
-        <Button
-          view="action"
-          loading={busy}
-          disabled={changesCount === 0}
-          onClick={() => void save()}
-        >
-          Сохранить настройки
-        </Button>
-      </div>
+      {tab !== 'proxy' && (
+        <div className="settings-save">
+          <Text className="muted">
+            {changesCount > 0 ? `${changesCount} изменений` : 'нет изменений'}
+          </Text>
+          <Button
+            view="action"
+            loading={busy}
+            disabled={changesCount === 0}
+            onClick={() => void save()}
+          >
+            Сохранить настройки
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

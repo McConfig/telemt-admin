@@ -99,6 +99,7 @@ func newServer(token, domain string) *server {
 			},
 			"censorship": map[string]any{"tls_domain": domain, "mask": true},
 			"server":     map[string]any{"listeners": []any{map[string]any{"ip": "0.0.0.0"}}},
+			"upstreams":  []any{map[string]any{"address": "149.154.167.51:443", "enabled": true}},
 		},
 	}
 	s.revision = configRevision(s.config)
@@ -454,6 +455,7 @@ func (s *server) handleConfigSchema(w http.ResponseWriter, _ *http.Request) {
 			{"path": "general.modes.tls", "value": map[string]any{"type": "boolean"}, "api": map[string]any{"config_read": true, "config_write": true}},
 			{"path": "censorship.tls_domain", "value": map[string]any{"type": "string"}, "api": map[string]any{"config_read": true, "config_write": true}},
 			{"path": "censorship.mask", "value": map[string]any{"type": "boolean"}, "api": map[string]any{"config_read": true, "config_write": true}},
+			{"path": "upstreams", "value": map[string]any{"type": "array", "items": map[string]any{"type": "object"}}, "api": map[string]any{"config_read": true, "config_write": true}},
 			{"path": "server.port", "value": map[string]any{"type": "integer"}, "api": map[string]any{"config_read": false, "config_write": false}, "non_editable_reason": "process_owned"},
 		},
 	})
