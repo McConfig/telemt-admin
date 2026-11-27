@@ -1,3 +1,8 @@
+import type {
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+} from '@simplewebauthn/browser';
+
 export type Role = 'admin' | 'viewer';
 
 export interface Meta {
@@ -543,13 +548,21 @@ export const api = {
   logout: () => request<void>('POST', '/api/logout'),
   passkeys: () => request<Passkey[]>('GET', '/api/account/webauthn'),
   passkeyRegisterBegin: (password: string, name: string) =>
-    request<unknown>('POST', '/api/account/webauthn/register/begin', { password, name }),
+    request<{ publicKey: PublicKeyCredentialCreationOptionsJSON }>(
+      'POST',
+      '/api/account/webauthn/register/begin',
+      { password, name },
+    ),
   passkeyRegisterFinish: (credential: unknown) =>
     request<Passkey>('POST', '/api/account/webauthn/register/finish', credential),
   passkeyDelete: (id: string, password: string) =>
     request<void>('DELETE', `/api/account/webauthn/${encodeURIComponent(id)}`, { password }),
   passkeyLoginBegin: () =>
-    request<unknown>('POST', '/api/login/webauthn/begin', {}),
+    request<{ publicKey: PublicKeyCredentialRequestOptionsJSON }>(
+      'POST',
+      '/api/login/webauthn/begin',
+      {},
+    ),
   passkeyLoginFinish: (credential: unknown) =>
     request<Me>('POST', '/api/login/webauthn/finish', credential),
   users: () => request<ProxyUser[]>('GET', '/api/users'),

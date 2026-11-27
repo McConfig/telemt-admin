@@ -422,7 +422,7 @@ export default function AccountPage({
             setPasskeyError('');
             api
               .passkeyRegisterBegin(passkeyPassword, passkeyName)
-              .then((options) => startRegistration({ optionsJSON: options as never }))
+              .then((options) => startRegistration({ optionsJSON: options.publicKey }))
               .then((credential) => api.passkeyRegisterFinish(credential))
               .then(() => {
                 setPasskeyOpen(false);
@@ -430,9 +430,10 @@ export default function AccountPage({
                 setPasskeyPassword('');
                 load();
               })
-              .catch((err) =>
-                setPasskeyError(err instanceof ApiError ? err.message : 'не удалось добавить passkey'),
-              )
+              .catch((err) => {
+                console.error('passkey registration failed', err);
+                setPasskeyError(err instanceof ApiError ? err.message : 'не удалось добавить passkey');
+              })
               .finally(() => setPasskeyBusy(false));
           }}
           textButtonApply="Добавить"

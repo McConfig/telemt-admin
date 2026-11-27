@@ -41,6 +41,10 @@ docker compose --profile seed run --rm seed
 |---|---|
 | ![Список клиентов](docs/screenshots/clients.png) | ![Карточка клиента](docs/screenshots/client.png) |
 
+| Аккаунт: TOTP и passkeys | Аудит |
+|---|---|
+| ![Аккаунт](docs/screenshots/account.png) | ![Аудит](docs/screenshots/audit.png) |
+
 ## Возможности
 
 - боковая навигация Gravity UI `AsideHeader` со сворачиванием и сохранением

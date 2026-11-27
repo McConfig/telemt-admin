@@ -27,6 +27,10 @@ details, screenshots and cleanup.
 |---|---|
 | ![Client list](docs/screenshots/clients.png) | ![Client card](docs/screenshots/client.png) |
 
+| Account: TOTP and passkeys | Audit |
+|---|---|
+| ![Account](docs/screenshots/account.png) | ![Audit](docs/screenshots/audit.png) |
+
 ## Features
 
 - list proxy clients with connections, active IPs and traffic;
