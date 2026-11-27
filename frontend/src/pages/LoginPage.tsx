@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Alert, Button, Card, Text, TextInput } from '@gravity-ui/uikit';
-import { api, ApiError, type Me } from '../api';
+import { startAuthentication } from '@simplewebauthn/browser';
+import { api, ApiError, type Me, type MFARequired } from '../api';
 import Footer from '../Footer';
 
 export default function LoginPage({ onLogin }: { onLogin: (me: Me) => void }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [step, setStep] = useState<'password' | 'totp'>('password');
+  const [step, setStep] = useState<'password' | 'mfa'>('password');
+  const [mfa, setMfa] = useState<MFARequired | null>(null);
   const [code, setCode] = useState('');
   const [recovery, setRecovery] = useState(false);
   const [error, setError] = useState('');
@@ -18,8 +20,9 @@ export default function LoginPage({ onLogin }: { onLogin: (me: Me) => void }) {
     setError('');
     try {
       const result = await api.login(username, password);
-      if ('totpRequired' in result) {
-        setStep('totp');
+      if ('mfaRequired' in result) {
+        setMfa(result);
+        setStep('mfa');
         setCode('');
       } else {
         onLogin(result);
@@ -27,6 +30,19 @@ export default function LoginPage({ onLogin }: { onLogin: (me: Me) => void }) {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'не удалось войти');
     } finally {
+      setBusy(false);
+    }
+  };
+
+  const usePasskey = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      const options = await api.passkeyLoginBegin();
+      const credential = await startAuthentication({ optionsJSON: options as never });
+      onLogin(await api.passkeyLoginFinish(credential));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'passkey не сработал');
       setBusy(false);
     }
   };
@@ -73,23 +89,35 @@ export default function LoginPage({ onLogin }: { onLogin: (me: Me) => void }) {
           ) : (
             <form className="stack" onSubmit={submitCode}>
               <Text variant="header-2">Второй фактор</Text>
-              <Text className="muted">
-                {recovery
-                  ? 'Введите один из резервных кодов. Каждый работает один раз.'
-                  : 'Введите шестизначный код из приложения-аутентификатора.'}
-              </Text>
               {error && <Alert theme="danger" message={error} onClose={() => setError('')} />}
-              <TextInput
-                placeholder={recovery ? 'XXXX-XXXX' : '000000'}
-                value={code}
-                onUpdate={setCode}
-                autoComplete="one-time-code"
-                controlProps={{ 'aria-label': recovery ? 'Резервный код' : 'Код TOTP' }}
-                autoFocus
-              />
-              <Button view="action" type="submit" loading={busy} disabled={code.trim().length < 6}>
-                Подтвердить
-              </Button>
+              {mfa?.passkey && (
+                <>
+                  <Text className="muted">Подтвердите вход passkey или используйте код.</Text>
+                  <Button view="action" type="button" loading={busy} onClick={() => void usePasskey()}>
+                    Войти с passkey
+                  </Button>
+                </>
+              )}
+              {mfa?.totp && (
+                <div className="stack">
+                  <Text className="muted">
+                    {recovery
+                      ? 'Введите один из резервных кодов. Каждый работает один раз.'
+                      : 'Введите шестизначный код из приложения-аутентификатора.'}
+                  </Text>
+                  <TextInput
+                    placeholder={recovery ? 'XXXX-XXXX' : '000000'}
+                    value={code}
+                    onUpdate={setCode}
+                    autoComplete="one-time-code"
+                    controlProps={{ 'aria-label': recovery ? 'Резервный код' : 'Код TOTP' }}
+                    autoFocus
+                  />
+                  <Button view="action" type="submit" loading={busy} disabled={code.trim().length < 6}>
+                    Подтвердить
+                  </Button>
+                </div>
+              )}
               <div className="row" style={{ justifyContent: 'space-between' }}>
                 <Button
                   view="flat"
@@ -107,6 +135,7 @@ export default function LoginPage({ onLogin }: { onLogin: (me: Me) => void }) {
                   type="button"
                   onClick={() => {
                     setStep('password');
+                    setMfa(null);
                     setCode('');
                     setRecovery(false);
                     setError('');

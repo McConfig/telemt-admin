@@ -170,3 +170,17 @@ func decodePasskey(id string, m map[string]string) (*Passkey, error) {
 	p.BackupState, _ = strconv.ParseBool(m["backup_state"])
 	return p, nil
 }
+
+func webauthnChallengeKey(kind, key string) string {
+	return "auth:webauthn_" + kind + ":" + key
+}
+
+// SaveWebAuthnChallenge сохраняет challenge с TTL.
+func (s *Store) SaveWebAuthnChallenge(ctx context.Context, kind, key string, data []byte, ttl time.Duration) error {
+	return s.rdb.Set(ctx, webauthnChallengeKey(kind, key), data, ttl).Err()
+}
+
+// TakeWebAuthnChallenge читает и атомарно удаляет challenge.
+func (s *Store) TakeWebAuthnChallenge(ctx context.Context, kind, key string) ([]byte, error) {
+	return s.rdb.GetDel(ctx, webauthnChallengeKey(kind, key)).Bytes()
+}

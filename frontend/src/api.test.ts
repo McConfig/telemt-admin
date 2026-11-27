@@ -89,7 +89,12 @@ describe('api client — граничные ответы', () => {
       .mockResolvedValueOnce(jsonResponse({ totpRequired: true }))
       .mockResolvedValueOnce(jsonResponse({ user: { name: 'admin', role: 'admin' }, csrf: 'csrf-2' }));
     vi.stubGlobal('fetch', fetchMock);
-    await expect(api.login('admin', 'secret')).resolves.toEqual({ totpRequired: true });
+    await expect(api.login('admin', 'secret')).resolves.toEqual({
+      mfaRequired: true,
+      passkey: false,
+      totp: true,
+      totpRequired: true,
+    });
     await expect(api.loginTotp('123456')).resolves.toMatchObject({
       user: { name: 'admin', role: 'admin' },
     });

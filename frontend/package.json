@@ -23,6 +23,7 @@
     "@gravity-ui/table": "^2.0.0",
     "@gravity-ui/uikit": "^8.2.0",
     "@hello-pangea/dnd": "^18.0.1",
+    "@simplewebauthn/browser": "^14.0.0",
     "@tanstack/react-virtual": "^3.13.6",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

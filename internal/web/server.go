@@ -14,6 +14,7 @@ import (
 	"github.com/McConfig/telemt-admin/internal/settings"
 	"github.com/McConfig/telemt-admin/internal/store"
 	"github.com/McConfig/telemt-admin/internal/telemt"
+	"github.com/McConfig/telemt-admin/internal/webauthn"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -25,6 +26,7 @@ type Server struct {
 	cfg       *config.Config
 	store     *store.Store
 	telemt    *telemt.Client
+	passkeys  *webauthn.Service
 	settings  *settings.Service
 	notifier  Notifier
 	router    chi.Router
@@ -52,7 +54,8 @@ func (s *Server) SetCollectorStatus(fn func() collector.Status) {
 
 // New собирает сервер и маршруты.
 func New(cfg *config.Config, st *store.Store, tc *telemt.Client, metrics http.Handler) *Server {
-	s := &Server{cfg: cfg, store: st, telemt: tc, settings: settings.New(cfg, st), now: time.Now, startedAt: time.Now()}
+	passkeySvc, _ := webauthn.New(cfg, st)
+	s := &Server{cfg: cfg, store: st, telemt: tc, passkeys: passkeySvc, settings: settings.New(cfg, st), now: time.Now, startedAt: time.Now()}
 	sub, err := fs.Sub(distFS, "dist")
 	if err != nil {
 		panic(fmt.Sprintf("dist: %v", err))
@@ -75,6 +78,8 @@ func New(cfg *config.Config, st *store.Store, tc *telemt.Client, metrics http.Ha
 		r.Get("/meta", s.apiMeta)
 		r.Post("/login", s.apiLogin)
 		r.Post("/login/totp", s.apiLoginTOTP)
+		r.Post("/login/webauthn/begin", s.apiPasskeyLoginBegin)
+		r.Post("/login/webauthn/finish", s.apiPasskeyLoginFinish)
 		r.Group(func(r chi.Router) {
 			r.Use(s.withAPISession)
 			r.Get("/me", s.apiMe)
@@ -136,6 +141,10 @@ func New(cfg *config.Config, st *store.Store, tc *telemt.Client, metrics http.Ha
 				r.Post("/admins/{name}/sessions/revoke", s.apiRevokeAdminSessions)
 				r.Get("/audit.csv", s.apiAuditCSV)
 				r.Get("/audit", s.apiAudit)
+				r.Get("/account/webauthn", s.apiPasskeys)
+				r.Post("/account/webauthn/register/begin", s.apiPasskeyRegisterBegin)
+				r.Post("/account/webauthn/register/finish", s.apiPasskeyRegisterFinish)
+				r.Delete("/account/webauthn/{id}", s.apiPasskeyDelete)
 				r.Get("/account/sessions", s.apiSessions)
 				r.Post("/account/password", s.apiChangePassword)
 				r.Post("/account/sessions/{id}/revoke", s.apiRevokeSession)
