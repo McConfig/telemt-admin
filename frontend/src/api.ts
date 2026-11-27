@@ -56,6 +56,73 @@ export interface MFARequired {
 
 export type LoginResult = Me | MFARequired;
 
+export type ConfigBlockID =
+  | 'settings'
+  | 'limitTemplates'
+  | 'proxy'
+  | 'users'
+  | 'services'
+  | 'clients';
+
+export interface ConfigBlock {
+  id: ConfigBlockID;
+  title: string;
+}
+
+export interface ConfigDiffEntry {
+  path: string;
+  before?: unknown;
+  after?: unknown;
+  secret?: boolean;
+}
+
+export interface ConfigConflict {
+  name: string;
+  action: 'keep' | 'overwrite';
+  changes: string[];
+}
+
+export interface ConfigPlan {
+  id: string;
+  fileName: string;
+  blocks: Array<{ id: ConfigBlockID; title: string; changes: number; warnings: string[] }>;
+  diff: Record<string, ConfigDiffEntry[]>;
+  conflicts: Record<string, ConfigConflict[]>;
+  deletions: Record<string, string[]>;
+  expiresAt: string;
+}
+
+export interface ConfigBlockResult {
+  block: ConfigBlockID;
+  status: string;
+  applied?: number;
+  created?: number;
+  updated?: number;
+  skipped?: number;
+  deleted?: number;
+  error?: string;
+  passwords?: Record<string, string>;
+  links?: Record<string, string[]>;
+}
+
+export interface ProxySchemaField {
+  path: string;
+  value: Record<string, unknown>;
+  api: { config_read: boolean; config_write: boolean };
+  apply: { watcher: string; reload: string; effect: string };
+  non_editable_reason?: string;
+}
+
+export interface ProxySchema {
+  version: number;
+  fields: ProxySchemaField[];
+}
+
+export interface ProxyConfig {
+  revision: string;
+  config: Record<string, unknown>;
+}
+
 export interface Passkey {
   id: string;
   name: string;
@@ -674,6 +741,53 @@ export const api = {
   backups: () => request<BackupStatus>('GET', '/api/settings/backups'),
   backupSnapshot: () =>
     request<{ started: boolean }>('POST', '/api/settings/backups/snapshot'),
+  configBlocks: () => request<ConfigBlock[]>('GET', '/api/config/blocks'),
+  async exportConfig(body: {
+    blocks: ConfigBlockID[];
+    secrets?: boolean;
+    password?: string;
+    code?: string;
+  }): Promise<Blob> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (csrf) headers['X-CSRF-Token'] = csrf;
+    const res = await fetch('/api/config/export', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
+    });
+    if (!res.ok) {
+      await readResponse<never>(res);
+    }
+    return res.blob();
+  },
+  configPrecheck: (yaml: string, fileName = 'uploaded.tgadmin.yaml', password = '', code = '') =>
+    request<ConfigPlan>('POST', '/api/config/precheck', { yaml, fileName, password, code }),
+  configApply: (body: {
+    planId: string;
+    blocks: ConfigBlockID[];
+    modes?: Record<string, string>;
+    conflicts?: Record<string, Record<string, string>>;
+    deleteMissing?: boolean;
+    confirmName?: string;
+  }) =>
+    request<{ results: ConfigBlockResult[]; error?: string }>('POST', '/api/config/apply', body),
+  configPlan: (id: string) => request<ConfigPlan>('GET', `/api/config/plan/${encodeURIComponent(id)}`),
+  proxySchema: () => request<ProxySchema>('GET', '/api/proxy/schema'),
+  proxyConfig: () => request<ProxyConfig>('GET', '/api/proxy/config'),
+  proxyValidate: (patch: Record<string, unknown>) =>
+    request<{ ok: boolean; changedPaths: string[] }>('POST', '/api/proxy/validate', { patch }),
+  proxyApply: (patch: Record<string, unknown>, confirm: boolean) =>
+    request<{
+      revision: string;
+      changedPaths: string[];
+      reloadId: number;
+      runtimeReloadRequired: boolean;
+      processRestartRequired: boolean;
+      deferredProcessFields: string[];
+    }>('POST', '/api/proxy/apply', { patch, confirm }),
+  proxyReload: (id: number) =>
+    request<{ reload_id: number; state: string; phase?: string }>('GET', `/api/proxy/reload/${id}`),
   webhookTest: () =>
     request<{ sent: boolean; status: number }>('POST', '/api/settings/webhook/test'),
   system: () => request<SettingsSystem>('GET', '/api/settings/system'),
