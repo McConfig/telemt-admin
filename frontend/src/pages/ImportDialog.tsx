@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Dialog, Text, useFileInput } from '@gravity-ui/uikit';
-import { api, ApiError, type ImportResult } from '../api';
+import { Table, useTable } from '@gravity-ui/table';
+import type { ColumnDef } from '@gravity-ui/table/tanstack';
+import { api, ApiError, type ImportResult, type ImportRow } from '../api';
 
 const importHeader =
   'name,secret,max_unique_ips,max_tcp_conns,data_quota_bytes,quota_period,' +
@@ -138,40 +140,40 @@ export default function ImportDialog({
           </div>
           {summary && <Text>{summary}</Text>}
           {result && result.rows.length > 0 && (
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Строка</th>
-                    <th>Имя</th>
-                    <th>Статус</th>
-                    <th>Сообщение</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.rows.map((row) => (
-                    <tr key={`${row.line}-${row.name}`}>
-                      <td>{row.line}</td>
-                      <td>{row.name || '—'}</td>
-                      <td>
-                        {row.status === 'create'
-                          ? result.dryRun
-                            ? 'создать'
-                            : 'создано'
-                          : row.status === 'skip'
-                            ? 'пропуск'
-                            : 'ошибка'}
-                      </td>
-                      <td>{row.message ?? ''}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ImportRowsTable rows={result.rows} dryRun={result.dryRun} />
           )}
         </div>
       </Dialog.Body>
       <Dialog.Footer onClickButtonCancel={onClose} textButtonCancel="Закрыть" />
     </Dialog>
+  );
+}
+
+function ImportRowsTable({ rows, dryRun }: { rows: ImportRow[]; dryRun: boolean }) {
+  const columns = useMemo<ColumnDef<ImportRow>[]>(
+    () => [
+      { id: 'line', header: 'Строка', cell: ({ row }) => row.original.line },
+      { id: 'name', header: 'Имя', cell: ({ row }) => row.original.name || '—' },
+      {
+        id: 'status',
+        header: 'Статус',
+        cell: ({ row }) =>
+          row.original.status === 'create'
+            ? dryRun
+              ? 'создать'
+              : 'создано'
+            : row.original.status === 'skip'
+              ? 'пропуск'
+              : 'ошибка',
+      },
+      { id: 'message', header: 'Сообщение', cell: ({ row }) => row.original.message ?? '' },
+    ],
+    [dryRun],
+  );
+  const table = useTable({ columns, data: rows });
+  return (
+    <div className="table-scroll">
+      <Table table={table} />
+    </div>
   );
 }

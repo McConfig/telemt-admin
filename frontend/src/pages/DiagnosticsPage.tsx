@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Label, Loader, Text } from '@gravity-ui/uikit';
+import { Table, useTable } from '@gravity-ui/table';
+import type { ColumnDef } from '@gravity-ui/table/tanstack';
 import { api, ApiError, type Diagnostics } from '../api';
 import { formatTime } from '../format';
 
@@ -210,32 +212,41 @@ export default function DiagnosticsPage() {
           <Card view="filled" style={{ padding: 16 }}>
             <div className="stack">
               <Text variant="header-1">Коды ошибок Control API</Text>
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Код</th>
-                      <th>Что проверить</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {errorHints.map(([code, hint]) => (
-                      <tr key={code}>
-                        <td>
-                          <Label size="s" theme={data.telemt.code === code ? 'danger' : 'unknown'}>
-                            {code}
-                          </Label>
-                        </td>
-                        <td>{hint}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ErrorHintsTable hints={errorHints} activeCode={data.telemt.code} />
             </div>
           </Card>
         </>
       )}
+    </div>
+  );
+}
+
+function ErrorHintsTable({
+  hints,
+  activeCode,
+}: {
+  hints: [string, string][];
+  activeCode?: string;
+}) {
+  const columns = useMemo<ColumnDef<[string, string]>[]>(
+    () => [
+      {
+        id: 'code',
+        header: 'Код',
+        cell: ({ row }) => (
+          <Label size="s" theme={activeCode === row.original[0] ? 'danger' : 'unknown'}>
+            {row.original[0]}
+          </Label>
+        ),
+      },
+      { id: 'hint', header: 'Что проверить', cell: ({ row }) => row.original[1] },
+    ],
+    [activeCode],
+  );
+  const table = useTable({ columns, data: hints });
+  return (
+    <div className="table-scroll">
+      <Table table={table} />
     </div>
   );
 }

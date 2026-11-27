@@ -5,7 +5,6 @@ import AdminsPage from './AdminsPage';
 import { me } from '../test/data';
 import { renderUI } from '../test/render';
 import { stubFetch } from '../test/stubFetch';
-import { chooseSelect } from '../test/select';
 
 const admin = (overrides: Record<string, unknown> = {}) => ({
   name: 'other',

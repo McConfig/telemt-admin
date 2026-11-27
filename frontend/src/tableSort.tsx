@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Button } from '@gravity-ui/uikit';
 
 export type SortRule = { id: string; desc: boolean };
 
@@ -21,8 +22,9 @@ export function useTableSort(initial: SortRule[] = []) {
     const index = sorting.findIndex((item) => item.id === id);
     const active = index !== -1;
     return (
-      <button
-        type="button"
+      <Button
+        view="flat"
+        size="s"
         className={`th-sort${active ? ' th-sort-active' : ''}`}
         onClick={() => toggleSort(id)}
         title="Сортировать: по возрастанию, по убыванию, выключить"
@@ -34,7 +36,7 @@ export function useTableSort(initial: SortRule[] = []) {
             {sorting.length > 1 ? index + 1 : ''}
           </span>
         )}
-      </button>
+      </Button>
     );
   };
 
