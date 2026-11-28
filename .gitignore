@@ -30,3 +30,7 @@ coverage.out
 frontend/coverage/
 
 /deploy/backup-config/
+
+# AI-артефакты Superpowers: только локально, не коммитить
+/docs/superpowers/
+/.superpowers/
