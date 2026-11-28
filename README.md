@@ -139,7 +139,6 @@ curl -H "Authorization: Bearer tgadm_..." https://tgadmin.example.com/api/users
 - [Диагностика и ошибки API](docs/DIAGNOSTICS.md).
 - [Участие](CONTRIBUTING.md) и [кодекс поведения](CODE_OF_CONDUCT.md).
 - [Управление проектом](GOVERNANCE.md).
-- [Решения по архитектуре](docs/adr/README.md) — ADR.
 - [Демо-стенд](deploy/demo/README.md) — фейковый telemt и скриншоты.
 
 ## Архитектура
