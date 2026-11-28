@@ -78,7 +78,6 @@ your networks.
 - [Roadmap](docs/ROADMAP.md)
 - [Coding standards](docs/CODING_STANDARDS.md)
 - [Dependencies](docs/DEPENDENCIES.md)
-- [Architecture decisions](docs/adr/README.md)
 - [Achievements](docs/ACHIEVEMENTS.md)
 - [Security assurance case](docs/ASSURANCE.md)
 - [Demo stack](deploy/demo/README.md)
